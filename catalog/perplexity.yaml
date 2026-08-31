@@ -1,0 +1,32 @@
+# Perplexity Ask MCP 服務模板
+#
+# 本地 image: perplexity-mcp-server (HTTP 模式, port 8080)
+# 官方 API 文件: https://docs.perplexity.ai/
+
+id: perplexity-ask
+name: Perplexity Ask
+description: AI-powered search and Q&A via Perplexity's API. Great for real-time web research.
+category: search
+icon: perplexity.svg
+
+# 離線安裝用的 image tar(位於 catalog/images/;docker load 原生支援 gzip)。
+# 不用預設約定的 <id>.tar,改為明確指定實際檔名。
+image_tar: perplexity.tar.gz
+
+docker:
+  image: perplexity-mcp-server
+  tag: latest
+  args: ["--rm"]
+  transport: http
+  container_port: 8080
+
+env_vars:
+  - name: PERPLEXITY_API_KEY
+    label: Perplexity API Key
+    help: "申請 API key:https://www.perplexity.ai/settings/api"
+    required: true
+    secret: true
+    pattern: "^pplx-"
+    error_message: "API key should start with 'pplx-'"
+
+docs_url: https://docs.perplexity.ai/
