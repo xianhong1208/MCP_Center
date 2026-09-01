@@ -1,10 +1,10 @@
 """Database-related Exceptions"""
 
 from typing import Optional
-from src.exceptions.base import TokenServerHTTPException
+from src.exceptions.base import MCPCenterHTTPException
 
 
-class DatabaseError(TokenServerHTTPException):
+class DatabaseError(MCPCenterHTTPException):
     """Base database error"""
 
     code = "DATABASE_ERROR"
@@ -12,7 +12,7 @@ class DatabaseError(TokenServerHTTPException):
     status_code = 500
 
 
-class RecordNotFoundError(TokenServerHTTPException):
+class RecordNotFoundError(MCPCenterHTTPException):
     """Record does not exist in database"""
 
     code = "RECORD_NOT_FOUND"
@@ -33,7 +33,7 @@ class RecordNotFoundError(TokenServerHTTPException):
         super().__init__(details=details, **kwargs)
 
 
-class DuplicateRecordError(TokenServerHTTPException):
+class DuplicateRecordError(MCPCenterHTTPException):
     """Record already exists (unique constraint violation)"""
 
     code = "DUPLICATE_RECORD"

@@ -1,13 +1,14 @@
-"""受 MCP Center 保護的 FastMCP server 範例。
+"""A FastMCP server protected by MCP Center.
 
     uv run python examples/fastmcp_server.py
 
-前置:MCP Center 跑在 http://localhost:4568,並在管理台 Services 登錄了
-host=127.0.0.1 port=8000 path=/mcp 的服務(audience = http://127.0.0.1:8000/mcp)。
+Prerequisites: MCP Center is running at http://localhost:4568 and this server is
+registered in the console (Services -> Register Service) with host 127.0.0.1,
+port 8000 and path /mcp, so its audience is http://127.0.0.1:8000/mcp.
 
-之後用任何支援 OAuth 的 MCP client 連 http://127.0.0.1:8000/mcp 即可,例如:
+Then connect any OAuth-capable MCP client to http://127.0.0.1:8000/mcp, e.g.
     claude mcp add --transport http demo http://127.0.0.1:8000/mcp
-或用管理台簽的 Personal Access Token:
+or use a personal access token issued from the console:
     claude mcp add --transport http demo http://127.0.0.1:8000/mcp --header "Authorization: Bearer <PAT>"
 """
 
@@ -30,7 +31,7 @@ auth = RemoteAuthProvider(
         jwks_uri=f"{MCP_CENTER}/.well-known/jwks.json",
         issuer=MCP_CENTER,
         audience=AUDIENCE,
-        # required_scopes=["mcp:tools:invoke"],  # 想強制 scope 時打開
+        # required_scopes=["mcp:tools:invoke"],  # uncomment to require a scope
     ),
     authorization_servers=[AnyHttpUrl(MCP_CENTER)],
     base_url=BASE_URL,
@@ -41,13 +42,13 @@ mcp = FastMCP(name="demo", instructions="MCP Center demo server", auth=auth)
 
 @mcp.tool
 def hello(name: str) -> str:
-    """打招呼。"""
+    """Return a greeting."""
     return f"Hello, {name}!"
 
 
 @mcp.tool
 def whoami() -> dict:
-    """看看目前這張 token 是誰、給哪個 client、有哪些 scope。"""
+    """Return the subject, client_id and scopes of the current access token."""
     token = get_access_token()
     return {
         "subject": token.subject,

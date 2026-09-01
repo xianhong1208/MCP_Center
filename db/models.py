@@ -339,7 +339,9 @@ class OAuthToken(Base):
 
     jti = Column(String(64), primary_key=True)
     kind = Column(String(16), nullable=False, index=True)
-    client_id = Column(String(64), ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), nullable=False, index=True)
+    # 刪除 client 時保留 token 歷史(client_id 變 NULL、client_name_snapshot 留名字)
+    client_id = Column(String(64), ForeignKey("oauth_clients.client_id", ondelete="SET NULL"), nullable=True, index=True)
+    client_name_snapshot = Column(String(128), nullable=True)
     user_id = Column(Uuid, ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True, index=True)
     sub = Column(String(128), nullable=False)
     audience = Column(String(256), nullable=True, index=True)
@@ -372,7 +374,8 @@ class OAuthToken(Base):
             "jti": self.jti,
             "kind": self.kind,
             "client_id": self.client_id,
-            "client_name": self.client.client_name if self.client else None,
+            "client_name": self.client.client_name if self.client else self.client_name_snapshot,
+            "client_deleted": self.client is None and self.client_name_snapshot is not None,
             "user_id": str(self.user_id) if self.user_id else None,
             "user_email": self.user.email if self.user else None,
             "sub": self.sub,
@@ -399,6 +402,7 @@ class OAuthConsent(Base):
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id = Column(Uuid, ForeignKey("admin_users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # client 被刪就沒有東西可以再被授權,同意紀錄一起刪(token 歷史另在 oauth_tokens 保留)
     client_id = Column(String(64), ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), nullable=False, index=True)
     audience = Column(String(256), nullable=True)
     scope = Column(String(512), nullable=True)

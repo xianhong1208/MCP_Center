@@ -59,6 +59,7 @@ class ClientCreateRequest(BaseModel):
 @router.get("/clients")
 async def list_clients(status: str = Query("all"), db: Session = Depends(get_db),
                        _: AdminUser = Depends(get_current_user)):
+    """List OAuth clients. `status` = all | approved | pending | revoked."""
     clients = OAuthClientAdapter.list_all(db, status=status)
     return {"clients": [c.to_dict() for c in clients], "total": len(clients)}
 
@@ -78,6 +79,7 @@ async def create_client(body: ClientCreateRequest, request: Request, db: Session
 
 @router.get("/clients/{client_id}")
 async def get_client(client_id: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """One client with its count of active tokens."""
     try:
         client = OAuthClientAdapter.get_existing(db, client_id)
     except AdapterError as e:
@@ -90,6 +92,7 @@ async def get_client(client_id: str, db: Session = Depends(get_db), _: AdminUser
 @router.post("/clients/{client_id}/approve")
 async def approve_client(client_id: str, request: Request, db: Session = Depends(get_db),
                          user: AdminUser = Depends(get_current_user)):
+    """Approve a dynamically registered client (only needed when OAUTH_DCR_AUTO_APPROVE=false)."""
     try:
         client = OAuthClientAdapter.get_existing(db, client_id)
     except AdapterError as e:
@@ -122,6 +125,7 @@ async def revoke_client(client_id: str, request: Request, db: Session = Depends(
 @router.delete("/clients/{client_id}")
 async def delete_client(client_id: str, request: Request, db: Session = Depends(get_db),
                         user: AdminUser = Depends(get_current_user)):
+    """Delete a client. Its token history is kept with the client name snapshotted; its remembered consents are removed."""
     try:
         client = OAuthClientAdapter.get_existing(db, client_id)
     except AdapterError as e:
@@ -143,6 +147,7 @@ class ScopeUpsertRequest(BaseModel):
 
 @router.get("/scopes")
 async def list_scopes(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """The scope registry (what tokens may be granted)."""
     scopes = OAuthScopeAdapter.list_all(db)
     return {"scopes": [s.to_dict() for s in scopes], "total": len(scopes)}
 
@@ -150,6 +155,7 @@ async def list_scopes(db: Session = Depends(get_db), _: AdminUser = Depends(get_
 @router.put("/scopes/{name}")
 async def upsert_scope(name: str, body: ScopeUpsertRequest, db: Session = Depends(get_db),
                        _: AdminUser = Depends(get_current_user)):
+    """Create or update a scope and whether it is granted by default."""
     name = name.strip()
     if not name or " " in name:
         raise HTTPException(status_code=400, detail={"error": "oauth.invalid_scope_name", "fallback": "Invalid scope name"})
@@ -158,6 +164,7 @@ async def upsert_scope(name: str, body: ScopeUpsertRequest, db: Session = Depend
 
 @router.delete("/scopes/{name}")
 async def delete_scope(name: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Delete a scope from the registry."""
     if not OAuthScopeAdapter.delete(db, name):
         raise HTTPException(status_code=404, detail={"error": "oauth.scope_not_found", "fallback": "Scope not found"})
     return {"message": "Scope deleted"}
@@ -177,6 +184,7 @@ class PersonalTokenRequest(BaseModel):
 async def list_tokens(kind: Optional[str] = None, service_id: Optional[str] = None, client_id: Optional[str] = None,
                       include_inactive: bool = False, limit: int = Query(200, ge=1, le=1000),
                       db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Tokens issued by MCP Center. Filter by kind (access | refresh | pat), service, client; `include_inactive` adds revoked and expired ones."""
     tokens = OAuthTokenAdapter.list_all(db, kind=kind, service_id=service_id, client_id=client_id,
                                         include_inactive=include_inactive, limit=limit)
     return {"tokens": [t.to_dict() for t in tokens], "total": len(tokens)}
@@ -201,6 +209,7 @@ async def create_personal_token(body: PersonalTokenRequest, request: Request, db
 
 @router.get("/tokens/{jti}")
 async def get_token(jti: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """One token record (never the token value)."""
     try:
         return OAuthTokenAdapter.get_existing(db, jti).to_dict()
     except AdapterError as e:
@@ -210,6 +219,7 @@ async def get_token(jti: str, db: Session = Depends(get_db), _: AdminUser = Depe
 @router.post("/tokens/{jti}/revoke")
 async def revoke_token(jti: str, request: Request, db: Session = Depends(get_db),
                        user: AdminUser = Depends(get_current_user)):
+    """Revoke a token. Revoking a refresh token revokes the access tokens derived from it."""
     try:
         rec = OAuthTokenAdapter.get_existing(db, jti)
     except AdapterError as e:
@@ -226,12 +236,14 @@ async def revoke_token(jti: str, request: Request, db: Session = Depends(get_db)
 # ---------------------------------------------------------------------------
 @router.get("/consents")
 async def list_consents(db: Session = Depends(get_db), user: AdminUser = Depends(get_current_user)):
+    """Consents the signed-in owner has remembered (client + server + scopes)."""
     consents = OAuthConsentAdapter.list_for_user(db, user.id)
     return {"consents": [c.to_dict() for c in consents], "total": len(consents)}
 
 
 @router.delete("/consents/{consent_id}")
 async def delete_consent(consent_id: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Forget a remembered consent; the client will ask again next time."""
     if not OAuthConsentAdapter.delete(db, consent_id):
         raise HTTPException(status_code=404, detail={"error": "oauth.consent_not_found", "fallback": "Consent not found"})
     return {"message": "Consent removed"}
@@ -242,12 +254,14 @@ async def delete_consent(consent_id: str, db: Session = Depends(get_db), _: Admi
 # ---------------------------------------------------------------------------
 @router.get("/keys")
 async def list_keys(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Signing keys published in JWKS, with the active one marked."""
     keys = OAuthKeyAdapter.list_all(db)
     return {"keys": [k.to_dict() for k in keys], "total": len(keys)}
 
 
 @router.post("/keys/rotate")
 async def rotate_key(request: Request, db: Session = Depends(get_db), user: AdminUser = Depends(get_current_user)):
+    """Create a new active signing key. Old keys stay in JWKS so existing tokens keep verifying."""
     key = signing_keys.rotate_signing_key(db)
     _audit(db, request, user, AuditAction.OAUTH_KEY_ROTATE, ResourceType.SYSTEM, key.kid)
     return key.to_dict()
@@ -259,6 +273,7 @@ async def rotate_key(request: Request, db: Session = Depends(get_db), user: Admi
 @router.get("/activity")
 async def activity(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db),
                    _: AdminUser = Depends(get_current_user)):
+    """Recent token events: issued, introspected, revoked."""
     rows = TokenUsageAdapter.recent(db, limit=limit)
     return {"events": [{
         "at": r.used_at.isoformat() if r.used_at else None,
@@ -270,6 +285,7 @@ async def activity(limit: int = Query(50, ge=1, le=500), db: Session = Depends(g
 
 @router.get("/overview")
 async def overview(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Counts for the dashboard: clients, active tokens, tokens issued in the last day and week."""
     return {
         "issuer": oauth.issuer(),
         "clients": len(OAuthClientAdapter.list_all(db, status="approved")),
@@ -289,6 +305,7 @@ async def overview(db: Session = Depends(get_db), _: AdminUser = Depends(get_cur
 @router.get("/snippets/{service_id}")
 async def integration_snippets(service_id: str, db: Session = Depends(get_db),
                                _: AdminUser = Depends(get_current_user)):
+    """Ready-to-paste FastMCP server, FastMCP client, Claude Code and mcpServers JSON snippets for one MCP server."""
     try:
         service = ServiceAdapter.get_existing(db, service_id)
     except AdapterError as e:

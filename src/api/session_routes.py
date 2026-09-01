@@ -87,6 +87,7 @@ async def setup(request: SetupRequest, http_request: Request, db: Session = Depe
 
 @router.post("/login")
 async def login(request: LoginRequest, http_request: Request, db: Session = Depends(get_db)):
+    """Sign in with email and password; sets the `mcp_session` cookie."""
     try:
         user = identity_service.authenticate_local(db, email=request.email, password=request.password)
     except IdentityError as e:
@@ -105,11 +106,13 @@ async def login(request: LoginRequest, http_request: Request, db: Session = Depe
 
 @router.post("/logout")
 async def logout():
+    """Clear the session cookie."""
     return session_manager.clear_cookie(JSONResponse(content={"message": "Logged out"}))
 
 
 @router.get("/me")
 async def me(current_user: AdminUser = Depends(get_current_user)):
+    """The signed-in user."""
     return {
         **current_user.to_dict(),
         "idle_timeout_minutes": identity_service.session_idle_timeout_minutes(),
@@ -119,6 +122,7 @@ async def me(current_user: AdminUser = Depends(get_current_user)):
 @router.put("/me/profile")
 async def update_profile(request: UpdateProfileRequest, db: Session = Depends(get_db),
                          current_user: AdminUser = Depends(get_current_user)):
+    """Change the display name of the signed-in user."""
     try:
         user = identity_service.update_profile(db, current_user, username=request.username)
     except IdentityError as e:
@@ -158,6 +162,7 @@ def _safe_next(raw: Optional[str]) -> str:
 
 @router.get("/oauth/{provider}/start")
 async def oauth_login_start(provider: str, next: Optional[str] = None):
+    """Begin GitHub / Google sign-in: redirects to the provider with a CSRF state cookie."""
     providers = get_enabled_providers()
     if provider not in providers:
         raise HTTPException(status_code=404, detail={"error": "auth.provider_not_enabled",
@@ -177,6 +182,7 @@ async def oauth_login_start(provider: str, next: Optional[str] = None):
 async def oauth_login_callback(provider: str, request: Request, db: Session = Depends(get_db),
                                code: Optional[str] = None, state: Optional[str] = None,
                                error: Optional[str] = None):
+    """Provider callback: validates state, links or creates the account, sets the session cookie and redirects into the console."""
     providers = get_enabled_providers()
     if provider not in providers:
         raise HTTPException(status_code=404, detail={"error": "auth.provider_not_enabled",

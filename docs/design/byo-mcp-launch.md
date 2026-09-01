@@ -1,6 +1,14 @@
 # 設計文件:自帶啟動指令的 MCP(BYO MCP Launch)
 
-> **歷史設計文件**:寫於 RBAC 尚存在的版本。文中的 `super_admin` / `managed:byo` 權限在 1.0.0 已移除——現在所有登入的管理員都能建立 BYO 定義;Checkmarx 指企業時期的 SAST 掃描。其餘架構決策仍有效。
+> **歷史設計文件**:寫於 RBAC 尚存在的版本,保留作為決策紀錄。與 1.0.0 實作不同之處:
+>
+> | 文中 | 1.0.0 實作 |
+> |---|---|
+> | `super_admin` / `managed:byo` 權限 | 已移除;所有登入的管理員都能建立、部署 BYO 定義 |
+> | `/auth/byo-mcp*`、`/auth/managed` | `/api/byo-mcp`、`/api/byo-mcp/{id}`、`/api/byo-mcp/{id}/deploy`、`/api/managed` |
+> | 基底 image `node:20-alpine` / `python:3.12-slim` | 單一受控 image `mcp-runtime:1`(`deploy/mcp-runtime/Dockerfile`,可用 `MCP_RUNTIME_IMAGE` 覆寫) |
+> | Service 成員(owner / viewer) | 已移除(單租戶) |
+> | Checkmarx | 指企業時期的 SAST 掃描 |
 
 > 狀態:**已實作 v2**(P1–P6 完成;決策 Q1=不支援掛載起步、Q2=打包成 image、Q3=全做)
 > 日期:2026-08-26
@@ -254,4 +262,3 @@ start / stop / uninstall 沿用現有 managed 端點。
   → 建議選項 1 起步。
 - **Q2 離線 npx/uvx**(§10):選項 1/2/3?→ 建議選項 3(打包成 image)。
 - **Q3 範圍**:P1–P6 全做,還是先 P1–P4(後端 + API)讓你用 API 先驗,前端(P5)另排?
-```

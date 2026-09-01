@@ -64,11 +64,13 @@ def _audit(db, request, user, action, resource_type, resource_id, details=None, 
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
+    """Liveness probe. Public."""
     return HealthResponse(status="ok", service="mcp-center")
 
 
 @router.get("/api/system/version", tags=["System"])
 async def get_version():
+    """Version and build information. Public."""
     return {
         "version": __version__, "build_time": __build_time__, "build_commit": __build_commit__,
         "python_version": platform.python_version(), "platform": platform.system(),
@@ -84,6 +86,7 @@ async def list_services(
     include_inactive: bool = Query(False),
     db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user),
 ):
+    """List registered MCP servers with health, audience and tool counts."""
     services = ServiceAdapter.get_all(db, include_inactive=include_inactive, health_status=health_status,
                                       source=source, tag=tag, requires_auth=requires_auth)
     items = [_service_info(s) for s in services]
@@ -93,6 +96,7 @@ async def list_services(
 @router.post("/api/services", response_model=ServiceInfo, status_code=201, tags=["Services"])
 async def create_service(request: ServiceCreateRequest, http_request: Request, db: Session = Depends(get_db),
                          user: AdminUser = Depends(get_current_user)):
+    """Register an MCP server. The audience defaults to its MCP URL unless `oauth_audience` is given."""
     try:
         service = ServiceAdapter.create_checked(
             db, name=request.name, description=request.description, host=request.host, port=request.port,
@@ -111,6 +115,7 @@ async def create_service(request: ServiceCreateRequest, http_request: Request, d
 @router.get("/api/services/{service_id}", response_model=ServiceInfo, tags=["Services"])
 async def get_service(service_id: str, include_tools: bool = Query(False), db: Session = Depends(get_db),
                       _: AdminUser = Depends(get_current_user)):
+    """One MCP server; `include_tools=true` embeds its tool list."""
     try:
         service = ServiceAdapter.get_existing(db, service_id)
     except AdapterError as e:
@@ -121,6 +126,7 @@ async def get_service(service_id: str, include_tools: bool = Query(False), db: S
 @router.put("/api/services/{service_id}", response_model=ServiceInfo, tags=["Services"])
 async def update_service(service_id: str, request: ServiceUpdateRequest, http_request: Request,
                          db: Session = Depends(get_db), user: AdminUser = Depends(get_current_user)):
+    """Update an MCP server. Send `auth_token` as an empty string to clear a stored static bearer token."""
     auth_token_encrypted = None
     if request.auth_token is not None:
         auth_token_encrypted = encrypt_token(request.auth_token) if request.auth_token else ""
@@ -141,6 +147,7 @@ async def update_service(service_id: str, request: ServiceUpdateRequest, http_re
 @router.delete("/api/services/{service_id}", tags=["Services"])
 async def delete_service(service_id: str, http_request: Request, db: Session = Depends(get_db),
                          user: AdminUser = Depends(get_current_user)):
+    """Delete an MCP server and its tool list and token events."""
     try:
         service = ServiceAdapter.get_existing(db, service_id)
     except AdapterError as e:
@@ -155,6 +162,7 @@ async def delete_service(service_id: str, http_request: Request, db: Session = D
 
 @router.get("/api/services/{service_id}/tools", tags=["Services"])
 async def get_service_tools(service_id: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Tools last synced from the MCP server."""
     try:
         service = ServiceAdapter.get_existing(db, service_id)
     except AdapterError as e:
@@ -201,11 +209,13 @@ async def refresh_service_tools(service_id: str, http_request: Request, db: Sess
 
 @router.post("/api/services/health-check-all", response_model=BulkHealthCheckResponse, tags=["Services"])
 async def check_all_services_health(_: AdminUser = Depends(get_current_user)):
+    """Run the health check for every active MCP server now (same path as the scheduler)."""
     return BulkHealthCheckResponse(**(await get_scheduler().run_health_check_now()))
 
 
 @router.get("/api/services/{service_id}/health", response_model=ServiceHealthCheckResponse, tags=["Services"])
 async def get_service_health(service_id: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Last known health of one MCP server."""
     try:
         service = ServiceAdapter.get_existing(db, service_id)
     except AdapterError as e:
@@ -217,6 +227,7 @@ async def get_service_health(service_id: str, db: Session = Depends(get_db), _: 
 
 @router.post("/api/services/{service_id}/health-check", response_model=ServiceHealthCheckResponse, tags=["Services"])
 async def check_service_health(service_id: str, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Run the health check for one MCP server now."""
     from src.discovery.health_monitor import resolve_service_auth_token
     from src.discovery.scanner import get_scanner
 
@@ -259,6 +270,7 @@ async def check_service_health(service_id: str, db: Session = Depends(get_db), _
 async def get_daily_stats(days: int = Query(7, ge=1, le=90), service_id: Optional[str] = Query(None),
                           event: Optional[str] = Query(None), db: Session = Depends(get_db),
                           _: AdminUser = Depends(get_current_user)):
+    """Token events per day."""
     stats = TokenUsageAdapter.get_daily_stats(db, days=days, service_id=service_id, event=event)
     return {"stats": stats, "total": sum(s["total"] for s in stats), "days": days, "service_id_filter": service_id}
 
@@ -267,6 +279,7 @@ async def get_daily_stats(days: int = Query(7, ge=1, le=90), service_id: Optiona
 async def get_hourly_stats(hours: int = Query(24, ge=1, le=168), service_id: Optional[str] = Query(None),
                            event: Optional[str] = Query(None), db: Session = Depends(get_db),
                            _: AdminUser = Depends(get_current_user)):
+    """Token events per hour."""
     stats = TokenUsageAdapter.get_hourly_stats(db, hours=hours, service_id=service_id, event=event)
     return {"stats": stats, "total": sum(s["total"] for s in stats), "hours": hours, "service_id_filter": service_id}
 
@@ -274,12 +287,14 @@ async def get_hourly_stats(hours: int = Query(24, ge=1, le=168), service_id: Opt
 @router.get("/api/stats/services", tags=["Statistics"])
 async def get_service_stats(days: int = Query(7, ge=1, le=90), db: Session = Depends(get_db),
                             _: AdminUser = Depends(get_current_user)):
+    """Token events per MCP server (audience) over the last N days."""
     stats = TokenUsageAdapter.get_service_stats(db, days=days)
     return {"stats": stats, "total": sum(s["total"] for s in stats), "days": days}
 
 
 @router.get("/api/stats/summary", tags=["Statistics"])
 async def get_stats_summary(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Token event totals: all time, 7 days, 24 hours."""
     return {
         "total_all_time": TokenUsageAdapter.get_total_count(db),
         "total_7_days": TokenUsageAdapter.get_total_count(db, days=7),
@@ -296,6 +311,7 @@ async def get_audit_logs(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=10000),
     db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user),
 ):
+    """Audit log entries, newest first, with filters and paging."""
     offset = (page - 1) * page_size
     logs = AuditService.get_logs(db=db, action=action, resource_type=resource_type, actor_name=actor_name,
                                  status=status, limit=page_size, offset=offset)
@@ -310,12 +326,14 @@ async def get_audit_logs(
 @router.get("/api/audit/stats", response_model=AuditLogStatsResponse, tags=["Audit"])
 async def get_audit_stats(days: int = Query(7, ge=1, le=90), db: Session = Depends(get_db),
                           _: AdminUser = Depends(get_current_user)):
+    """Audit log counts by action and outcome."""
     return AuditLogStatsResponse(**AuditService.get_stats(db=db, days=days))
 
 
 @router.delete("/api/audit/cleanup", tags=["Audit"])
 async def cleanup_audit_logs(http_request: Request, days: int = Query(90, ge=7, le=365),
                              db: Session = Depends(get_db), user: AdminUser = Depends(get_current_user)):
+    """Delete audit log entries older than N days."""
     deleted = AuditService.cleanup_old_logs(db=db, days=days)
     _audit(db, http_request, user, AuditAction.CLEANUP_EXPIRED, ResourceType.SYSTEM, None,
            {"deleted_count": deleted, "retention_days": days})
@@ -326,6 +344,7 @@ async def cleanup_audit_logs(http_request: Request, days: int = Query(90, ge=7, 
 
 @router.get("/api/system/scheduler/status", tags=["System"])
 async def get_scheduler_status(_: AdminUser = Depends(get_current_user)):
+    """Background jobs and their next run times."""
     scheduler = get_scheduler()
     jobs = []
     if scheduler.is_running():
@@ -345,6 +364,7 @@ async def get_scheduler_status(_: AdminUser = Depends(get_current_user)):
 
 @router.get("/api/system/dashboard", tags=["System"])
 async def get_dashboard_overview(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_user)):
+    """Everything the dashboard shows in one call."""
     services = ServiceAdapter.get_all(db)
     health_counts = {"online": 0, "offline": 0, "error": 0, "unknown": 0, "total": len(services)}
     offline_services = []
@@ -377,6 +397,7 @@ async def get_dashboard_overview(db: Session = Depends(get_db), _: AdminUser = D
 @router.post("/api/system/cleanup/run", tags=["System"])
 async def run_cleanup_now(http_request: Request, db: Session = Depends(get_db),
                           user: AdminUser = Depends(get_current_user)):
+    """Run the retention clean-up jobs now."""
     results = await get_scheduler().run_all_cleanup_now()
     _audit(db, http_request, user, AuditAction.CLEANUP_EXPIRED, ResourceType.SYSTEM, None, results)
     return {"message": "Cleanup completed", "results": results}
@@ -384,6 +405,7 @@ async def run_cleanup_now(http_request: Request, db: Session = Depends(get_db),
 
 @router.get("/api/system/whitelist", tags=["System"])
 async def get_ip_whitelist(_: AdminUser = Depends(get_current_user)):
+    """Rate-limit whitelist and trusted proxies in effect."""
     from src.config import Config
     from src.middleware import RateLimiter
 

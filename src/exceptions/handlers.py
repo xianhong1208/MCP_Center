@@ -3,22 +3,22 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from src.exceptions.base import TokenServerError
+from src.exceptions.base import MCPCenterError
 from src.logging import get_logger
 
 logger = get_logger("exceptions")
 
 
-async def token_server_exception_handler(
+async def mcp_center_exception_handler(
     request: Request,
-    exc: TokenServerError
+    exc: MCPCenterError
 ) -> JSONResponse:
-    """Handle TokenServerError exceptions
+    """Handle MCPCenterError exceptions
 
     Converts our custom exceptions to proper JSON responses.
     """
     logger.warning(
-        f"TokenServerError: {exc.code}",
+        f"MCPCenterError: {exc.code}",
         error_code=exc.code,
         error_message=exc.message,
         path=request.url.path,
@@ -38,4 +38,4 @@ def register_exception_handlers(app):
         app = FastAPI()
         register_exception_handlers(app)
     """
-    app.add_exception_handler(TokenServerError, token_server_exception_handler)
+    app.add_exception_handler(MCPCenterError, mcp_center_exception_handler)

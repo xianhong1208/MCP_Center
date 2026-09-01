@@ -59,11 +59,13 @@ async def _form(request: Request) -> dict:
 @router.get("/.well-known/oauth-authorization-server")
 @router.get("/.well-known/openid-configuration")
 async def authorization_server_metadata(db: Session = Depends(get_db)):
+    """Authorization server metadata (RFC 8414). Lists every OAuth endpoint, supported grants, PKCE methods and scopes. Public."""
     return JSONResponse(content=oauth.build_metadata(db), headers={"Cache-Control": "public, max-age=300"})
 
 
 @router.get("/.well-known/jwks.json")
 async def jwks(db: Session = Depends(get_db)):
+    """Public signing keys (JWKS). MCP servers fetch these to verify tokens offline; includes retired keys so older tokens still verify. Public."""
     return JSONResponse(content=get_jwks(db), headers={"Cache-Control": "public, max-age=300"})
 
 
@@ -72,6 +74,7 @@ async def jwks(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 @router.post("/oauth/register", status_code=201)
 async def register(request: Request, db: Session = Depends(get_db)):
+    """Dynamic client registration (RFC 7591). Returns a client_id (and a one-time client_secret for confidential clients). Public."""
     try:
         try:
             metadata = await request.json()
@@ -125,6 +128,7 @@ async def authorize(
 @router.get("/oauth/authorize/requests/{request_id}")
 async def get_authorization_request(request_id: str, db: Session = Depends(get_db),
                                     user: AdminUser = Depends(get_current_user)):
+    """Details of a pending authorization request for the consent screen: client, target server, requested scopes. Requires a console session."""
     try:
         req = oauth.get_pending_request(db, request_id)
     except OAuthError as e:
@@ -141,6 +145,7 @@ class DecisionRequest(BaseModel):
 @router.post("/oauth/authorize/requests/{request_id}/decision")
 async def decide_authorization_request(request_id: str, body: DecisionRequest, db: Session = Depends(get_db),
                                        user: AdminUser = Depends(get_current_user)):
+    """Approve or deny a pending authorization request. On approval an authorization code is issued; returns the URL to send the browser back to. Requires a console session."""
     try:
         req = oauth.get_pending_request(db, request_id)
     except OAuthError as e:
@@ -159,6 +164,7 @@ async def decide_authorization_request(request_id: str, body: DecisionRequest, d
 # ---------------------------------------------------------------------------
 @router.post("/oauth/token")
 async def token(request: Request, db: Session = Depends(get_db)):
+    """Token endpoint. Grants: `authorization_code` (with PKCE), `refresh_token` (rotating), `client_credentials`. Form-encoded body per OAuth 2.1."""
     try:
         form = await _form(request)
         grant_type = form.get("grant_type")
@@ -182,7 +188,7 @@ async def token(request: Request, db: Session = Depends(get_db)):
             if not refresh:
                 raise OAuthError("invalid_request", "missing refresh_token")
             body = oauth.refresh_token_grant(db, client=client, refresh_token=refresh,
-                                             requested_scope=form.get("scope"), ip=ip)
+                                             requested_scope=form.get("scope"), resource=form.get("resource"), ip=ip)
         elif grant_type == "client_credentials":
             body = oauth.client_credentials_grant(db, client=client, scope=form.get("scope"),
                                                   resource=form.get("resource"), ip=ip)
@@ -197,6 +203,7 @@ async def token(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/oauth/revoke")
 async def revoke(request: Request, db: Session = Depends(get_db)):
+    """Token revocation (RFC 7009). Only tokens issued to the authenticated client are revoked; always returns 200."""
     try:
         form = await _form(request)
         client = oauth.authenticate_client(db, authorization_header=request.headers.get("Authorization", ""), form=form)
@@ -210,13 +217,14 @@ async def revoke(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/oauth/introspect")
 async def introspect(request: Request, db: Session = Depends(get_db)):
-    """需 client 認證(FastMCP IntrospectionTokenVerifier 會帶 client_id / client_secret)。"""
+    """需 client 認證。public client 只能查自己的 token;confidential client(resource server)可查任何 token。"""
     try:
         form = await _form(request)
-        oauth.authenticate_client(db, authorization_header=request.headers.get("Authorization", ""), form=form)
+        caller = oauth.authenticate_client(db, authorization_header=request.headers.get("Authorization", ""), form=form)
         token_value = form.get("token")
         if not token_value:
             return JSONResponse(content={"active": False}, headers=NO_STORE)
-        return JSONResponse(content=oauth.introspect_token(db, token_value, ip=_client_ip(request)), headers=NO_STORE)
+        return JSONResponse(content=oauth.introspect_token(db, token_value, caller=caller, ip=_client_ip(request)),
+                            headers=NO_STORE)
     except OAuthError as e:
         return _error_json(e)

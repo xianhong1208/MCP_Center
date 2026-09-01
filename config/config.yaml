@@ -47,7 +47,8 @@ identity:
   google:
     client_id: "${GOOGLE_CLIENT_ID:-}"
     client_secret: "${GOOGLE_CLIENT_SECRET:-}"
-  # 允許經第三方登入「自動建立帳號」的 email(逗號分隔);空 = 只允許已存在的帳號
+  # 第三方登入時允許「自動建立帳號」的 email(YAML 清單;email 必須經 provider 驗證)。
+  # 空清單 = 只有已存在的帳號(或同 email 的帳號自動綁定)能用第三方登入。
   allowed_emails: []
   # 首次啟動自動建立擁有者帳號(兩者皆設才建立;不設則到 /setup 頁面建立)
   bootstrap_admin_email: "${ADMIN_EMAIL:-}"

@@ -107,6 +107,7 @@ async def scan_services(request: ScanRequest, http_request: Request, db: Session
 
 @router.post("/verify", response_model=VerifyResponse)
 async def verify_service(request: VerifyRequest, _: AdminUser = Depends(get_current_user)):
+    """Check whether host:port serves MCP and return its server info."""
     try:
         result = await get_scanner().verify_mcp_service(
             host=request.host, port=request.port, path=request.mcp_path, protocol=request.protocol,

@@ -1,17 +1,7 @@
 """MCP Center 版本資訊
 
-版本號的**唯一來源**是 `pyproject.toml` 的 `[project].version`。
-本模組於載入時「抓」pyproject,避免多處手動同步。
-
-解析順序(先檔案、後 metadata):
-  1. 直接讀 pyproject.toml — source checkout / 開發時永遠即時(不受 editable
-     安裝 metadata 過期影響)。
-  2. importlib.metadata — 已 pip 安裝但找不到 pyproject 時(由 pyproject 帶入)。
-  3. 退回 "0.0.0+unknown" — 避免 crash。
-
-> 打包(Nuitka onefile)注意:pyproject.toml 不在 bundle 內時第 1 步會失敗。
-> 請於 Build Center 打包時擇一:把 pyproject.toml 納入 data、含套件 metadata,
-> 或如同 __build_time__/__build_commit__ 一樣在編譯時注入 __version__。
+版本號的唯一來源是 `pyproject.toml` 的 `[project].version`;本模組載入時讀取它,
+避免多處手動同步。解析順序:pyproject.toml → 已安裝套件 metadata → "0.0.0+unknown"。
 """
 
 from pathlib import Path

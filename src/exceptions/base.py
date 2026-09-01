@@ -4,7 +4,7 @@ from typing import Optional, Any
 from fastapi import HTTPException
 
 
-class TokenServerError(Exception):
+class MCPCenterError(Exception):
     """Base exception for all MCP Center errors
 
     Attributes:
@@ -46,7 +46,7 @@ class TokenServerError(Exception):
         )
 
 
-class TokenServerHTTPException(TokenServerError):
+class MCPCenterHTTPException(MCPCenterError):
     """Base exception that can be directly raised as HTTP response"""
 
     def __init__(

@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from db.models import (
     AdminUser, AuditLog, ManagedMcpProcess, MCPTool, OAuthAuthorizationCode,
@@ -106,7 +106,20 @@ class ServiceCRUD:
         target = normalize_audience(audience)
         if not target:
             return None
-        for svc in db.query(Service).filter(Service.is_active.is_(True)).all():
+        # ① 明確設定的 oauth_audience 已在寫入時正規化 → 直接用索引查
+        svc = db.query(Service).filter(Service.is_active.is_(True), Service.oauth_audience == target).first()
+        if svc:
+            return svc
+        # ② 沒設 oauth_audience 的服務以 MCP URL 為 audience:從 URL 拆 host/port 後再比對
+        from urllib.parse import urlsplit
+        parts = urlsplit(target)
+        if not parts.hostname or not parts.port:
+            return None
+        candidates = db.query(Service).filter(
+            Service.is_active.is_(True), Service.oauth_audience.is_(None),
+            Service.host == normalize_service_host(parts.hostname), Service.port == parts.port,
+        ).all()
+        for svc in candidates:
             if normalize_audience(svc.effective_audience) == target:
                 return svc
         return None
@@ -116,7 +129,8 @@ class ServiceCRUD:
         db: Session, include_inactive: bool = False, health_status: Optional[str] = None,
         source: Optional[str] = None, tag: Optional[str] = None, requires_auth: Optional[bool] = None,
     ) -> List[Service]:
-        query = db.query(Service)
+        # 預載 tools:列表頁要顯示 tools 數量,避免每列一次查詢(N+1)
+        query = db.query(Service).options(selectinload(Service.tools))
         if not include_inactive:
             query = query.filter(Service.is_active.is_(True))
         if health_status:
@@ -648,6 +662,10 @@ class OAuthTokenCRUD:
 
     @staticmethod
     def create(db: Session, **fields) -> OAuthToken:
+        if fields.get("client_id") and not fields.get("client_name_snapshot"):
+            client = db.query(OAuthClient).filter(OAuthClient.client_id == fields["client_id"]).first()
+            if client:
+                fields["client_name_snapshot"] = client.client_name
         token = OAuthToken(**fields)
         db.add(token)
         db.commit()

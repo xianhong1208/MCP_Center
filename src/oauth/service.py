@@ -542,13 +542,16 @@ def authorization_code_grant(
 
 
 def refresh_token_grant(db: Session, *, client: OAuthClient, refresh_token: str, requested_scope: Optional[str],
-                        ip: Optional[str] = None) -> dict:
+                        resource: Optional[str] = None, ip: Optional[str] = None) -> dict:
     claims = verify_jwt(db, refresh_token, expect_use="refresh")
     if claims.get("client_id") != client.client_id:
         raise OAuthError("invalid_grant", "refresh token belongs to another client")
     rec = OAuthTokenAdapter.get(db, claims.get("jti", ""))
     if rec is None:
         raise OAuthError("invalid_grant", "unknown refresh token")
+    # RFC 8707:refresh 時帶 resource 必須與原授權相同(audience 不能換)
+    if resource and normalize_audience(resource) != (rec.audience or None):
+        raise OAuthError("invalid_target", "resource does not match the original grant")
     if rec.is_revoked:
         # 已輪替過的 refresh 又被拿來用 → 重放,整條鏈撤銷
         if rec.revoke_reason == "rotated":
@@ -615,12 +618,20 @@ def revoke_token(db: Session, *, client: OAuthClient, token: str, ip: Optional[s
                   sub=rec.sub, audience=rec.audience, service=rec.service, ip=ip)
 
 
-def introspect_token(db: Session, token: str, *, ip: Optional[str] = None) -> dict:
-    """RFC 7662。撤銷 / 過期 / 驗簽失敗一律 active=false。"""
+def introspect_token(db: Session, token: str, *, caller: OAuthClient, ip: Optional[str] = None) -> dict:
+    """RFC 7662。撤銷 / 過期 / 驗簽失敗一律 active=false。
+
+    誰能看:token 的擁有 client 自己,或 confidential client(有 secret,視為 resource
+    server —— FastMCP 的 IntrospectionTokenVerifier 就是這種)。public client 只能查自己
+    的 token,避免任何人用 DCR 註冊一個丟棄式 client 就能讀別人 token 的 sub / email / scope。
+    """
     inactive = {"active": False}
     try:
         claims = verify_jwt(db, token)
     except OAuthError:
+        return inactive
+    is_owner = claims.get("client_id") == caller.client_id
+    if not is_owner and not caller.client_secret_hash:
         return inactive
     rec = OAuthTokenAdapter.get(db, claims.get("jti", ""))
     if rec is not None:

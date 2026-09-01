@@ -134,18 +134,18 @@ class TestBaseExceptions:
 
     def test_token_server_error(self):
         """測試基礎錯誤例外"""
-        from src.exceptions.base import TokenServerError
+        from src.exceptions.base import MCPCenterError
 
-        exc = TokenServerError(message="Test error", code="TEST_ERROR")
+        exc = MCPCenterError(message="Test error", code="TEST_ERROR")
         assert exc.message == "Test error"
         assert exc.code == "TEST_ERROR"
         assert exc.status_code == 500
 
     def test_token_server_http_exception(self):
         """測試 HTTP 例外"""
-        from src.exceptions.base import TokenServerHTTPException
+        from src.exceptions.base import MCPCenterHTTPException
 
-        exc = TokenServerHTTPException(
+        exc = MCPCenterHTTPException(
             message="Custom error",
             status_code=400,
             code="CUSTOM_ERROR"
@@ -156,9 +156,9 @@ class TestBaseExceptions:
 
     def test_exception_to_dict(self):
         """測試例外轉換為字典"""
-        from src.exceptions.base import TokenServerError
+        from src.exceptions.base import MCPCenterError
 
-        exc = TokenServerError(
+        exc = MCPCenterError(
             message="Test error",
             code="TEST_CODE",
             details={"key": "value"}
@@ -171,10 +171,10 @@ class TestBaseExceptions:
 
     def test_exception_to_http_exception(self):
         """測試例外轉換為 HTTPException"""
-        from src.exceptions.base import TokenServerHTTPException
+        from src.exceptions.base import MCPCenterHTTPException
         from fastapi import HTTPException
 
-        exc = TokenServerHTTPException(
+        exc = MCPCenterHTTPException(
             message="HTTP error",
             status_code=404
         )
@@ -191,10 +191,10 @@ class TestExceptionHandlerMiddleware:
         """自訂例外經 handler 轉為正確的 JSON 錯誤回應與狀態碼"""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from src.exceptions.base import TokenServerError
+        from src.exceptions.base import MCPCenterError
         from src.exceptions.handlers import register_exception_handlers
 
-        class TeapotError(TokenServerError):
+        class TeapotError(MCPCenterError):
             code = "IM_A_TEAPOT"
             message = "short and stout"
             status_code = 418
