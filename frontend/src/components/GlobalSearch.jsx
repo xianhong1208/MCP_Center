@@ -9,7 +9,7 @@ import { Kbd } from './ui/Misc'
 import Spinner from './ui/Spinner'
 
 const EMPTY = { tokens: [], services: [], clients: [] }
-const PANEL_WIDTH = 440
+const PANEL_WIDTH = 480
 const PANEL_GAP = 6
 
 /**
