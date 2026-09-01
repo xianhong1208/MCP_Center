@@ -74,7 +74,7 @@ export default function ConsentPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-subtle">
+      <div className="flex min-h-screen items-center justify-center bg-background text-subtle-foreground">
         <Spinner size="lg" />
       </div>
     )
@@ -83,7 +83,7 @@ export default function ConsentPage() {
   if (!req) {
     return (
       <AuthShell maxWidth="max-w-md">
-        <h2 className="text-lg font-semibold text-ink">{t('consent.errorTitle')}</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t('consent.errorTitle')}</h2>
         <Alert tone="danger" className="mt-4">{error || t('consent.loadFailed')}</Alert>
         <Button variant="secondary" icon={ArrowLeft} to="/" className="mt-5 w-full">
           {t('consent.backToDashboard')}
@@ -102,7 +102,7 @@ export default function ConsentPage() {
     <AuthShell maxWidth="max-w-md">
       {/* Client */}
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-muted text-ink-muted">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
           {client.logo_uri ? (
             <img src={client.logo_uri} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -110,10 +110,10 @@ export default function ConsentPage() {
           )}
         </span>
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold leading-tight text-ink">
+          <h2 className="text-lg font-semibold leading-tight text-foreground">
             {t('consent.title', { name: client.client_name || client.client_id })}
           </h2>
-          <p className="mt-1 text-sm text-ink-muted">{t('consent.subtitle', { email: user?.email || '' })}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('consent.subtitle', { email: user?.email || '' })}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge tone={client.created_via === 'dcr' ? 'warning' : 'success'}>{viaLabel}</Badge>
             {client.client_uri && (
@@ -121,7 +121,7 @@ export default function ConsentPage() {
                 href={client.client_uri}
                 target="_blank"
                 rel="noreferrer"
-                className="max-w-[240px] truncate font-mono text-xs text-ink-muted transition-colors duration-150 hover:text-accent"
+                className="max-w-[240px] truncate font-mono text-xs text-muted-foreground transition-colors duration-200 hover:text-link"
               >
                 {client.client_uri}
               </a>
@@ -133,15 +133,15 @@ export default function ConsentPage() {
       {error && <Alert tone="danger" className="mt-5">{error}</Alert>}
 
       {/* Target service / audience */}
-      <div className="mt-5 rounded-md border border-hairline bg-surface-muted/50 px-3 py-2.5">
+      <div className="mt-5 rounded-md border border-border bg-muted/50 px-3 py-2.5">
         <SectionLabel>{t('consent.targetService')}</SectionLabel>
         {req.service ? (
-          <p className="mt-1 text-sm font-medium text-ink">{req.service.name}</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{req.service.name}</p>
         ) : (
-          <p className="mt-1 text-sm text-ink-muted">{req.resource ? t('consent.unknownService') : t('consent.noResource')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{req.resource ? t('consent.unknownService') : t('consent.noResource')}</p>
         )}
         {req.resource && (
-          <p className="mt-0.5 break-all font-mono text-xs text-ink-muted">{req.resource}</p>
+          <p className="mt-0.5 break-all font-mono text-xs text-muted-foreground">{req.resource}</p>
         )}
       </div>
 
@@ -149,9 +149,9 @@ export default function ConsentPage() {
       <div className="mt-5">
         <SectionLabel className="mb-2">{t('consent.scopesTitle')}</SectionLabel>
         {scopes.length === 0 ? (
-          <p className="text-sm text-ink-muted">{t('consent.noScopes')}</p>
+          <p className="text-sm text-muted-foreground">{t('consent.noScopes')}</p>
         ) : (
-          <div className="divide-y divide-hairline rounded-md border border-hairline">
+          <div className="divide-y divide-border rounded-md border border-border">
             {scopes.map((s) => (
               <CheckRow
                 key={s.name}
@@ -197,7 +197,7 @@ export default function ConsentPage() {
         </Button>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-hairline pt-4 text-xs text-ink-muted">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
         <span className="min-w-0 truncate">{t('consent.redirectTo', { host: req.redirect_host })}</span>
         {req.expires_at && (
           <span className="shrink-0 tabular-nums">

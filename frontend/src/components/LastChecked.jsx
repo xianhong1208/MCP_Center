@@ -13,7 +13,7 @@ export default function LastChecked({ value, withIcon = true, className = '' }) 
   if (!parts) return null
   return (
     <span
-      className={clsx('inline-flex items-center gap-1 whitespace-nowrap text-xs text-ink-muted tabular-nums', className)}
+      className={clsx('inline-flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums', className)}
       title={`${t('services.list.lastChecked')}: ${value}`}
     >
       {withIcon && <Clock className="h-3 w-3" aria-hidden="true" />}

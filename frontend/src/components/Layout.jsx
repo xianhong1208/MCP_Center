@@ -65,7 +65,7 @@ export default function Layout() {
     <div className="min-h-screen">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-zinc-900/40 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -74,8 +74,8 @@ export default function Layout() {
       {/* Sidebar */}
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-hairline bg-canvas',
-          'transition-transform duration-150 ease-out lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-muted',
+          'transition-transform duration-200 ease-out lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -102,10 +102,10 @@ export default function Layout() {
               end={item.end}
               className={({ isActive }) =>
                 clsx(
-                  'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm transition-colors duration-150',
+                  'relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors duration-200',
                   isActive
-                    ? 'bg-zinc-200/70 font-medium text-ink dark:bg-zinc-800'
-                    : 'text-ink-muted hover:bg-zinc-200/60 hover:text-ink dark:hover:bg-zinc-800/70',
+                    ? 'bg-primary font-medium text-primary-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-r before:bg-accent before:content-[""]'
+                    : 'text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground',
                 )
               }
             >
@@ -116,16 +116,16 @@ export default function Layout() {
         </nav>
 
         {/* User block */}
-        <div className="border-t border-hairline p-3">
+        <div className="border-t border-border p-3">
           <button
             onClick={() => setShowProfile(true)}
-            className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors duration-150 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/70"
+            className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors duration-200 hover:bg-foreground/[0.06]"
             title={t('layout.profile')}
           >
             <Avatar name={displayName} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-ink">{displayName}</span>
-              <span className="block truncate text-xs text-ink-muted">{user?.email || ''}</span>
+              <span className="block truncate text-sm font-medium text-foreground">{displayName}</span>
+              <span className="block truncate text-xs text-muted-foreground">{user?.email || ''}</span>
             </span>
           </button>
           <div className="mt-2 flex items-center justify-between">
@@ -137,7 +137,7 @@ export default function Layout() {
             <IconButton icon={LogOut} title={t('layout.logout')} onClick={handleLogout} />
           </div>
           {version && (
-            <p className="mt-2 px-1.5 text-2xs text-ink-subtle">
+            <p className="mt-2 px-1.5 text-2xs text-subtle-foreground">
               {t('layout.version', { version: version.version })}
             </p>
           )}
@@ -147,7 +147,7 @@ export default function Layout() {
       {/* Main content */}
       <main className="min-w-0 lg:pl-60">
         {/* Mobile-only bar */}
-        <div className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-hairline bg-canvas/95 px-4 backdrop-blur lg:hidden">
+        <div className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-background px-4 lg:hidden">
           <IconButton
             icon={Menu}
             title={t('layout.openMenu')}

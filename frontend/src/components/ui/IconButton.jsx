@@ -4,14 +4,14 @@ import clsx from 'clsx'
 
 /**
  * IconButton — 8x8(h-8 w-8)的方形 icon 按鈕,一定要給 `title`(同時當 aria-label)。
- * variant: ghost | secondary | destructive
+ * variant: ghost | secondary | destructive | accent
  * size: md(h-8)| sm(h-7)
  */
 const variants = {
-  ghost: 'text-ink-muted hover:bg-surface-muted hover:text-ink border border-transparent',
-  secondary: 'text-ink-muted bg-surface border border-hairline-strong shadow-sm hover:bg-surface-muted hover:text-ink',
-  destructive: 'text-ink-muted hover:bg-rose-50 hover:text-rose-600 border border-transparent dark:hover:bg-rose-500/10 dark:hover:text-rose-400',
-  accent: 'text-ink-muted hover:bg-accent-soft hover:text-accent border border-transparent',
+  ghost: 'text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground border border-transparent',
+  secondary: 'text-muted-foreground bg-card border border-border-strong hover:bg-foreground/[0.06] hover:text-foreground',
+  destructive: 'text-muted-foreground hover:bg-danger/10 hover:text-danger border border-transparent',
+  accent: 'text-muted-foreground hover:bg-accent/10 hover:text-accent border border-transparent',
 }
 
 const sizes = {
@@ -24,7 +24,7 @@ const IconButton = forwardRef(function IconButton(
   ref,
 ) {
   const classes = clsx(
-    'inline-flex shrink-0 items-center justify-center rounded-md transition-colors duration-150',
+    'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors duration-200',
     'disabled:pointer-events-none disabled:opacity-40',
     variants[variant] || variants.ghost,
     sizes[size] || sizes.md,

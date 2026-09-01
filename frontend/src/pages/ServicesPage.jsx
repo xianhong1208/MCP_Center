@@ -90,13 +90,13 @@ function ToolsModal({ service, onClose }) {
             description={service.host && service.port ? t('services.common.refreshHint') : undefined}
           />
         ) : (
-          <div className="divide-y divide-hairline rounded-md border border-hairline">
+          <div className="divide-y divide-border rounded-md border border-border">
             {tools.map((tool) => (
               <div key={tool.id || tool.name} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-mono text-xs font-medium text-ink">{tool.name}</h4>
-                    {tool.description && <p className="mt-1 text-sm text-ink-muted">{tool.description}</p>}
+                    <h4 className="font-mono text-xs font-medium text-foreground">{tool.name}</h4>
+                    {tool.description && <p className="mt-1 text-sm text-muted-foreground">{tool.description}</p>}
                   </div>
                   {tool.input_schema && (
                     <IconButton
@@ -112,8 +112,8 @@ function ToolsModal({ service, onClose }) {
                 </div>
                 {tool.input_schema && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-ink-muted hover:text-ink">{t('services.common.inputSchema')}</summary>
-                    <pre className="mt-2 overflow-x-auto rounded-md border border-hairline bg-surface-muted/50 p-3 font-mono text-xs text-ink">
+                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">{t('services.common.inputSchema')}</summary>
+                    <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground">
                       {JSON.stringify(tool.input_schema, null, 2)}
                     </pre>
                   </details>
@@ -125,7 +125,7 @@ function ToolsModal({ service, onClose }) {
       </DialogBody>
 
       <DialogFooter between>
-        <span className="text-xs text-ink-muted tabular-nums">{t('services.common.toolsCount', { n: tools.length, count: tools.length })}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{t('services.common.toolsCount', { n: tools.length, count: tools.length })}</span>
         <div className="flex items-center gap-2">
           {service.host && service.port && (
             <Button variant="secondary" icon={RefreshCw} onClick={handleRefresh} loading={isRefreshing}>
@@ -196,7 +196,7 @@ function ScanModal({ onClose, onScanComplete }) {
             >
               <div className="mb-3 flex gap-5">
                 {['individual', 'range'].map((mode) => (
-                  <label key={mode} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+                  <label key={mode} className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                     <RadioInput name="portMode" value={mode} checked={formData.portMode === mode}
                       onChange={(e) => setFormData({ ...formData, portMode: e.target.value })} />
                     {mode === 'individual' ? t('services.scan.individualPorts') : t('services.scan.portRange')}
@@ -208,9 +208,9 @@ function ScanModal({ onClose, onScanComplete }) {
               ) : (
                 <div className="flex items-center gap-3">
                   <Input type="number" value={formData.portRangeStart} onChange={(e) => setFormData({ ...formData, portRangeStart: parseInt(e.target.value, 10) || 0 })} className="w-28" placeholder={t('services.scan.rangeStart')} min="1" max="65535" />
-                  <span className="text-sm text-ink-muted">{t('services.scan.rangeTo')}</span>
+                  <span className="text-sm text-muted-foreground">{t('services.scan.rangeTo')}</span>
                   <Input type="number" value={formData.portRangeEnd} onChange={(e) => setFormData({ ...formData, portRangeEnd: parseInt(e.target.value, 10) || 0 })} className="w-28" placeholder={t('services.scan.rangeEnd')} min="1" max="65535" />
-                  <span className="text-xs text-ink-muted tabular-nums">{t('services.scan.portsRangeCount', { n: Math.max(0, formData.portRangeEnd - formData.portRangeStart + 1) })}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{t('services.scan.portsRangeCount', { n: Math.max(0, formData.portRangeEnd - formData.portRangeStart + 1) })}</span>
                 </div>
               )}
             </Field>
@@ -244,20 +244,20 @@ function ScanModal({ onClose, onScanComplete }) {
             )}
 
             {scanResult.discovered.length > 0 && (
-              <div className="divide-y divide-hairline rounded-md border border-hairline">
+              <div className="divide-y divide-border rounded-md border border-border">
                 {scanResult.discovered.map((svc, i) => {
                   const requiresAuth = svc.server_name === '(requires auth)'
                   return (
                     <div key={i} className="flex items-center justify-between gap-4 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-xs text-ink">{svc.protocol}://{svc.host}:{svc.port}{svc.mcp_path}</p>
+                        <p className="truncate font-mono text-xs text-foreground">{svc.protocol}://{svc.host}:{svc.port}{svc.mcp_path}</p>
                         {requiresAuth ? (
-                          <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">{t('services.scan.requiresAuthLabel')}</p>
+                          <p className="mt-0.5 text-xs text-warning">{t('services.scan.requiresAuthLabel')}</p>
                         ) : svc.server_name && (
-                          <p className="mt-0.5 text-xs text-ink-muted">{svc.server_name} {svc.server_version && `v${svc.server_version}`}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{svc.server_name} {svc.server_version && `v${svc.server_version}`}</p>
                         )}
                       </div>
-                      <div className="flex shrink-0 items-center gap-3 text-xs text-ink-muted">
+                      <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
                         {svc.tools_count > 0 && (
                           <span className="inline-flex items-center gap-1"><Wrench className="h-3 w-3" />{t('services.scan.toolsCount', { n: svc.tools_count })}</span>
                         )}
@@ -447,10 +447,10 @@ export default function ServicesPage() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       {selectedServices.size > 0 && (
-        <div className="flex h-12 items-center justify-between rounded-lg border border-hairline bg-surface px-4">
+        <div className="flex h-12 items-center justify-between rounded-lg border border-border bg-card px-4">
           <div className="flex items-center gap-3 text-sm">
-            <span className="font-medium text-ink tabular-nums">{t('services.list.selectedCount', { n: selectedServices.size })}</span>
-            <button type="button" onClick={() => setSelectedServices(new Set())} className="text-ink-muted transition-colors duration-150 hover:text-ink">
+            <span className="font-medium text-foreground tabular-nums">{t('services.list.selectedCount', { n: selectedServices.size })}</span>
+            <button type="button" onClick={() => setSelectedServices(new Set())} className="text-muted-foreground transition-colors duration-200 hover:text-foreground">
               {t('services.list.clearSelection')}
             </button>
           </div>
@@ -471,7 +471,7 @@ export default function ServicesPage() {
             action={
               <>
                 <Button variant="secondary" icon={Radio} onClick={() => setShowScanModal(true)}>{t('services.list.scanNetwork')}</Button>
-                <Button variant="primary" icon={Plus} onClick={() => setShowCreateModal(true)}>{t('services.list.registerService')}</Button>
+                <Button variant="soft" icon={Plus} onClick={() => setShowCreateModal(true)}>{t('services.list.registerService')}</Button>
               </>
             }
           />
@@ -509,7 +509,7 @@ export default function ServicesPage() {
                     <div className="flex items-center gap-2">
                       <Link
                         to={`/services/${encodeURIComponent(service.id)}`}
-                        className="truncate font-medium text-ink transition-colors duration-150 hover:text-accent"
+                        className="truncate font-medium text-foreground transition-colors duration-200 hover:text-link"
                         title={service.name}
                       >
                         {service.name}
@@ -525,15 +525,15 @@ export default function ServicesPage() {
                         <Badge tone="neutral" title={t('services.list.staticTokenTitle')}><Lock className="h-3 w-3" /></Badge>
                       )}
                     </div>
-                    <div className="mt-0.5 truncate text-xs text-ink-muted" title={service.mcp_url || service.description || ''}>
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground" title={service.mcp_url || service.description || ''}>
                       {service.mcp_url ? <span className="font-mono">{service.mcp_url}</span> : (service.description || t('services.common.noDescription'))}
                     </div>
                   </TD>
                   <TD>
                     <div className="flex flex-col gap-0.5">
                       <HealthIndicator status={health?.status} />
-                      <span className="flex items-center gap-2 pl-3 text-xs text-ink-subtle">
-                        <LastChecked value={health?.last_checked} withIcon={false} className="text-ink-subtle" />
+                      <span className="flex items-center gap-2 pl-3 text-xs text-subtle-foreground">
+                        <LastChecked value={health?.last_checked} withIcon={false} className="text-subtle-foreground" />
                         {health?.response_time_ms != null && (
                           <span className="font-mono tabular-nums" title={t('services.list.responseTime')}>{formatMs(health.response_time_ms)}</span>
                         )}
@@ -541,7 +541,7 @@ export default function ServicesPage() {
                     </div>
                   </TD>
                   <TD className="max-w-[16rem]">
-                    <div className="truncate font-mono text-xs text-ink-muted" title={service.effective_audience || ''}>
+                    <div className="truncate font-mono text-xs text-muted-foreground" title={service.effective_audience || ''}>
                       {service.effective_audience || '—'}
                     </div>
                     {service.tags && service.tags.length > 0 && (
@@ -550,7 +550,7 @@ export default function ServicesPage() {
                       </div>
                     )}
                   </TD>
-                  <TD align="right" className="tabular-nums text-ink-muted">
+                  <TD align="right" className="tabular-nums text-muted-foreground">
                     {service.tools_count ?? 0}
                   </TD>
                   <TD align="right">
@@ -565,7 +565,7 @@ export default function ServicesPage() {
                       />
                       <IconButton icon={Edit3} title={t('services.list.editService')} onClick={() => setEditingService(service)} />
                       <IconButton icon={Key} title={t('services.list.issueToken')} to={`/tokens/create?service_id=${encodeURIComponent(service.id)}`} />
-                      <span className="mx-1 h-4 w-px bg-hairline" aria-hidden="true" />
+                      <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
                       <IconButton variant="destructive" icon={Trash2} title={t('services.list.deleteService')} onClick={() => handleDelete(service.id, service.name)} />
                     </RowActions>
                   </TD>

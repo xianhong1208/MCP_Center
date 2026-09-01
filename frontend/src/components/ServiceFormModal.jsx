@@ -94,7 +94,7 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
 
           <div className="grid gap-5">
             {!isEdit && (
-              <Field label={t('services.create.name')} required>
+              <Field label={t('services.create.name')}>
                 <Input
                   type="text"
                   value={form.name}
@@ -118,7 +118,7 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
           </div>
 
           {/* MCP connection */}
-          <section className="space-y-4 border-t border-hairline pt-5">
+          <section className="space-y-4 border-t border-border pt-5">
             <SectionLabel>{t('services.common.mcpConnection')}</SectionLabel>
             <div className="grid grid-cols-2 gap-5">
               <Field label={t('services.common.host')}>
@@ -143,10 +143,10 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
           </section>
 
           {/* OAuth */}
-          <section className="space-y-4 border-t border-hairline pt-5">
+          <section className="space-y-4 border-t border-border pt-5">
             <div>
               <SectionLabel>{t('services.form.oauthSection')}</SectionLabel>
-              <p className="mt-1 text-xs text-ink-muted">{t('services.form.oauthSectionHint')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('services.form.oauthSectionHint')}</p>
             </div>
 
             <CheckRow
@@ -184,10 +184,10 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
                         title={s.description || ''}
                         aria-pressed={on}
                         className={clsx(
-                          'inline-flex h-7 items-center gap-1 rounded-md border px-2 font-mono text-xs transition-colors duration-150',
+                          'inline-flex h-7 items-center gap-1 rounded-md border px-2 font-mono text-xs transition-colors duration-200',
                           on
-                            ? 'border-accent/30 bg-accent-soft text-accent'
-                            : 'border-hairline-strong bg-surface text-ink-muted hover:border-ink-subtle hover:text-ink',
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border-strong bg-card text-muted-foreground hover:border-subtle-foreground hover:text-foreground',
                         )}
                       >
                         {on && <Check className="h-3 w-3" aria-hidden="true" />}
@@ -201,10 +201,10 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
           </section>
 
           {/* Static bearer (external service with its own token) */}
-          <section className="space-y-4 border-t border-hairline pt-5">
+          <section className="space-y-4 border-t border-border pt-5">
             <div>
               <SectionLabel>{t('services.form.staticToken')}</SectionLabel>
-              <p className="mt-1 text-xs text-ink-muted">{t('services.form.staticTokenHint')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('services.form.staticTokenHint')}</p>
             </div>
             <Input
               type="password"
@@ -216,7 +216,7 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
               mono
             />
             {isEdit && service?.has_static_token && (
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-muted">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox
                   checked={form.clearAuthToken}
                   onChange={(e) => set({ clearAuthToken: e.target.checked, authToken: '' })}

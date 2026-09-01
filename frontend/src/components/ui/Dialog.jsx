@@ -13,8 +13,8 @@ const sizes = {
 
 /**
  * Dialog — 全站唯一的浮層容器。
- * 結構:overlay(zinc-900/40 + 2px blur)+ panel(rounded-xl border shadow-overlay,150ms fade+scale)。
- * 內容用 DialogHeader / DialogBody / DialogFooter 以 hairline 分隔。
+ * 結構:overlay(black/60,不模糊)+ panel(rounded-lg border popover 底 + 銳利小陰影,200ms fade+slide)。
+ * 內容用 DialogHeader / DialogBody / DialogFooter 以 border 分隔。
  * 傳 title 會自動 render DialogHeader(含右上 X)。
  */
 export default function Dialog({
@@ -48,10 +48,10 @@ export default function Dialog({
 
   return (
     <div className={clsx('fixed inset-0 flex items-center justify-center p-4', zIndex, className)} role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/60 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
         className={clsx(
-          'relative flex w-full flex-col rounded-xl border border-hairline bg-surface-elevated shadow-overlay animate-dialog-in',
+          'relative flex w-full flex-col rounded-lg border border-border-strong bg-popover shadow-overlay animate-dialog-in',
           scrollable && 'max-h-[90vh]',
           sizes[size] || sizes.md,
           panelClassName,
@@ -68,10 +68,10 @@ export default function Dialog({
 
 export function DialogHeader({ title, description, onClose, className, children }) {
   return (
-    <div className={clsx('flex items-start justify-between gap-4 border-b border-hairline px-5 py-4', className)}>
+    <div className={clsx('flex items-start justify-between gap-4 border-b border-border px-5 py-4', className)}>
       <div className="min-w-0">
-        {title && <h2 className="text-base font-semibold text-ink">{title}</h2>}
-        {description && <p className="mt-0.5 text-xs text-ink-muted">{description}</p>}
+        {title && <h2 className="text-base font-semibold text-foreground">{title}</h2>}
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
         {children}
       </div>
       {onClose && <IconButton icon={X} title="Close" onClick={onClose} className="-mr-1.5 -mt-1" />}
@@ -85,7 +85,7 @@ export function DialogBody({ className, children }) {
 
 export function DialogFooter({ className, children, between = false }) {
   return (
-    <div className={clsx('flex items-center gap-2 border-t border-hairline px-5 py-3', between ? 'justify-between' : 'justify-end', className)}>
+    <div className={clsx('flex items-center gap-2 border-t border-border px-5 py-3', between ? 'justify-between' : 'justify-end', className)}>
       {children}
     </div>
   )

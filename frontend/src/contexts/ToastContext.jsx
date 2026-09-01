@@ -5,10 +5,10 @@ import clsx from 'clsx'
 const ToastContext = createContext()
 
 const toastConfig = {
-  success: { icon: CheckCircle2, iconClass: 'text-emerald-600 dark:text-emerald-400' },
-  error: { icon: XCircle, iconClass: 'text-rose-600 dark:text-rose-400' },
-  warning: { icon: AlertCircle, iconClass: 'text-amber-600 dark:text-amber-400' },
-  info: { icon: Info, iconClass: 'text-accent' },
+  success: { icon: CheckCircle2, iconClass: 'text-success' },
+  error: { icon: XCircle, iconClass: 'text-danger' },
+  warning: { icon: AlertCircle, iconClass: 'text-warning' },
+  info: { icon: Info, iconClass: 'text-info' },
 }
 
 export function useToast() {
@@ -61,15 +61,15 @@ export function ToastProvider({ children }) {
               key={t.id}
               role={t.type === 'error' ? 'alert' : 'status'}
               className={clsx(
-                'pointer-events-auto flex items-start gap-3 rounded-lg border border-hairline bg-surface-elevated px-4 py-3 shadow-overlay',
+                'pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-popover px-4 py-3 shadow-overlay',
                 'animate-toast-in',
               )}
             >
               <Icon className={clsx('mt-0.5 h-4 w-4 shrink-0', config.iconClass)} aria-hidden="true" />
-              <p className="flex-1 text-sm text-ink">{t.message}</p>
+              <p className="flex-1 text-sm text-foreground">{t.message}</p>
               <button
                 onClick={() => removeToast(t.id)}
-                className="-mr-1 -mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-subtle transition-colors duration-150 hover:bg-surface-muted hover:text-ink"
+                className="-mr-1 -mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-subtle-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
                 aria-label="Dismiss"
               >
                 <X className="h-3.5 w-3.5" />

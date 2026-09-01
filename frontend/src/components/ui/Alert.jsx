@@ -1,31 +1,32 @@
 import { AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react'
 import clsx from 'clsx'
 
+/** 語意色都是「淡底(/10)+ 同色邊框(/20)+ 主文字」;icon 用語意色 */
 const tones = {
   danger: {
     icon: AlertCircle,
-    className: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
-    iconClass: 'text-rose-600 dark:text-rose-400',
+    className: 'border-danger/30 bg-danger/10 text-foreground',
+    iconClass: 'text-danger',
   },
   warning: {
     icon: AlertTriangle,
-    className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
-    iconClass: 'text-amber-600 dark:text-amber-400',
+    className: 'border-warning/30 bg-warning/10 text-foreground',
+    iconClass: 'text-warning',
   },
   success: {
     icon: CheckCircle2,
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
-    iconClass: 'text-emerald-600 dark:text-emerald-400',
+    className: 'border-success/30 bg-success/10 text-foreground',
+    iconClass: 'text-success',
   },
   info: {
     icon: Info,
-    className: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
-    iconClass: 'text-sky-600 dark:text-sky-400',
+    className: 'border-info/30 bg-info/10 text-foreground',
+    iconClass: 'text-info',
   },
   neutral: {
     icon: Info,
-    className: 'border-hairline bg-surface-muted/60 text-ink',
-    iconClass: 'text-ink-muted',
+    className: 'border-border bg-muted/60 text-foreground',
+    iconClass: 'text-muted-foreground',
   },
 }
 
@@ -38,7 +39,7 @@ export default function Alert({ tone = 'danger', title, icon, className, childre
       {Icon && <Icon className={clsx('mt-0.5 h-4 w-4 shrink-0', cfg.iconClass)} aria-hidden="true" />}
       <div className="min-w-0 flex-1">
         {title && <p className="font-medium">{title}</p>}
-        {children && <div className={clsx(title && 'mt-0.5', 'text-[13px] leading-relaxed opacity-90')}>{children}</div>}
+        {children && <div className={clsx(title && 'mt-0.5 text-muted-foreground', 'text-[13px] leading-relaxed')}>{children}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

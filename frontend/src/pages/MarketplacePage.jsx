@@ -120,7 +120,7 @@ function InstallModal({ stageText, entry, onClose, onInstalled }) {
               href={entry.docs_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-accent transition-colors duration-150 hover:text-accent-hover"
+              className="inline-flex items-center gap-1.5 text-sm text-link transition-colors duration-200 hover:text-link-hover"
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               {t('marketplace.install.officialDocs')}
@@ -161,7 +161,7 @@ function InstallModal({ stageText, entry, onClose, onInstalled }) {
               label={
                 <span className="inline-flex items-center gap-1.5">
                   {ev.label}
-                  {ev.secret && <Lock className="h-3 w-3 text-ink-subtle" aria-hidden="true" />}
+                  {ev.secret && <Lock className="h-3 w-3 text-subtle-foreground" aria-hidden="true" />}
                 </span>
               }
             >
@@ -216,7 +216,7 @@ function ConnectionInfoModal({ process, onClose }) {
       <DialogBody className="space-y-5">
         <Field label={t('marketplace.connection.connectionUrl')} help={t('marketplace.connection.connectionUrlHint')}>
           <div className="flex items-center gap-2">
-            <code className="flex-1 break-all rounded-md border border-hairline bg-surface-muted/50 px-3 py-2 font-mono text-xs text-ink">
+            <code className="flex-1 break-all rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">
               {url}
             </code>
             <IconButton icon={Copy} title={t('services.detail.copy')} onClick={() => copy(url)} />
@@ -227,8 +227,8 @@ function ConnectionInfoModal({ process, onClose }) {
           <CodeBlock value={configJson} language="json" />
         </Field>
 
-        <div className="rounded-md border border-hairline px-4 py-1">
-          <p className="py-2 text-sm font-medium text-ink">{t('marketplace.connection.statusLabel', { state: process.actual_state })}</p>
+        <div className="rounded-md border border-border px-4 py-1">
+          <p className="py-2 text-sm font-medium text-foreground">{t('marketplace.connection.statusLabel', { state: process.actual_state })}</p>
           <DescriptionList
             items={[
               { label: t('marketplace.connection.containerLabel'), value: process.container_id || '-', mono: true },
@@ -280,14 +280,14 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
     <Card className="flex flex-col">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface text-ink-muted">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
             {isCustom
               ? <Terminal className="h-4 w-4" aria-hidden="true" />
               : <Store className="h-4 w-4" aria-hidden="true" />}
           </span>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-medium text-ink">{entry.name}</h3>
-            <p className="mt-0.5 text-xs capitalize text-ink-muted">
+            <h3 className="truncate text-sm font-medium text-foreground">{entry.name}</h3>
+            <p className="mt-0.5 text-xs capitalize text-muted-foreground">
               {isCustom ? t('marketplace.card.customBadge') : entry.category}
             </p>
           </div>
@@ -299,14 +299,14 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
         )}
       </div>
 
-      <p className="mb-3 line-clamp-2 text-xs text-ink-muted">{entry.description}</p>
+      <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">{entry.description}</p>
 
-      <div className="mb-1 truncate font-mono text-xs text-ink-subtle">
+      <div className="mb-1 truncate font-mono text-xs text-subtle-foreground">
         {isCustom ? entry.description : `${entry.docker?.image}:${entry.docker?.tag}`}
       </div>
 
       {!installed && isCustom && (
-        <div className="mb-4 text-xs text-ink-muted">
+        <div className="mb-4 text-xs text-muted-foreground">
           {t('marketplace.card.stateCustomNotDeployed')}
         </div>
       )}
@@ -315,14 +315,14 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
           {imageInstalled ? (
             <Badge tone="accent">{t('marketplace.card.stateImageReady')}</Badge>
           ) : entry.image_tar_present ? (
-            <span className="text-ink-muted">{t('marketplace.card.stateNotInstalled')}</span>
+            <span className="text-muted-foreground">{t('marketplace.card.stateNotInstalled')}</span>
           ) : (
             // 「尚未安裝」是待設定的正常狀態,不是錯誤 —— 不用紅字嚇人;
             // 技術細節(缺哪個檔、放哪裡)退到第二行,讓人知道下一步該做什麼。
-            <span className="block text-ink-muted">
+            <span className="block text-muted-foreground">
               {t('marketplace.card.stateNotInstalled')}
               <span
-                className="mt-0.5 block truncate font-mono text-2xs text-ink-subtle"
+                className="mt-0.5 block truncate font-mono text-2xs text-subtle-foreground"
                 title={t('marketplace.card.tarMissingHint', { name: entry.image_tar_name })}
               >
                 {t('marketplace.card.tarMissingHint', { name: entry.image_tar_name })}
@@ -333,7 +333,7 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
       )}
       {installed && <div className="mb-3" />}
 
-      <div className="mt-auto flex items-center gap-1 border-t border-hairline pt-3">
+      <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
         {/* 自訂:未部署 → [部署](直接跑 BYO deploy) */}
         {isCustom && !installed && !busy && (
           <Button variant="secondary" size="sm" icon={Play} onClick={() => onDeployCustom(entry)} disabled={!canInstall}>
@@ -379,7 +379,7 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
         )}
 
         {busy && (
-          <span className="inline-flex h-8 items-center gap-2 px-1 text-xs text-ink-muted">
+          <span className="inline-flex h-8 items-center gap-2 px-1 text-xs text-muted-foreground">
             <Spinner size="xs" />
             <span>{stageText || t('marketplace.card.processing')}</span>
           </span>
@@ -405,7 +405,7 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
             href={entry.docs_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-surface-muted hover:text-ink"
+            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
             title={t('marketplace.card.docsTitle')}
             aria-label={t('marketplace.card.docsTitle')}
           >
@@ -819,7 +819,7 @@ function ByoModal({ stageText, onClose, onDeployed }) {
 
         {/* port:標準 MCP JSON 不含此項,故獨立輸入(留空自動分配) */}
         <div className="flex items-center gap-3">
-          <label className="shrink-0 text-sm font-medium text-ink">{t('marketplace.byo.port')}</label>
+          <label className="shrink-0 text-sm font-medium text-foreground">{t('marketplace.byo.port')}</label>
           <Input
             value={port}
             onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ''))}
@@ -828,55 +828,55 @@ function ByoModal({ stageText, onClose, onDeployed }) {
             placeholder="auto"
             mono
           />
-          <span className={clsx('text-xs', portValid ? 'text-ink-muted' : 'text-rose-600 dark:text-rose-400')}>
+          <span className={clsx('text-xs', portValid ? 'text-muted-foreground' : 'text-danger')}>
             {portValid ? t('marketplace.byo.portHint') : t('marketplace.byo.portInvalid')}
           </span>
         </div>
 
         {/* 解析結果:確認實際會部署什麼 */}
         {pasteText.trim() && !parsed && (
-          <p className="text-xs text-rose-600 dark:text-rose-400">{t('marketplace.byo.parseFailed')}</p>
+          <p className="text-xs text-danger">{t('marketplace.byo.parseFailed')}</p>
         )}
         {parsed && (
-          <div className="space-y-1 rounded-md border border-hairline bg-surface-muted/40 p-3 text-xs">
+          <div className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-xs">
             <div className="flex gap-2">
-              <span className="shrink-0 text-ink-muted">{t('marketplace.byo.name')}</span>
-              <span className="truncate font-mono text-ink">{parsed.name || '—'}</span>
+              <span className="shrink-0 text-muted-foreground">{t('marketplace.byo.name')}</span>
+              <span className="truncate font-mono text-foreground">{parsed.name || '—'}</span>
             </div>
             <div className="flex gap-2">
-              <span className="shrink-0 text-ink-muted">{t('marketplace.byo.command')}</span>
-              <span className={clsx('truncate font-mono', commandOk ? 'text-ink' : 'text-rose-600 dark:text-rose-400')}>
+              <span className="shrink-0 text-muted-foreground">{t('marketplace.byo.command')}</span>
+              <span className={clsx('truncate font-mono', commandOk ? 'text-foreground' : 'text-danger')}>
                 {[parsed.command, ...parsed.args].join(' ')}
               </span>
             </div>
             {envEntries.length > 0 && (
               <div className="flex gap-2">
-                <span className="shrink-0 text-ink-muted">{t('marketplace.byo.env')}</span>
-                <span className="truncate font-mono text-ink">
+                <span className="shrink-0 text-muted-foreground">{t('marketplace.byo.env')}</span>
+                <span className="truncate font-mono text-foreground">
                   {envEntries.map(([k]) => k).join(', ')}
                 </span>
               </div>
             )}
             <div className="flex gap-2">
-              <span className="shrink-0 text-ink-muted">{t('marketplace.byo.endpoint')}</span>
-              <span className="truncate font-mono text-ink">
+              <span className="shrink-0 text-muted-foreground">{t('marketplace.byo.endpoint')}</span>
+              <span className="truncate font-mono text-foreground">
                 127.0.0.1:{portNum || t('marketplace.byo.portAuto')}/sse
               </span>
             </div>
             {!commandOk && (
-              <p className="pt-1 text-rose-600 dark:text-rose-400">
+              <p className="pt-1 text-danger">
                 {t('marketplace.byo.unsupportedCommand', {
                   command: parsed.command, allowed: BYO_COMMANDS.join(', '),
                 })}
               </p>
             )}
             {parsed.extraCount > 0 && (
-              <p className="pt-1 text-accent">
+              <p className="pt-1 text-info">
                 {t('marketplace.byo.multipleServers', { name: parsed.name, n: parsed.extraCount })}
               </p>
             )}
             {placeholderKeys.length > 0 && (
-              <p className="pt-1 text-amber-700 dark:text-amber-400">
+              <p className="pt-1 text-warning">
                 {t('marketplace.byo.placeholderWarning', { keys: placeholderKeys.join(', ') })}
               </p>
             )}
@@ -913,7 +913,7 @@ function ByoDeployModal({ stageText, entry, onClose, onSubmit }) {
   return (
     <Dialog open onClose={onClose} size="lg" title={t('marketplace.byo.redeployTitle', { name: entry.name })} description={t('marketplace.byo.redeployHint')}>
       <DialogBody className="space-y-4">
-        <div className="truncate font-mono text-xs text-ink-subtle">{entry.description}</div>
+        <div className="truncate font-mono text-xs text-subtle-foreground">{entry.description}</div>
 
         {schema.map((e) => (
           <Field
@@ -923,7 +923,7 @@ function ByoDeployModal({ stageText, entry, onClose, onSubmit }) {
             label={
               <span className="inline-flex items-center gap-1.5 font-mono">
                 {e.name}
-                {e.secret && <Lock className="h-3 w-3 text-ink-subtle" aria-hidden="true" />}
+                {e.secret && <Lock className="h-3 w-3 text-subtle-foreground" aria-hidden="true" />}
               </span>
             }
           >
@@ -983,7 +983,7 @@ function LogsModal({ process, onClose }) {
       <DialogBody className="space-y-3">
         {error && <Alert tone="danger">{error}</Alert>}
 
-        <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded-md border border-hairline bg-surface-muted/50 p-3 font-mono text-xs leading-relaxed text-ink">
+        <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-muted/50 p-3 font-mono text-xs leading-relaxed text-foreground">
           {loading && !logs ? t('common.loading') : (logs || t('marketplace.card.logsEmpty'))}
         </pre>
       </DialogBody>

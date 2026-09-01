@@ -18,7 +18,7 @@ import AuditLogPage from './pages/AuditLogPage'
 
 function FullScreenSpinner() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-subtle">
+    <div className="flex min-h-screen items-center justify-center bg-background text-subtle-foreground">
       <Spinner size="lg" />
     </div>
   )

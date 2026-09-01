@@ -115,7 +115,7 @@ export default function CreateTokenPage() {
           backTo="/tokens"
           backLabel={t('tokens.create.backToTokens')}
           meta={
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10 text-success">
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
           }
@@ -136,7 +136,7 @@ export default function CreateTokenPage() {
           <CodeBlock title={t('tokens.create.tokenLabel')} value={result.access_token} sensitive />
 
           <DescriptionList
-            className="rounded-md border border-hairline px-4"
+            className="rounded-md border border-border px-4"
             items={[
               { label: t('tokens.create.labelLabel'), value: result.label || '—' },
               { label: t('tokens.create.expiresAt'), value: result.expires_at, mono: true },
@@ -172,14 +172,14 @@ export default function CreateTokenPage() {
           <section className="space-y-4">
             <div>
               <SectionLabel>{t('tokens.create.serviceLabel')}</SectionLabel>
-              <p className="mt-1 text-xs text-ink-muted">{t('tokens.create.serviceHint')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('tokens.create.serviceHint')}</p>
             </div>
             {isLoadingMeta ? (
               <div className="skeleton h-9" />
             ) : services.length === 0 ? (
-              <p className="text-sm text-ink-muted">
+              <p className="text-sm text-muted-foreground">
                 {t('tokens.create.noServices')}{' '}
-                <Link to="/services" className="text-accent transition-colors duration-150 hover:text-accent-hover">{t('tokens.create.registerService')}</Link>
+                <Link to="/services" className="text-link transition-colors duration-200 hover:text-link-hover">{t('tokens.create.registerService')}</Link>
               </p>
             ) : (
               <Select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required>
@@ -191,7 +191,7 @@ export default function CreateTokenPage() {
             )}
             {service && (
               <DescriptionList
-                className="rounded-md border border-hairline px-4"
+                className="rounded-md border border-border px-4"
                 items={[
                   { label: t('tokens.create.audience'), value: service.effective_audience || '—', mono: true },
                   { label: t('tokens.create.mcpUrl'), value: service.mcp_url || '—', mono: true },
@@ -201,34 +201,34 @@ export default function CreateTokenPage() {
           </section>
 
           {/* Scopes */}
-          <section className="space-y-4 border-t border-hairline pt-6">
+          <section className="space-y-4 border-t border-border pt-6">
             <div>
               <SectionLabel>{t('tokens.create.scopesLabel')}</SectionLabel>
-              <p className="mt-1 text-xs text-ink-muted">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {service?.oauth_scopes?.length ? t('tokens.create.restrictedHint') : t('tokens.create.scopesHint')}
               </p>
             </div>
             {availableScopes.length === 0 ? (
-              <p className="text-sm text-ink-muted">{t('tokens.create.noScopes')}</p>
+              <p className="text-sm text-muted-foreground">{t('tokens.create.noScopes')}</p>
             ) : (
-              <div className="divide-y divide-hairline rounded-md border border-hairline">
+              <div className="divide-y divide-border rounded-md border border-border">
                 {availableScopes.map((s) => {
                   const checked = selectedScopes.has(s.name)
                   return (
                     <label
                       key={s.name}
                       className={clsx(
-                        'flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors duration-150',
-                        checked ? 'bg-accent-soft/60' : 'hover:bg-surface-muted/60',
+                        'flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors duration-200',
+                        checked ? 'bg-primary-soft/60' : 'hover:bg-muted/60',
                       )}
                     >
                       <input type="checkbox" className="ui-checkbox mt-0.5" checked={checked} onChange={() => toggleScope(s.name)} />
                       <span className="min-w-0">
-                        <span className="flex items-center gap-2 font-mono text-sm font-medium text-ink">
+                        <span className="flex items-center gap-2 font-mono text-sm font-medium text-foreground">
                           {s.name}
                           {s.is_default && <Badge tone="success">{t('tokens.create.defaultTag')}</Badge>}
                         </span>
-                        {s.description && <span className="mt-0.5 block text-xs text-ink-muted">{s.description}</span>}
+                        {s.description && <span className="mt-0.5 block text-xs text-muted-foreground">{s.description}</span>}
                       </span>
                     </label>
                   )
@@ -238,7 +238,7 @@ export default function CreateTokenPage() {
           </section>
 
           {/* Expiry + label */}
-          <section className="grid gap-5 border-t border-hairline pt-6">
+          <section className="grid gap-5 border-t border-border pt-6">
             <Field label={t('tokens.create.expiresLabel')}>
               <div className="flex flex-wrap items-center gap-2">
                 {QUICK_DAYS.map((d) => {
@@ -291,8 +291,8 @@ export default function CreateTokenPage() {
             </Field>
           </section>
 
-          <div className="-mx-5 -mb-5 flex items-center justify-between gap-3 border-t border-hairline px-5 py-3">
-            <p className="text-xs text-ink-subtle">{t('tokens.create.footerHint')}</p>
+          <div className="-mx-5 -mb-5 flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+            <p className="text-xs text-subtle-foreground">{t('tokens.create.footerHint')}</p>
             <div className="flex shrink-0 items-center gap-2">
               <Button variant="secondary" to="/tokens">{t('tokens.create.cancel')}</Button>
               <Button type="submit" variant="primary" icon={Sparkles} loading={isLoading} disabled={!serviceId}>

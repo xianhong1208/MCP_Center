@@ -122,8 +122,8 @@ export default function GlobalSearch() {
       type="button"
       onClick={() => setIsOpen(true)}
       className={clsx(
-        'flex h-8 w-full items-center gap-2 rounded-md border border-hairline bg-surface px-2.5 text-left text-sm text-ink-subtle shadow-sm',
-        'transition-colors duration-150 hover:border-hairline-strong hover:text-ink-muted',
+        'flex h-8 w-full items-center gap-2 rounded-md border border-border bg-card px-2.5 text-left text-sm text-subtle-foreground',
+        'transition-colors duration-200 hover:border-border-strong hover:text-muted-foreground',
       )}
     >
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -151,28 +151,28 @@ export default function GlobalSearch() {
       {trigger}
       <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
         <div
-          className="absolute inset-0 bg-zinc-900/40 backdrop-blur-[2px] animate-fade-in"
+          className="absolute inset-0 bg-black/60 animate-fade-in"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
         <div className="relative mx-auto mt-[12vh] max-w-xl px-4">
-          <div className="overflow-hidden rounded-xl border border-hairline bg-surface-elevated shadow-overlay animate-dialog-in">
-            <div className="flex h-12 items-center gap-3 border-b border-hairline px-4">
-              <Search className="h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
+          <div className="overflow-hidden rounded-lg border border-border bg-popover shadow-overlay animate-dialog-in">
+            <div className="flex h-12 items-center gap-3 border-b border-border px-4">
+              <Search className="h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="h-full flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
+                className="h-full flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle-foreground"
                 placeholder={t('components.search.placeholderInput')}
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="flex h-6 w-6 items-center justify-center rounded text-ink-subtle transition-colors duration-150 hover:bg-surface-muted hover:text-ink"
+                  className="flex h-6 w-6 items-center justify-center rounded text-subtle-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
                   aria-label="Clear"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -183,14 +183,14 @@ export default function GlobalSearch() {
 
             <div className="max-h-[50vh] overflow-y-auto">
               {isLoading ? (
-                <div className="flex justify-center py-10 text-ink-subtle"><Spinner size="sm" /></div>
+                <div className="flex justify-center py-10 text-subtle-foreground"><Spinner size="sm" /></div>
               ) : query && totalResults === 0 ? (
                 <EmptyState compact icon={Search} title={t('components.search.noResults', { q: query })} />
               ) : query ? (
                 <div className="py-2">
                   {groups.filter((g) => g.items.length > 0).map((g) => (
                     <div key={g.key}>
-                      <div className="px-4 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-ink-muted">{g.label}</div>
+                      <div className="px-4 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{g.label}</div>
                       {g.items.map((item, i) => {
                         const [line1, line2] = g.render(item)
                         const idx = g.offset + i
@@ -202,16 +202,16 @@ export default function GlobalSearch() {
                             onClick={() => handleSelect(allResults[idx])}
                             onMouseEnter={() => setSelectedIndex(idx)}
                             className={clsx(
-                              'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors duration-150',
-                              active ? 'bg-surface-muted' : 'hover:bg-surface-muted/60',
+                              'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors duration-200',
+                              active ? 'bg-muted' : 'hover:bg-muted/60',
                             )}
                           >
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface text-ink-muted">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
                               <g.icon className="h-3.5 w-3.5" aria-hidden="true" />
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-ink">{line1}</span>
-                              <span className="block truncate text-xs text-ink-muted">{line2}</span>
+                              <span className="block truncate text-sm font-medium text-foreground">{line1}</span>
+                              <span className="block truncate text-xs text-muted-foreground">{line2}</span>
                             </span>
                           </button>
                         )
@@ -221,8 +221,8 @@ export default function GlobalSearch() {
                 </div>
               ) : (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-ink-muted">{t('components.search.startTyping')}</p>
-                  <div className="mt-3 flex items-center justify-center gap-4 text-xs text-ink-subtle">
+                  <p className="text-sm text-muted-foreground">{t('components.search.startTyping')}</p>
+                  <div className="mt-3 flex items-center justify-center gap-4 text-xs text-subtle-foreground">
                     <span className="flex items-center gap-1"><Server className="h-3 w-3" /> {t('components.search.services')}</span>
                     <span className="flex items-center gap-1"><Key className="h-3 w-3" /> {t('components.search.tokens')}</span>
                     <span className="flex items-center gap-1"><Bot className="h-3 w-3" /> {t('components.search.clients')}</span>
@@ -231,7 +231,7 @@ export default function GlobalSearch() {
               )}
             </div>
 
-            <div className="flex h-9 items-center justify-between border-t border-hairline px-4 text-xs text-ink-subtle">
+            <div className="flex h-9 items-center justify-between border-t border-border px-4 text-xs text-subtle-foreground">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <Kbd>↑</Kbd><Kbd>↓</Kbd>

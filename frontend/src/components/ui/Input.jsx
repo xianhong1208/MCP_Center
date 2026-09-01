@@ -4,9 +4,9 @@ import clsx from 'clsx'
 /** 表單標籤:text-sm medium,置於欄位上方 */
 export function Label({ className, children, required, ...rest }) {
   return (
-    <label className={clsx('mb-1.5 block text-sm font-medium text-ink', className)} {...rest}>
+    <label className={clsx('mb-1.5 block text-sm font-medium text-foreground', className)} {...rest}>
       {children}
-      {required && <span className="ml-0.5 text-rose-500" aria-hidden="true">*</span>}
+      {required && <span className="ml-0.5 text-danger" aria-hidden="true">*</span>}
     </label>
   )
 }
@@ -14,13 +14,13 @@ export function Label({ className, children, required, ...rest }) {
 /** 欄位下方說明 */
 export function Help({ className, children }) {
   if (!children) return null
-  return <p className={clsx('mt-1.5 text-xs text-ink-muted', className)}>{children}</p>
+  return <p className={clsx('mt-1.5 text-xs text-muted-foreground', className)}>{children}</p>
 }
 
 /** 欄位錯誤 */
 export function FieldError({ className, children }) {
   if (!children) return null
-  return <p className={clsx('mt-1.5 text-xs text-rose-600 dark:text-rose-400', className)}>{children}</p>
+  return <p className={clsx('mt-1.5 text-xs text-danger', className)}>{children}</p>
 }
 
 /** Field = Label + control + Help/Error 的排版容器 */
@@ -86,8 +86,8 @@ export function CheckRow({ label, description, className, disabled, ...inputProp
     >
       <Checkbox className="mt-0.5" disabled={disabled} {...inputProps} />
       <span className="min-w-0">
-        <span className="block font-medium text-ink">{label}</span>
-        {description && <span className="mt-0.5 block text-xs text-ink-muted">{description}</span>}
+        <span className="block font-medium text-foreground">{label}</span>
+        {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
       </span>
     </label>
   )
@@ -97,7 +97,7 @@ export function CheckRow({ label, description, className, disabled, ...inputProp
 export function SearchInput({ className, icon: Icon, size = 'md', ...rest }) {
   return (
     <div className={clsx('relative', className)}>
-      {Icon && <Icon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" aria-hidden="true" />}
+      {Icon && <Icon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle-foreground" aria-hidden="true" />}
       <Input type="search" size={size} className={clsx(Icon && 'pl-8')} {...rest} />
     </div>
   )

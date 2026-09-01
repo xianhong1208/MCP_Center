@@ -42,13 +42,13 @@ export function StatusBadge({ status }) {
 
 export function ScopeChips({ scopes, max = 3 }) {
   const { t } = useTranslation()
-  if (!scopes || scopes.length === 0) return <span className="text-xs text-ink-subtle">{t('tokens.common.noScopes')}</span>
+  if (!scopes || scopes.length === 0) return <span className="text-xs text-subtle-foreground">{t('tokens.common.noScopes')}</span>
   return (
     <div className="flex flex-wrap gap-1">
       {scopes.slice(0, max).map((s) => (
         <Badge key={s} tone="neutral" mono>{s}</Badge>
       ))}
-      {scopes.length > max && <span className="text-xs text-ink-muted tabular-nums">+{scopes.length - max}</span>}
+      {scopes.length > max && <span className="text-xs text-muted-foreground tabular-nums">+{scopes.length - max}</span>}
     </div>
   )
 }
@@ -174,7 +174,7 @@ export default function TokensPage() {
           <option value="">{t('tokens.list.allServices')}</option>
           {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Select>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <Checkbox checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           {t('tokens.list.includeInactive')}
         </label>
@@ -190,12 +190,12 @@ export default function TokensPage() {
             title={t('tokens.list.empty')}
             description={hasFilters ? t('tokens.list.adjustFilters') : t('tokens.list.emptyHint')}
             action={!hasFilters && (
-              <Button variant="primary" icon={Plus} to="/tokens/create">{t('tokens.list.issue')}</Button>
+              <Button variant="soft" icon={Plus} to="/tokens/create">{t('tokens.list.issue')}</Button>
             )}
           />
         </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-hairline bg-surface">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <Table bordered={false}>
             <THead>
               <TR hover={false} group={false}>
@@ -216,34 +216,34 @@ export default function TokensPage() {
                   <TD className="max-w-[240px]">
                     <Link to={`/tokens/${encodeURIComponent(tk.jti)}`} className="block min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="truncate font-medium text-ink transition-colors duration-150 hover:text-accent">
-                          {tk.label || <span className="italic text-ink-subtle">{t('tokens.list.noLabel')}</span>}
+                        <span className="truncate font-medium text-foreground transition-colors duration-200 hover:text-link">
+                          {tk.label || <span className="italic text-subtle-foreground">{t('tokens.list.noLabel')}</span>}
                         </span>
                         <KindBadge kind={tk.kind} />
                       </div>
-                      <p className="mt-0.5 truncate font-mono text-xs text-ink-muted" title={tk.jti}>{tk.jti}</p>
+                      <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={tk.jti}>{tk.jti}</p>
                     </Link>
                   </TD>
                   <TD className="max-w-[180px]">
-                    <span className="block truncate text-ink" title={tk.client_id}>{tk.client_name || tk.client_id}</span>
+                    <span className="block truncate text-foreground" title={tk.client_id}>{tk.client_name || tk.client_id}</span>
                   </TD>
                   <TD className="max-w-[220px]">
                     {tk.service_id ? (
-                      <Link to={`/services/${encodeURIComponent(tk.service_id)}`} className="block truncate text-ink transition-colors duration-150 hover:text-accent">
+                      <Link to={`/services/${encodeURIComponent(tk.service_id)}`} className="block truncate text-foreground transition-colors duration-200 hover:text-link">
                         {tk.service_name || tk.service_id}
                       </Link>
                     ) : (
-                      <span className="text-ink-subtle">—</span>
+                      <span className="text-subtle-foreground">—</span>
                     )}
                     {tk.audience && (
-                      <p className="mt-0.5 truncate font-mono text-xs text-ink-muted" title={tk.audience}>{tk.audience}</p>
+                      <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={tk.audience}>{tk.audience}</p>
                     )}
                   </TD>
                   <TD className="hidden 2xl:table-cell"><ScopeChips scopes={tk.scopes} max={2} /></TD>
                   <TD className="hidden whitespace-nowrap 2xl:table-cell" muted>{tk.issued_at ? formatDateTime(tk.issued_at) : '—'}</TD>
                   <TD className="whitespace-nowrap" muted>{tk.expires_at ? formatDateTime(tk.expires_at) : t('tokens.common.never')}</TD>
                   <TD className="hidden whitespace-nowrap 2xl:table-cell" muted>
-                    {tk.last_used_at ? <LastChecked value={tk.last_used_at} /> : <span className="text-xs text-ink-subtle">{t('tokens.common.neverUsed')}</span>}
+                    {tk.last_used_at ? <LastChecked value={tk.last_used_at} /> : <span className="text-xs text-subtle-foreground">{t('tokens.common.neverUsed')}</span>}
                   </TD>
                   <TD><StatusBadge status={tk.status} /></TD>
                   <TD align="right">
@@ -266,7 +266,7 @@ export default function TokensPage() {
             </TBody>
           </Table>
 
-          <div className="flex h-12 items-center justify-between border-t border-hairline px-4 text-xs text-ink-muted">
+          <div className="flex h-12 items-center justify-between border-t border-border px-4 text-xs text-muted-foreground">
             <span className="tabular-nums">
               {t('tokens.list.pagination', {
                 from: (page - 1) * pageSize + 1,

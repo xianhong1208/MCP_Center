@@ -20,8 +20,8 @@ import {
   EmptyState, Alert, LoadingBlock, SegmentedControl,
 } from '../components/ui'
 
-// recharts 需要實際色值:indigo-500 / rose-500(不能用 CSS 變數當 stroke)
-const CHART = { success: '#6366f1', failed: '#f43f5e' }
+// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+const CHART = { success: '#22C55E', failed: '#F87171' }
 
 function CustomTooltip({ active, payload, label }) {
   const { t } = useTranslation()
@@ -29,11 +29,11 @@ function CustomTooltip({ active, payload, label }) {
   const success = payload.find((p) => p.dataKey === 'success')?.value || 0
   const failed = payload.find((p) => p.dataKey === 'failed')?.value || 0
   return (
-    <div className="min-w-[10rem] rounded-md border border-hairline bg-surface-elevated p-3 text-xs shadow-overlay">
-      <p className="mb-2 font-medium text-ink">{label}</p>
-      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="accent" />{t('services.detail.chartSuccess')}</span><span className="tabular-nums text-ink">{success}</span></div>
-      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="danger" />{t('services.detail.chartFailed')}</span><span className="tabular-nums text-ink">{failed}</span></div>
-      <div className="mt-2 flex items-center justify-between gap-4 border-t border-hairline pt-1.5"><span className="text-ink-muted">{t('services.detail.totalLabel')}</span><span className="tabular-nums font-medium text-ink">{success + failed}</span></div>
+    <div className="min-w-[10rem] rounded-md border border-border bg-popover p-3 text-xs shadow-overlay">
+      <p className="mb-2 font-medium text-foreground">{label}</p>
+      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="success" />{t('services.detail.chartSuccess')}</span><span className="tabular-nums text-foreground">{success}</span></div>
+      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="danger" />{t('services.detail.chartFailed')}</span><span className="tabular-nums text-foreground">{failed}</span></div>
+      <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-1.5"><span className="text-muted-foreground">{t('services.detail.totalLabel')}</span><span className="tabular-nums font-medium text-foreground">{success + failed}</span></div>
     </div>
   )
 }
@@ -74,11 +74,11 @@ function ToolItem({ tool }) {
           aria-expanded={isExpanded}
         >
           {isExpanded
-            ? <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
-            : <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />}
+            ? <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />
+            : <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />}
           <span className="min-w-0">
-            <span className="block truncate font-mono text-xs font-medium text-ink">{tool.name}</span>
-            {tool.description && <span className="mt-0.5 block text-xs text-ink-muted">{tool.description}</span>}
+            <span className="block truncate font-mono text-xs font-medium text-foreground">{tool.name}</span>
+            {tool.description && <span className="mt-0.5 block text-xs text-muted-foreground">{tool.description}</span>}
           </span>
         </button>
         {tool.input_schema && (
@@ -87,8 +87,8 @@ function ToolItem({ tool }) {
       </div>
       {isExpanded && tool.input_schema && (
         <div className="ml-6 mt-2">
-          <p className="mb-1.5 text-xs text-ink-muted">{t('services.common.inputSchema')}</p>
-          <pre className="overflow-x-auto rounded-md border border-hairline bg-surface-muted/50 p-3 font-mono text-xs text-ink">{JSON.stringify(tool.input_schema, null, 2)}</pre>
+          <p className="mb-1.5 text-xs text-muted-foreground">{t('services.common.inputSchema')}</p>
+          <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground">{JSON.stringify(tool.input_schema, null, 2)}</pre>
         </div>
       )}
     </div>
@@ -325,7 +325,7 @@ export default function ServiceDetailPage() {
                   value: (
                     <span>
                       <span className="block break-all font-mono text-xs">{service.effective_audience || '—'}</span>
-                      <span className="mt-1 block text-xs font-sans text-ink-muted">
+                      <span className="mt-1 block text-xs font-sans text-muted-foreground">
                         {service.oauth_audience ? t('services.detail.audienceCustom') : t('services.detail.audienceDefault')}
                       </span>
                     </span>
@@ -338,7 +338,7 @@ export default function ServiceDetailPage() {
               ]}
             />
             {(service.has_static_token || service.health?.response_time_ms != null || service.health?.last_checked || service.created_at || service.health?.error_message) && (
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-hairline pt-4 text-xs text-ink-muted">
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4 text-xs text-muted-foreground">
               {service.has_static_token && (
                 <Badge tone="neutral"><Key className="h-3 w-3" />{t('services.detail.staticTokenBadge')}</Badge>
               )}
@@ -346,21 +346,21 @@ export default function ServiceDetailPage() {
                 <span className="flex items-center gap-1.5">
                   <Activity className="h-3.5 w-3.5" aria-hidden="true" />
                   {t('services.detail.responseTime')}
-                  <span className="font-mono tabular-nums text-ink">{Math.round(service.health.response_time_ms)}ms</span>
+                  <span className="font-mono tabular-nums text-foreground">{Math.round(service.health.response_time_ms)}ms</span>
                 </span>
               )}
               {service.health?.last_checked && (
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   {t('services.detail.lastChecked')}
-                  <LastChecked value={service.health.last_checked} withIcon={false} className="text-ink" />
+                  <LastChecked value={service.health.last_checked} withIcon={false} className="text-foreground" />
                 </span>
               )}
               {service.created_at && (
                 <span className="tabular-nums">{t('services.detail.createdAt', { date: service.created_at })}</span>
               )}
               {service.health?.error_message && (
-                <span className="max-w-full truncate text-rose-600 dark:text-rose-400" title={service.health.error_message}>{service.health.error_message}</span>
+                <span className="max-w-full truncate text-danger" title={service.health.error_message}>{service.health.error_message}</span>
               )}
             </div>
             )}
@@ -372,10 +372,10 @@ export default function ServiceDetailPage() {
               title={t('services.detail.usageHistoryTitle')}
               description={t('services.detail.usageHistorySubtitle')}
               action={
-                <dl className="flex items-center divide-x divide-hairline text-xs">
-                  <div className="pr-4"><dt className="text-ink-muted">{t('services.detail.totalLabel')}</dt><dd className="text-base font-semibold tabular-nums text-ink">{totalUsage}</dd></div>
-                  <div className="px-4"><dt className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="accent" />{t('services.detail.successLabel')}</dt><dd className="text-base font-semibold tabular-nums text-ink">{totalSuccess}</dd></div>
-                  <div className="pl-4"><dt className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="danger" />{t('services.detail.failedLabel')}</dt><dd className="text-base font-semibold tabular-nums text-ink">{totalFailed}</dd></div>
+                <dl className="flex items-center divide-x divide-border text-xs">
+                  <div className="pr-4"><dt className="text-muted-foreground">{t('services.detail.totalLabel')}</dt><dd className="text-base font-semibold tabular-nums text-foreground">{totalUsage}</dd></div>
+                  <div className="px-4"><dt className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="success" />{t('services.detail.successLabel')}</dt><dd className="text-base font-semibold tabular-nums text-foreground">{totalSuccess}</dd></div>
+                  <div className="pl-4"><dt className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="danger" />{t('services.detail.failedLabel')}</dt><dd className="text-base font-semibold tabular-nums text-foreground">{totalFailed}</dd></div>
                 </dl>
               }
             />
@@ -391,8 +391,8 @@ export default function ServiceDetailPage() {
                     <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => { const d = new Date(v); return `${d.getMonth() + 1}/${d.getDate()}` }} />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tickMargin={4} />
                     <Tooltip content={<CustomTooltip />} cursor={{ strokeWidth: 1 }} />
-                    <Area type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} fill={CHART.success} fillOpacity={0.08} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('services.detail.chartSuccess')} />
-                    <Area type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} fill={CHART.failed} fillOpacity={0.08} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('services.detail.chartFailed')} />
+                    <Area className="chart-line-success" type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} fill={CHART.success} fillOpacity={0.08} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-success' }} name={t('services.detail.chartSuccess')} />
+                    <Area className="chart-line-failed" type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} fill={CHART.failed} fillOpacity={0.08} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-danger' }} name={t('services.detail.chartFailed')} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -406,7 +406,7 @@ export default function ServiceDetailPage() {
               description={t('services.detail.integrationSubtitle')}
             />
             {!snippets ? (
-              <p className="text-sm text-ink-muted">{t('services.detail.snippetsUnavailable')}</p>
+              <p className="text-sm text-muted-foreground">{t('services.detail.snippetsUnavailable')}</p>
             ) : (
               <div className="space-y-4">
                 <div className="overflow-x-auto">
@@ -441,12 +441,12 @@ export default function ServiceDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-ink-muted">{t('services.detail.scopesAll')}</p>
+              <p className="text-xs text-muted-foreground">{t('services.detail.scopesAll')}</p>
             )}
             <SectionLabel className="mb-2 mt-5">{t('services.detail.tagsTitle')}</SectionLabel>
             <div className="flex flex-wrap gap-1.5">
               {(service.tags || []).map((tag) => <Badge key={tag} tone="neutral">{tag}</Badge>)}
-              {(!service.tags || service.tags.length === 0) && <span className="text-xs text-ink-muted">{t('services.detail.noTags')}</span>}
+              {(!service.tags || service.tags.length === 0) && <span className="text-xs text-muted-foreground">{t('services.detail.noTags')}</span>}
             </div>
           </Card>
 
@@ -468,7 +468,7 @@ export default function ServiceDetailPage() {
                 description={hasMcpConnection ? t('services.common.refreshServerHint') : undefined}
               />
             ) : (
-              <div className="divide-y divide-hairline">
+              <div className="divide-y divide-border">
                 {service.tools.map((tool) => <ToolItem key={tool.id || tool.name} tool={tool} />)}
               </div>
             )}
@@ -483,14 +483,14 @@ export default function ServiceDetailPage() {
             {tokens.length === 0 ? (
               <EmptyState compact icon={Key} title={t('services.detail.tokensEmpty')} description={t('services.detail.tokensHint')} />
             ) : (
-              <div className="divide-y divide-hairline">
+              <div className="divide-y divide-border">
                 {tokens.slice(0, 10).map((tk) => (
                   <div key={tk.jti} className="group flex items-center justify-between gap-2 py-2.5">
                     <Link to={`/tokens/${encodeURIComponent(tk.jti)}`} className="flex min-w-0 flex-1 items-center gap-2">
                       <KindBadge kind={tk.kind} />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-ink transition-colors duration-150 group-hover:text-accent">{tk.label || tk.client_name || tk.jti}</span>
-                        <span className="block truncate text-xs text-ink-muted">{tk.client_name || tk.client_id}{tk.expires_at ? ` · ${t('services.detail.tokenExpires')} ${tk.expires_at}` : ''}</span>
+                        <span className="block truncate text-sm font-medium text-foreground transition-colors duration-200 group-hover:text-link">{tk.label || tk.client_name || tk.jti}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{tk.client_name || tk.client_id}{tk.expires_at ? ` · ${t('services.detail.tokenExpires')} ${tk.expires_at}` : ''}</span>
                       </span>
                     </Link>
                     <div className="hidden 2xl:block"><ScopeChips scopes={tk.scopes} max={2} /></div>
@@ -505,7 +505,7 @@ export default function ServiceDetailPage() {
                     />
                   </div>
                 ))}
-                {tokens.length > 10 && <p className="pt-2 text-center text-xs text-ink-muted tabular-nums">+{tokens.length - 10}</p>}
+                {tokens.length > 10 && <p className="pt-2 text-center text-xs text-muted-foreground tabular-nums">+{tokens.length - 10}</p>}
               </div>
             )}
           </Card>

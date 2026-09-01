@@ -55,9 +55,9 @@ const resourceTypeIcons = {
 }
 
 const statusConfig = {
-  success: { tone: 'success', text: 'text-emerald-700 dark:text-emerald-400' },
-  failure: { tone: 'danger', text: 'text-rose-700 dark:text-rose-400' },
-  error: { tone: 'warning', text: 'text-amber-700 dark:text-amber-400' },
+  success: { tone: 'success', text: 'text-success' },
+  failure: { tone: 'danger', text: 'text-danger' },
+  error: { tone: 'warning', text: 'text-warning' },
 }
 
 export default function AuditLogPage() {
@@ -223,25 +223,25 @@ export default function AuditLogPage() {
                 className={clsx(isExporting && '[&>svg]:animate-spin')}
               >
                 {t('audit.list.export')}
-                <ChevronDown className="h-3.5 w-3.5 text-ink-subtle" aria-hidden="true" />
+                <ChevronDown className="h-3.5 w-3.5 text-subtle-foreground" aria-hidden="true" />
               </Button>
               {showExportMenu && (
-                <div className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-md border border-hairline bg-surface-elevated py-1 shadow-overlay">
+                <div className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-overlay">
                   <button
                     type="button"
                     onClick={() => handleExport(100)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-ink transition-colors duration-150 hover:bg-surface-muted"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-foreground transition-colors duration-200 hover:bg-muted"
                   >
                     <span>{t('audit.list.exportLatest100')}</span>
-                    <span className="text-xs text-ink-muted">{t('audit.list.exportLatest100Note')}</span>
+                    <span className="text-xs text-muted-foreground">{t('audit.list.exportLatest100Note')}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport(10000)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-ink transition-colors duration-150 hover:bg-surface-muted"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-foreground transition-colors duration-200 hover:bg-muted"
                   >
                     <span>{t('audit.list.exportAll')}</span>
-                    <span className="text-xs text-ink-muted">{t('audit.list.exportAllNote')}</span>
+                    <span className="text-xs text-muted-foreground">{t('audit.list.exportAllNote')}</span>
                   </button>
                 </div>
               )}
@@ -369,7 +369,7 @@ export default function AuditLogPage() {
                   </TD>
                   <TD muted>
                     <span className="inline-flex items-center gap-2">
-                      <ResourceIcon className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
+                      <ResourceIcon className="h-4 w-4 text-subtle-foreground" aria-hidden="true" />
                       <span className="capitalize">{getResourceTypeLabel(log.resource_type)}</span>
                     </span>
                   </TD>
@@ -394,7 +394,7 @@ export default function AuditLogPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-muted tabular-nums">
+          <span className="text-muted-foreground tabular-nums">
             {t('audit.list.pageSummary', {
               from: ((page - 1) * pageSize) + 1,
               to: Math.min(page * pageSize, totalCount),
@@ -410,7 +410,7 @@ export default function AuditLogPage() {
               disabled={page === 1}
               aria-label="Previous page"
             />
-            <span className="px-1 text-xs text-ink-muted tabular-nums">
+            <span className="px-1 text-xs text-muted-foreground tabular-nums">
               {t('audit.list.pageOf', { page, total: totalPages })}
             </span>
             <Button
@@ -433,7 +433,7 @@ export default function AuditLogPage() {
               {detailItems.map(({ label, value, mono, wide }) => (
                 <div key={label} className={clsx('min-w-0', wide && 'col-span-2')}>
                   <dt><SectionLabel>{label}</SectionLabel></dt>
-                  <dd className={clsx('mt-1 break-all text-sm text-ink', mono && 'font-mono text-xs')}>{value}</dd>
+                  <dd className={clsx('mt-1 break-all text-sm text-foreground', mono && 'font-mono text-xs')}>{value}</dd>
                 </div>
               ))}
               {selectedLog.error_message && (
@@ -450,7 +450,7 @@ export default function AuditLogPage() {
               )}
               <div className="col-span-2">
                 <dt><SectionLabel>{t('audit.detail.userAgent')}</SectionLabel></dt>
-                <dd className="mt-1 break-all text-xs text-ink-muted">{selectedLog.user_agent || '-'}</dd>
+                <dd className="mt-1 break-all text-xs text-muted-foreground">{selectedLog.user_agent || '-'}</dd>
               </div>
             </dl>
           </DialogBody>

@@ -11,11 +11,11 @@ import useServiceWebSocket from '../hooks/useServiceWebSocket'
 import LastChecked from '../components/LastChecked'
 import {
   PageHeader, Button, Card, CardHeader, StatTile, StatusPill, StatusDot, Alert, EmptyState, LoadingBlock, Select,
-  Table, THead, TBody, TR, TH, TD, SectionLabel,
+  Table, THead, TBody, TR, TH, TD, SectionLabel, dotTones,
 } from '../components/ui'
 
-// recharts 需要實際色值:indigo-500 / zinc-400(不能用 CSS 變數當 stroke)
-const CHART = { success: '#6366f1', failed: '#f43f5e' }
+// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+const CHART = { success: '#22C55E', failed: '#F87171' }
 
 const ServiceHealthCard = memo(function ServiceHealthCard({ health, offlineServices, isLoading }) {
   const { t } = useTranslation()
@@ -36,14 +36,25 @@ const ServiceHealthCard = memo(function ServiceHealthCard({ health, offlineServi
         <LoadingBlock className="py-6" size="sm" />
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-2">
-            {healthItems.map(({ key, label, tone }) => (
-              <div key={key} className="min-w-0 rounded-md border border-hairline px-3 py-2">
-                <p className="text-lg font-semibold tabular-nums text-ink">{health[key] || 0}</p>
-                <StatusPill tone={tone} className="truncate text-2xs" title={label}>{label}</StatusPill>
-              </div>
+          {/* 堆疊比例條 + 2x2 圖例:四種狀態一眼看出佔比,標籤不再被截斷 */}
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
+            {health.total > 0 && healthItems.map(({ key, tone }) => (
+              (health[key] || 0) > 0 && (
+                <div key={key} className={dotTones[tone]} style={{ width: `${((health[key] || 0) / health.total) * 100}%` }} />
+              )
             ))}
           </div>
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+            {healthItems.map(({ key, label, tone }) => (
+              <div key={key} className="flex min-w-0 items-center justify-between gap-2 text-sm">
+                <dt className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                  <StatusDot tone={tone} className="h-1.5 w-1.5" />
+                  <span className="truncate" title={label}>{label}</span>
+                </dt>
+                <dd className="shrink-0 font-medium tabular-nums text-foreground">{health[key] || 0}</dd>
+              </div>
+            ))}
+          </dl>
           {offlineServices && offlineServices.length > 0 && (
             <div className="mt-4">
               <SectionLabel className="mb-2">{t('dashboard.serviceHealth.needAttention')}</SectionLabel>
@@ -55,13 +66,13 @@ const ServiceHealthCard = memo(function ServiceHealthCard({ health, offlineServi
                         <span className="flex items-center gap-2">
                           <StatusDot tone={svc.status === 'error' ? 'warning' : 'danger'} />
                           {svc.id ? (
-                            <Link to={`/services/${svc.id}`} title={t('dashboard.serviceHealth.openDetail')} className="truncate font-medium text-ink hover:text-accent">{svc.name}</Link>
+                            <Link to={`/services/${svc.id}`} title={t('dashboard.serviceHealth.openDetail')} className="truncate font-medium text-foreground hover:text-link">{svc.name}</Link>
                           ) : (
-                            <span className="truncate font-medium text-ink">{svc.name}</span>
+                            <span className="truncate font-medium text-foreground">{svc.name}</span>
                           )}
                         </span>
                       </TD>
-                      <TD align="right" className="h-9 py-0 pl-2 pr-3 font-mono text-2xs text-ink-muted">{svc.host}:{svc.port}</TD>
+                      <TD align="right" className="h-9 py-0 pl-2 pr-3 font-mono text-2xs text-muted-foreground">{svc.host}:{svc.port}</TD>
                     </TR>
                   ))}
                 </TBody>
@@ -87,11 +98,11 @@ const UsageSummaryCard = memo(function UsageSummaryCard({ summary, isLoading }) 
       {isLoading ? (
         <LoadingBlock className="py-6" size="sm" />
       ) : (
-        <dl className="divide-y divide-hairline">
+        <dl className="divide-y divide-border">
           {items.map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between py-2.5">
-              <dt className="text-sm text-ink-muted">{label}</dt>
-              <dd className="text-sm font-medium tabular-nums text-ink">{value.toLocaleString()}</dd>
+              <dt className="text-sm text-muted-foreground">{label}</dt>
+              <dd className="text-sm font-medium tabular-nums text-foreground">{value.toLocaleString()}</dd>
             </div>
           ))}
         </dl>
@@ -110,9 +121,9 @@ const SystemStatusCard = memo(function SystemStatusCard({ scheduler, adminCount,
         <LoadingBlock className="py-6" size="sm" />
       ) : (
         <>
-          <dl className="divide-y divide-hairline">
+          <dl className="divide-y divide-border">
             <div className="flex items-center justify-between py-2.5">
-              <dt className="text-sm text-ink-muted">{t('dashboard.system.scheduler')}</dt>
+              <dt className="text-sm text-muted-foreground">{t('dashboard.system.scheduler')}</dt>
               <dd>
                 <StatusPill tone={scheduler?.is_running ? 'success' : 'danger'}>
                   {scheduler?.is_running ? t('dashboard.system.running') : t('dashboard.system.stopped')}
@@ -120,25 +131,25 @@ const SystemStatusCard = memo(function SystemStatusCard({ scheduler, adminCount,
               </dd>
             </div>
             <div className="flex items-center justify-between py-2.5">
-              <dt className="text-sm text-ink-muted">{t('dashboard.system.scheduledJobs')}</dt>
-              <dd className="text-sm font-medium tabular-nums text-ink">{scheduler?.jobs_count || 0}</dd>
+              <dt className="text-sm text-muted-foreground">{t('dashboard.system.scheduledJobs')}</dt>
+              <dd className="text-sm font-medium tabular-nums text-foreground">{scheduler?.jobs_count || 0}</dd>
             </div>
             <div className="flex items-center justify-between py-2.5">
-              <dt className="text-sm text-ink-muted">{t('dashboard.system.admins')}</dt>
-              <dd className="text-sm font-medium tabular-nums text-ink">{adminCount || 0}</dd>
+              <dt className="text-sm text-muted-foreground">{t('dashboard.system.admins')}</dt>
+              <dd className="text-sm font-medium tabular-nums text-foreground">{adminCount || 0}</dd>
             </div>
             {issuer && (
               <div className="py-2.5">
-                <dt className="text-sm text-ink-muted">{t('dashboard.system.issuer')}</dt>
-                <dd className="mt-1 break-all font-mono text-xs text-ink">{issuer}</dd>
+                <dt className="text-sm text-muted-foreground">{t('dashboard.system.issuer')}</dt>
+                <dd className="mt-1 break-all font-mono text-xs text-foreground">{issuer}</dd>
               </div>
             )}
           </dl>
 
-          <div className="mt-4 border-t border-hairline pt-4">
+          <div className="mt-4 border-t border-border pt-4">
             <SectionLabel className="mb-3">{t('dashboard.tokenKinds.title')}</SectionLabel>
             {kindData.length === 0 ? (
-              <p className="text-xs text-ink-muted">{t('dashboard.tokenKinds.empty')}</p>
+              <p className="text-xs text-muted-foreground">{t('dashboard.tokenKinds.empty')}</p>
             ) : (
               <div className="space-y-2">
                 {kindData.map((entry) => {
@@ -146,11 +157,11 @@ const SystemStatusCard = memo(function SystemStatusCard({ scheduler, adminCount,
                   return (
                     <div key={entry.name}>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-ink-muted">{entry.name}</span>
-                        <span className="tabular-nums text-ink">{entry.value} <span className="text-ink-subtle">({pct.toFixed(0)}%)</span></span>
+                        <span className="text-muted-foreground">{entry.name}</span>
+                        <span className="tabular-nums text-foreground">{entry.value} <span className="text-subtle-foreground">({pct.toFixed(0)}%)</span></span>
                       </div>
-                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                        <div className={clsx('h-full rounded-full', entry.accent ? 'bg-accent' : 'bg-zinc-400 dark:bg-zinc-500')} style={{ width: `${pct}%` }} />
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div className={clsx('h-full rounded-full', entry.accent ? 'bg-accent' : 'bg-subtle-foreground')} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   )
@@ -172,13 +183,13 @@ const ActivityRow = memo(function ActivityRow({ ev }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface text-ink-muted">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink">{t(`dashboard.activity.events.${ev.event}`, ev.event)}</p>
-          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
-            {ev.grant_type && <span className="shrink-0 rounded bg-surface-muted px-1 font-mono text-2xs">{ev.grant_type}</span>}
+          <p className="truncate text-sm font-medium text-foreground">{t(`dashboard.activity.events.${ev.event}`, ev.event)}</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {ev.grant_type && <span className="shrink-0 rounded bg-muted px-1 font-mono text-2xs">{ev.grant_type}</span>}
             <span className="truncate">
               {ev.client_id || t('dashboard.activity.unknownClient')}{ev.audience ? ` → ${ev.audience}` : ''}{ev.ip ? ` · ${ev.ip}` : ''}
             </span>
@@ -199,11 +210,11 @@ const ChartTooltip = memo(function ChartTooltip({ active, payload, label }) {
   const success = payload.find((p) => p.dataKey === 'success')?.value || 0
   const failed = payload.find((p) => p.dataKey === 'failed')?.value || 0
   return (
-    <div className="min-w-[10rem] rounded-md border border-hairline bg-surface-elevated p-3 text-xs shadow-overlay">
-      <p className="mb-2 font-medium text-ink">{label}</p>
-      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="accent" />{t('dashboard.chart.success')}</span><span className="tabular-nums text-ink">{success}</span></div>
-      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="danger" />{t('dashboard.chart.failed')}</span><span className="tabular-nums text-ink">{failed}</span></div>
-      <div className="mt-2 flex items-center justify-between gap-4 border-t border-hairline pt-1.5"><span className="text-ink-muted">{t('dashboard.chart.total')}</span><span className="tabular-nums font-medium text-ink">{success + failed}</span></div>
+    <div className="min-w-[10rem] rounded-md border border-border bg-popover p-3 text-xs shadow-overlay">
+      <p className="mb-2 font-medium text-foreground">{label}</p>
+      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="success" />{t('dashboard.chart.success')}</span><span className="tabular-nums text-foreground">{success}</span></div>
+      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="danger" />{t('dashboard.chart.failed')}</span><span className="tabular-nums text-foreground">{failed}</span></div>
+      <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-1.5"><span className="text-muted-foreground">{t('dashboard.chart.total')}</span><span className="tabular-nums font-medium text-foreground">{success + failed}</span></div>
     </div>
   )
 })
@@ -343,12 +354,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
-            title={<>{t('dashboard.chart.title')}{selectedServiceName && <span className="ml-2 font-normal text-ink-muted">— {selectedServiceName}</span>}</>}
+            title={<>{t('dashboard.chart.title')}{selectedServiceName && <span className="ml-2 font-normal text-muted-foreground">— {selectedServiceName}</span>}</>}
             description={t('dashboard.chart.subtitle')}
             action={
               <>
-                <div className="hidden items-center gap-3 text-xs text-ink-muted sm:flex">
-                  <StatusPill tone="accent">{t('dashboard.chart.success')}</StatusPill>
+                <div className="hidden items-center gap-3 text-xs text-muted-foreground sm:flex">
+                  <StatusPill tone="success">{t('dashboard.chart.success')}</StatusPill>
                   <StatusPill tone="danger">{t('dashboard.chart.failed')}</StatusPill>
                 </div>
                 <Select size="sm" value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="w-auto max-w-[200px]">
@@ -370,8 +381,8 @@ export default function DashboardPage() {
                   <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => { const d = new Date(v); return isNaN(d) ? String(v) : `${d.getMonth() + 1}/${d.getDate()}` }} />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tickMargin={4} />
                   <Tooltip content={<ChartTooltip />} cursor={{ strokeWidth: 1 }} />
-                  <Line type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('dashboard.chart.success')} />
-                  <Line type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('dashboard.chart.failed')} />
+                  <Line className="chart-line-success" type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-success' }} name={t('dashboard.chart.success')} />
+                  <Line className="chart-line-failed" type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-danger' }} name={t('dashboard.chart.failed')} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -394,7 +405,7 @@ export default function DashboardPage() {
               action={<Button variant="secondary" size="sm" icon={Plus} to="/tokens/create">{t('dashboard.activity.issueFirst')}</Button>}
             />
           ) : (
-            <div className="divide-y divide-hairline">{activity.map((ev, i) => <ActivityRow key={`${ev.at}-${i}`} ev={ev} />)}</div>
+            <div className="divide-y divide-border">{activity.map((ev, i) => <ActivityRow key={`${ev.at}-${i}`} ev={ev} />)}</div>
           )}
         </Card>
       </div>
@@ -415,14 +426,14 @@ export default function DashboardPage() {
           { to: '/services', icon: Server, title: t('dashboard.quickActions.services'), hint: t('dashboard.quickActions.servicesHint') },
         ].map((a) => (
           <Card key={a.to} to={a.to} padding="sm" className="group flex items-center gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface text-ink-muted">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
               <a.icon className="h-4 w-4" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-ink">{a.title}</span>
-              <span className="block truncate text-xs text-ink-muted">{a.hint}</span>
+              <span className="block truncate text-sm font-medium text-foreground">{a.title}</span>
+              <span className="block truncate text-xs text-muted-foreground">{a.hint}</span>
             </span>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-ink-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100" aria-hidden="true" />
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-subtle-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100" aria-hidden="true" />
           </Card>
         ))}
       </div>

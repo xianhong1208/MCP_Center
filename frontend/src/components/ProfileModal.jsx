@@ -135,12 +135,12 @@ export default function ProfileModal({ isOpen, onClose }) {
                       autoFocus
                       className="w-44"
                     />
-                    <IconButton icon={Check} title={t('components.profile.saveName')} onClick={handleSaveName} disabled={savingName} className="text-emerald-600 dark:text-emerald-400" />
+                    <IconButton icon={Check} title={t('components.profile.saveName')} onClick={handleSaveName} disabled={savingName} className="text-success" />
                     <IconButton icon={X} title={t('components.profile.back')} onClick={() => setEditingName(false)} disabled={savingName} />
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">
-                    <h3 className="truncate text-base font-semibold text-ink">
+                    <h3 className="truncate text-base font-semibold text-foreground">
                       {user?.username || t('components.profile.unknownUser')}
                     </h3>
                     <IconButton
@@ -158,7 +158,7 @@ export default function ProfileModal({ isOpen, onClose }) {
             </div>
 
             <DescriptionList
-              className="rounded-md border border-hairline px-4"
+              className="rounded-md border border-border px-4"
               items={[
                 { label: t('components.profile.email'), value: user?.email || t('components.profile.emailNotSet') },
                 { label: t('components.profile.memberSince'), value: user?.created_at || t('components.profile.memberSinceUnknown') },
@@ -167,7 +167,7 @@ export default function ProfileModal({ isOpen, onClose }) {
             />
 
             {!needsCurrent && (
-              <p className="text-xs text-ink-muted">{t('components.profile.noPasswordHint')}</p>
+              <p className="text-xs text-muted-foreground">{t('components.profile.noPasswordHint')}</p>
             )}
           </DialogBody>
           <DialogFooter>

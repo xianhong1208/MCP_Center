@@ -93,8 +93,8 @@ export default function LoginPage() {
   return (
     <AuthShell>
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-ink">{t('auth.login.title')}</h2>
-        <p className="mt-1 text-sm text-ink-muted">{t('auth.login.subtitle')}</p>
+        <h2 className="text-lg font-semibold text-foreground">{t('auth.login.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('auth.login.subtitle')}</p>
       </div>
 
       {error && <Alert tone="danger" className="mb-5">{error}</Alert>}
@@ -139,7 +139,7 @@ export default function LoginPage() {
           </Button>
         </form>
       ) : (
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-muted-foreground">
           {oauthProviders.length > 0 ? t('auth.login.localDisabled') : t('auth.login.noProviders')}
         </p>
       )}

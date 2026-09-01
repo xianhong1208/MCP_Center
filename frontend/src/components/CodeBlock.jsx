@@ -33,17 +33,17 @@ export default function CodeBlock({ title, value, language, className, rows, sen
       icon={copied ? Check : Copy}
       onClick={handleCopy}
       title={t('components.code.copy')}
-      className={clsx(copied && 'text-emerald-600 dark:text-emerald-400')}
+      className={clsx(copied && 'text-success')}
     />
   )
 
   return (
-    <div className={clsx('overflow-hidden rounded-md border border-hairline bg-surface-muted/50', className)}>
+    <div className={clsx('overflow-hidden rounded-md border border-border bg-muted/50', className)}>
       {(title || language) && (
-        <div className="flex h-9 items-center justify-between border-b border-hairline px-3">
-          <span className="truncate text-xs font-medium text-ink-muted">{title}</span>
+        <div className="flex h-9 items-center justify-between border-b border-border px-3">
+          <span className="truncate text-xs font-medium text-muted-foreground">{title}</span>
           <div className="flex items-center gap-2">
-            {language && <span className="font-mono text-2xs uppercase tracking-wide text-ink-subtle">{language}</span>}
+            {language && <span className="font-mono text-2xs uppercase tracking-wide text-subtle-foreground">{language}</span>}
             {copyButton}
           </div>
         </div>
@@ -51,7 +51,7 @@ export default function CodeBlock({ title, value, language, className, rows, sen
       <div className="relative">
         <pre
           className={clsx(
-            'overflow-x-auto whitespace-pre px-3 py-2.5 font-mono text-xs leading-relaxed text-ink',
+            'overflow-x-auto whitespace-pre px-3 py-2.5 font-mono text-xs leading-relaxed text-foreground',
             sensitive && 'whitespace-pre-wrap break-all',
           )}
           style={rows ? { maxHeight: `${rows * 1.6}rem`, overflowY: 'auto' } : undefined}

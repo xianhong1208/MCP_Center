@@ -93,10 +93,10 @@ function RegisterClientModal({ onClose, onCreated }) {
                     onClick={() => toggleGrant(g)}
                     aria-pressed={on}
                     className={clsx(
-                      'inline-flex h-7 items-center gap-1 rounded-md border px-2 font-mono text-xs transition-colors duration-150',
+                      'inline-flex h-7 items-center gap-1 rounded-md border px-2 font-mono text-xs transition-colors duration-200',
                       on
-                        ? 'border-accent/30 bg-accent-soft text-accent'
-                        : 'border-hairline-strong bg-surface text-ink-muted hover:border-ink-subtle hover:text-ink',
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border-strong bg-card text-muted-foreground hover:border-subtle-foreground hover:text-foreground',
                     )}
                   >
                     {on && <Check className="h-3 w-3" aria-hidden="true" />}{g}
@@ -128,7 +128,7 @@ function SecretModal({ client, onClose }) {
   return (
     <Dialog open onClose={onClose} size="lg" title={t('clients.secret.title')}>
       <DialogBody className="space-y-4">
-        <p className="text-sm text-ink-muted">{t('clients.secret.body', { name: client.client_name })}</p>
+        <p className="text-sm text-muted-foreground">{t('clients.secret.body', { name: client.client_name })}</p>
         <CodeBlock title={t('clients.secret.clientId')} value={client.client_id} sensitive />
         {client.client_secret ? (
           <>
@@ -136,7 +136,7 @@ function SecretModal({ client, onClose }) {
             <Alert tone="warning">{t('clients.secret.oneTime')}</Alert>
           </>
         ) : (
-          <p className="text-xs text-ink-muted">{t('clients.secret.publicClient')}</p>
+          <p className="text-xs text-muted-foreground">{t('clients.secret.publicClient')}</p>
         )}
       </DialogBody>
       <DialogFooter>
@@ -209,7 +209,7 @@ function ScopesSection() {
       />
 
       {editing && (
-        <div className="mb-4 space-y-3 rounded-md border border-hairline bg-surface-muted/40 p-4">
+        <div className="mb-4 space-y-3 rounded-md border border-border bg-muted/40 p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Input
               type="text"
@@ -231,7 +231,7 @@ function ScopesSection() {
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
               <Checkbox checked={editing.isDefault} onChange={(e) => setEditing({ ...editing, isDefault: e.target.checked })} />
               {t('clients.scopes.isDefault')}
             </label>
@@ -250,15 +250,15 @@ function ScopesSection() {
       ) : scopes.length === 0 ? (
         <EmptyState compact title={t('clients.scopes.empty')} />
       ) : (
-        <div className="divide-y divide-hairline">
+        <div className="divide-y divide-border">
           {scopes.map((s) => (
             <div key={s.name} className="group flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
-                <p className="flex items-center gap-2 font-mono text-xs font-medium text-ink">
+                <p className="flex items-center gap-2 font-mono text-xs font-medium text-foreground">
                   {s.name}
                   {s.is_default && <Badge tone="success">{t('clients.scopes.default')}</Badge>}
                 </p>
-                <p className="truncate text-xs text-ink-muted">{s.description || t('clients.scopes.noDescription')}</p>
+                <p className="truncate text-xs text-muted-foreground">{s.description || t('clients.scopes.noDescription')}</p>
               </div>
               <RowActions>
                 <IconButton
@@ -334,12 +334,12 @@ function KeysSection() {
       ) : keys.length === 0 ? (
         <EmptyState compact icon={KeyRound} title={t('clients.keys.empty')} />
       ) : (
-        <div className="divide-y divide-hairline">
+        <div className="divide-y divide-border">
           {keys.map((k) => (
             <div key={k.kid} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
-                <p className="truncate font-mono text-xs font-medium text-ink">{k.kid}</p>
-                <p className="text-xs text-ink-muted tabular-nums">{k.alg} · {t('clients.keys.created', { date: k.created_at || '—' })}</p>
+                <p className="truncate font-mono text-xs font-medium text-foreground">{k.kid}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{k.alg} · {t('clients.keys.created', { date: k.created_at || '—' })}</p>
               </div>
               <StatusPill tone={k.is_active ? 'success' : 'neutral'}>
                 {k.is_active ? t('clients.keys.active') : t('clients.keys.inactive')}
@@ -478,19 +478,19 @@ export default function OAuthClientsPage() {
                   <TR key={c.client_id}>
                     <TD className="max-w-xs">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-muted text-ink-muted">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
                           {c.logo_uri ? <img src={c.logo_uri} alt="" className="h-full w-full object-cover" /> : <Bot className="h-4 w-4" aria-hidden="true" />}
                         </span>
                         <div className="min-w-0">
-                          <p className="flex items-center gap-1.5 truncate font-medium text-ink">
+                          <p className="flex items-center gap-1.5 truncate font-medium text-foreground">
                             <span className="truncate">{c.client_name}</span>
                             {c.is_confidential
-                              ? <Lock className="h-3 w-3 shrink-0 text-ink-subtle" title={t('clients.confidential')} />
-                              : <Unlock className="h-3 w-3 shrink-0 text-ink-subtle" title={t('clients.public')} />}
+                              ? <Lock className="h-3 w-3 shrink-0 text-subtle-foreground" title={t('clients.confidential')} />
+                              : <Unlock className="h-3 w-3 shrink-0 text-subtle-foreground" title={t('clients.public')} />}
                           </p>
-                          <p className="truncate font-mono text-xs text-ink-muted" title={c.client_id}>{c.client_id}</p>
+                          <p className="truncate font-mono text-xs text-muted-foreground" title={c.client_id}>{c.client_id}</p>
                           {c.client_uri && (
-                            <a href={c.client_uri} target="_blank" rel="noreferrer" className="block truncate text-xs text-accent transition-colors duration-150 hover:text-accent-hover">{c.client_uri}</a>
+                            <a href={c.client_uri} target="_blank" rel="noreferrer" className="block truncate text-xs text-link transition-colors duration-200 hover:text-link-hover">{c.client_uri}</a>
                           )}
                         </div>
                       </div>
@@ -507,16 +507,16 @@ export default function OAuthClientsPage() {
                     </TD>
                     <TD className="max-w-[16rem]">
                       {(c.redirect_uris || []).length === 0 ? (
-                        <span className="text-xs text-ink-subtle">{t('clients.noRedirect')}</span>
+                        <span className="text-xs text-subtle-foreground">{t('clients.noRedirect')}</span>
                       ) : (
                         <div className="space-y-0.5">
-                          {c.redirect_uris.slice(0, 2).map((u) => <p key={u} className="truncate font-mono text-xs text-ink-muted" title={u}>{u}</p>)}
-                          {c.redirect_uris.length > 2 && <p className="text-xs text-ink-subtle tabular-nums">+{c.redirect_uris.length - 2}</p>}
+                          {c.redirect_uris.slice(0, 2).map((u) => <p key={u} className="truncate font-mono text-xs text-muted-foreground" title={u}>{u}</p>)}
+                          {c.redirect_uris.length > 2 && <p className="text-xs text-subtle-foreground tabular-nums">+{c.redirect_uris.length - 2}</p>}
                         </div>
                       )}
                     </TD>
-                    <TD className="whitespace-nowrap text-xs text-ink-muted">
-                      {c.last_used_at ? <LastChecked value={c.last_used_at} /> : <span className="text-ink-subtle">{t('clients.neverUsed')}</span>}
+                    <TD className="whitespace-nowrap text-xs text-muted-foreground">
+                      {c.last_used_at ? <LastChecked value={c.last_used_at} /> : <span className="text-subtle-foreground">{t('clients.neverUsed')}</span>}
                     </TD>
                     <TD>
                       <StatusPill tone={STATUS_TONE[status]} pulse={status === 'pending'}>
@@ -536,7 +536,7 @@ export default function OAuthClientsPage() {
                         {!isSystem && (
                           <IconButton variant="destructive" icon={Trash2} onClick={() => remove(c)} disabled={isBusy} title={t('clients.delete')} />
                         )}
-                        {isBusy && <RefreshCw className="ml-1 h-4 w-4 animate-spin text-ink-subtle" aria-hidden="true" />}
+                        {isBusy && <RefreshCw className="ml-1 h-4 w-4 animate-spin text-subtle-foreground" aria-hidden="true" />}
                       </RowActions>
                     </TD>
                   </TR>

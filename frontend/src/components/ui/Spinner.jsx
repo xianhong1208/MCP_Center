@@ -25,7 +25,7 @@ export default function Spinner({ size = 'md', className }) {
 /** 區塊載入中(頁面 / 卡片內容) */
 export function LoadingBlock({ className, size = 'md' }) {
   return (
-    <div className={clsx('flex items-center justify-center py-12 text-ink-subtle', className)}>
+    <div className={clsx('flex items-center justify-center py-12 text-subtle-foreground', className)}>
       <Spinner size={size} />
     </div>
   )

@@ -29,12 +29,12 @@ export default function Modal({
   )
 }
 
-/** 放在 Modal 內容底部的動作列(貼齊面板邊緣、以 hairline 分隔) */
+/** 放在 Modal 內容底部的動作列(貼齊面板邊緣、以 border 分隔) */
 export function ModalFooter({ children, className, between = false }) {
   return (
     <div
       className={clsx(
-        '-mx-5 -mb-5 mt-5 flex items-center gap-2 border-t border-hairline px-5 py-3',
+        '-mx-5 -mb-5 mt-5 flex items-center gap-2 border-t border-border px-5 py-3',
         between ? 'justify-between' : 'justify-end',
         className,
       )}

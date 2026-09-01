@@ -11,16 +11,11 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }) {
-  // Initialize from localStorage or system preference
+  // Dark 是預設與設計基準;只有使用者明確選過 light 才用淺色。
+  // 用新的 key(mcp-theme):舊版會把自動算出的預設值也寫進 'theme',不能當成使用者的選擇。
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved) return saved
-
-    // Light 是預設;只有系統明確偏好深色時才用 dark
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark'
-    }
-    return 'light'
+    const saved = localStorage.getItem('mcp-theme')
+    return saved === 'light' ? 'light' : 'dark'
   })
 
   // Update document class and localStorage when theme changes
@@ -35,26 +30,15 @@ export function ThemeProvider({ children }) {
       root.classList.remove('light')
     }
 
-    localStorage.setItem('theme', theme)
   }, [theme])
 
-  // Listen for system preference changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-
-    const handleChange = (e) => {
-      const saved = localStorage.getItem('theme')
-      if (!saved) {
-        setTheme(e.matches ? 'dark' : 'light')
-      }
-    }
-
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [])
-
+  // 只有使用者親手切換才持久化
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      try { localStorage.setItem('mcp-theme', next) } catch { /* storage 不可用時靜默 */ }
+      return next
+    })
   }
 
   return (

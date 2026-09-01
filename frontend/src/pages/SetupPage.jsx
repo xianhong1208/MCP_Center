@@ -62,7 +62,7 @@ export default function SetupPage() {
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-subtle">
+      <div className="flex min-h-screen items-center justify-center bg-background text-subtle-foreground">
         <Spinner size="lg" />
       </div>
     )
@@ -73,8 +73,8 @@ export default function SetupPage() {
   return (
     <AuthShell maxWidth="max-w-md">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-ink">{t('auth.setup.title')}</h2>
-        <p className="mt-1 text-sm text-ink-muted">{t('auth.setup.subtitle')}</p>
+        <h2 className="text-lg font-semibold text-foreground">{t('auth.setup.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('auth.setup.subtitle')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

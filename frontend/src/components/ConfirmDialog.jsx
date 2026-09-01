@@ -5,11 +5,11 @@ import Dialog, { DialogFooter } from './ui/Dialog'
 import Button from './ui/Button'
 
 const iconMap = {
-  danger: { icon: AlertTriangle, className: 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400', button: 'destructiveSolid' },
-  delete: { icon: Trash2, className: 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400', button: 'destructiveSolid' },
-  warning: { icon: AlertTriangle, className: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400', button: 'destructiveSolid' },
-  revoke: { icon: Ban, className: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400', button: 'destructiveSolid' },
-  info: { icon: Info, className: 'bg-accent-soft text-accent', button: 'primary' },
+  danger: { icon: AlertTriangle, className: 'bg-danger/10 text-danger', button: 'destructiveSolid' },
+  delete: { icon: Trash2, className: 'bg-danger/10 text-danger', button: 'destructiveSolid' },
+  warning: { icon: AlertTriangle, className: 'bg-warning/10 text-warning', button: 'destructiveSolid' },
+  revoke: { icon: Ban, className: 'bg-warning/10 text-warning', button: 'destructiveSolid' },
+  info: { icon: Info, className: 'bg-info/10 text-info', button: 'primary' },
 }
 
 export default function ConfirmDialog({
@@ -42,12 +42,12 @@ export default function ConfirmDialog({
     <Dialog open onClose={onClose} size="sm" showClose={false} zIndex="z-[100]">
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-start gap-4">
-          <div className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', cfg.className)}>
+          <div className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-md', cfg.className)}>
             <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 pt-0.5">
-            <h2 className="text-base font-semibold text-ink">{resolvedTitle}</h2>
-            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-muted">{message}</p>
+            <h2 className="text-base font-semibold text-foreground">{resolvedTitle}</h2>
+            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{message}</p>
           </div>
         </div>
       </div>

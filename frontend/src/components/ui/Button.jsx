@@ -7,28 +7,28 @@ import Spinner from './Spinner'
  * Button — 全站唯一的按鈕樣式來源。
  *
  * variant:
- *   primary      實心 indigo(每個畫面最多一顆)
- *   secondary    白底 + zinc 邊框
+ *   primary      實心綠 CTA(深字;每個畫面最多一顆)
+ *   secondary    卡片底 + border 邊框(outline)
  *   ghost        無邊框,hover 才有底
- *   destructive  rose 文字,hover 淡 rose 底(只在確認 dialog 內用 destructiveSolid)
- *   destructiveSolid  實心 rose
- *   soft         淡 indigo 底(選中 / 切換狀態用,不要用 className 覆寫 secondary 來做選中)
- * size: md(h-9)| sm(h-8)
+ *   destructive  danger 文字,hover 淡 danger 底(只在確認 dialog 內用 destructiveSolid)
+ *   destructiveSolid  實心 #DC2626 + 白字
+ *   soft         實心海軍藍(選中 / 切換狀態用,不要用 className 覆寫 secondary 來做選中)
+ * size: md(h-9)| sm(h-8)| xs(h-7)
  * 傳 `to` 會 render 成 <Link>,傳 `href` 會 render 成 <a>。
  */
 export const buttonVariants = {
   primary:
-    'bg-accent text-white shadow-sm hover:bg-accent-hover border border-transparent',
+    'bg-accent text-accent-foreground hover:bg-accent-hover border border-transparent',
   secondary:
-    'bg-surface text-ink border border-hairline-strong shadow-sm hover:bg-surface-muted',
+    'bg-card text-foreground border border-border-strong hover:bg-foreground/[0.06]',
   ghost:
-    'bg-transparent text-ink-muted border border-transparent hover:bg-surface-muted hover:text-ink',
+    'bg-transparent text-muted-foreground border border-transparent hover:bg-foreground/[0.06] hover:text-foreground',
   destructive:
-    'bg-transparent text-rose-600 border border-transparent hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10',
+    'bg-transparent text-danger border border-transparent hover:bg-danger/10',
   destructiveSolid:
-    'bg-rose-600 text-white shadow-sm hover:bg-rose-700 border border-transparent',
+    'bg-destructive text-destructive-foreground hover:bg-destructive-hover border border-transparent',
   soft:
-    'bg-accent-soft text-accent border border-accent/30 shadow-sm hover:bg-accent-soft',
+    'bg-primary text-primary-foreground border border-transparent hover:bg-primary-hover',
 }
 
 export const buttonSizes = {
@@ -42,8 +42,8 @@ const Button = forwardRef(function Button(
   ref,
 ) {
   const classes = clsx(
-    'inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium',
-    'transition-colors duration-150 select-none',
+    'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md font-medium',
+    'transition-colors duration-200 select-none',
     'disabled:pointer-events-none disabled:opacity-50',
     buttonVariants[variant] || buttonVariants.secondary,
     buttonSizes[size] || buttonSizes.md,

@@ -14,17 +14,17 @@ export default function PageHeader({ title, description, actions, backTo, backLa
         {backTo && (
           <Link
             to={backTo}
-            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-ink-muted transition-colors duration-150 hover:text-ink"
+            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             {backLabel}
           </Link>
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-ink">{title}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{title}</h1>
           {meta}
         </div>
-        {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

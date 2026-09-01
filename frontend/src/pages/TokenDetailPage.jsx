@@ -12,8 +12,8 @@ import {
   PageHeader, Button, Badge, Card, CardHeader, Alert, EmptyState, LoadingBlock, StatusDot, DescriptionList,
 } from '../components/ui'
 
-// recharts 需要實際色值:indigo-500 / rose-500
-const CHART = { success: '#6366f1', failed: '#f43f5e' }
+// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+const CHART = { success: '#22C55E', failed: '#F87171' }
 
 function ChartTooltip({ active, payload, label }) {
   const { t } = useTranslation()
@@ -21,11 +21,11 @@ function ChartTooltip({ active, payload, label }) {
   const success = payload.find((p) => p.dataKey === 'success')?.value || 0
   const failed = payload.find((p) => p.dataKey === 'failed')?.value || 0
   return (
-    <div className="min-w-[10rem] rounded-md border border-hairline bg-surface-elevated p-3 text-xs shadow-overlay">
-      <p className="mb-2 font-medium text-ink">{label}</p>
-      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="accent" />{t('tokens.detail.chartSuccess')}</span><span className="tabular-nums text-ink">{success}</span></div>
-      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-ink-muted"><StatusDot tone="danger" />{t('tokens.detail.chartFailed')}</span><span className="tabular-nums text-ink">{failed}</span></div>
-      <div className="mt-2 flex items-center justify-between gap-4 border-t border-hairline pt-1.5"><span className="text-ink-muted">{t('tokens.detail.total')}</span><span className="tabular-nums font-medium text-ink">{success + failed}</span></div>
+    <div className="min-w-[10rem] rounded-md border border-border bg-popover p-3 text-xs shadow-overlay">
+      <p className="mb-2 font-medium text-foreground">{label}</p>
+      <div className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="success" />{t('tokens.detail.chartSuccess')}</span><span className="tabular-nums text-foreground">{success}</span></div>
+      <div className="mt-1 flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-muted-foreground"><StatusDot tone="danger" />{t('tokens.detail.chartFailed')}</span><span className="tabular-nums text-foreground">{failed}</span></div>
+      <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-1.5"><span className="text-muted-foreground">{t('tokens.detail.total')}</span><span className="tabular-nums font-medium text-foreground">{success + failed}</span></div>
     </div>
   )
 }
@@ -106,14 +106,14 @@ export default function TokenDetailPage() {
       value: (
         <>
           <span className="block">{token.client_name || '—'}</span>
-          <span className="block font-mono text-xs text-ink-muted">{token.client_id}</span>
+          <span className="block font-mono text-xs text-muted-foreground">{token.client_id}</span>
         </>
       ),
     },
     {
       label: t('tokens.detail.service'),
       value: token.service_id ? (
-        <Link to={`/services/${encodeURIComponent(token.service_id)}`} className="text-accent transition-colors duration-150 hover:text-accent-hover">
+        <Link to={`/services/${encodeURIComponent(token.service_id)}`} className="text-link transition-colors duration-200 hover:text-link-hover">
           {token.service_name || token.service_id}
         </Link>
       ) : '—',
@@ -124,7 +124,7 @@ export default function TokenDetailPage() {
       value: (
         <>
           <span className="block font-mono text-xs">{token.sub}</span>
-          {token.user_email && <span className="block text-xs text-ink-muted">{token.user_email}</span>}
+          {token.user_email && <span className="block text-xs text-muted-foreground">{token.user_email}</span>}
         </>
       ),
     },
@@ -134,7 +134,7 @@ export default function TokenDetailPage() {
         <span className="flex flex-wrap justify-end gap-1">
           {token.scopes.map((s) => <Badge key={s} tone="neutral" mono>{s}</Badge>)}
         </span>
-      ) : <span className="text-ink-muted">{t('tokens.detail.noScopes')}</span>,
+      ) : <span className="text-muted-foreground">{t('tokens.detail.noScopes')}</span>,
     },
   ]
 
@@ -145,10 +145,10 @@ export default function TokenDetailPage() {
       label: t('tokens.detail.lastUsed'),
       value: token.last_used_at ? (
         <>
-          <LastChecked value={token.last_used_at} className="justify-end text-ink" />
-          <span className="block font-mono text-xs text-ink-muted">{token.last_used_at}{token.last_used_ip ? ` · ${token.last_used_ip}` : ''}</span>
+          <LastChecked value={token.last_used_at} className="justify-end text-foreground" />
+          <span className="block font-mono text-xs text-muted-foreground">{token.last_used_at}{token.last_used_ip ? ` · ${token.last_used_ip}` : ''}</span>
         </>
-      ) : <span className="text-ink-muted">{t('tokens.common.neverUsed')}</span>,
+      ) : <span className="text-muted-foreground">{t('tokens.common.neverUsed')}</span>,
     },
     { label: t('tokens.detail.useCount'), value: <span className="tabular-nums">{token.use_count ?? 0}</span> },
   ]
@@ -192,10 +192,10 @@ export default function TokenDetailPage() {
           title={t('tokens.detail.usageTitle')}
           description={token.service_name ? t('tokens.detail.usageSubtitle', { service: token.service_name }) : t('tokens.detail.usageNoService')}
           action={
-            <dl className="flex items-center divide-x divide-hairline text-xs">
-              <div className="pr-4 text-right"><dd className="text-lg font-semibold tabular-nums text-ink">{totalUsage}</dd><dt className="text-ink-muted">{t('tokens.detail.total')}</dt></div>
-              <div className="px-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-ink"><StatusDot tone="accent" />{totalSuccess}</dd><dt className="text-ink-muted">{t('tokens.detail.success')}</dt></div>
-              <div className="pl-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-ink"><StatusDot tone="danger" />{totalFailed}</dd><dt className="text-ink-muted">{t('tokens.detail.failed')}</dt></div>
+            <dl className="flex items-center divide-x divide-border text-xs">
+              <div className="pr-4 text-right"><dd className="text-lg font-semibold tabular-nums text-foreground">{totalUsage}</dd><dt className="text-muted-foreground">{t('tokens.detail.total')}</dt></div>
+              <div className="px-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-foreground"><StatusDot tone="success" />{totalSuccess}</dd><dt className="text-muted-foreground">{t('tokens.detail.success')}</dt></div>
+              <div className="pl-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-foreground"><StatusDot tone="danger" />{totalFailed}</dd><dt className="text-muted-foreground">{t('tokens.detail.failed')}</dt></div>
             </dl>
           }
         />
@@ -213,8 +213,8 @@ export default function TokenDetailPage() {
                   tickFormatter={(v) => { const d = new Date(v); return `${d.getMonth() + 1}/${d.getDate()}` }} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tickMargin={4} />
                 <Tooltip content={<ChartTooltip />} cursor={{ strokeWidth: 1 }} />
-                <Line type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('tokens.detail.chartSuccess')} />
-                <Line type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} name={t('tokens.detail.chartFailed')} />
+                <Line className="chart-line-success" type="monotone" dataKey="success" stroke={CHART.success} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-success' }} name={t('tokens.detail.chartSuccess')} />
+                <Line className="chart-line-failed" type="monotone" dataKey="failed" stroke={CHART.failed} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0, className: 'fill-danger' }} name={t('tokens.detail.chartFailed')} />
               </LineChart>
             </ResponsiveContainer>
           </div>
