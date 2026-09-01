@@ -7,11 +7,12 @@ import GlobalSearch from '../GlobalSearch'
  * 每頁頂部:標題(text-xl semibold)+ 一行說明 + 右側動作(最多一顆 primary)。
  * backTo / backLabel:顯示上一層連結(detail 頁)。
  * meta:標題右側的小元素(StatusPill / Badge)。
- * search:是否在標題列右側放全站搜尋框(預設關;全站搜尋在頂列)。
+ * search:標題右邊(同一行、靠左那側)放全站搜尋框;預設開,detail 頁可傳 false 關掉。
  */
-export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = false }) {
+export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = true }) {
   return (
     <div className={clsx('flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between', className)}>
+      <div className="flex min-w-0 items-start gap-6">
       <div className="min-w-0">
         {backTo && (
           <Link
@@ -28,10 +29,9 @@ export default function PageHeader({ title, description, actions, backTo, backLa
         </div>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {search && <GlobalSearch className="hidden w-64 lg:flex" />}
-        {actions}
+      {search && <GlobalSearch className="hidden w-72 shrink-0 lg:flex" />}
       </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
 }

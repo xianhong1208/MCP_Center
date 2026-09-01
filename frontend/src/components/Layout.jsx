@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import GlobalSearch from './GlobalSearch'
 import { useAuth } from '../contexts/AuthContext'
 import { systemApi } from '../services/api'
 import ThemeToggle from './ThemeToggle'
@@ -63,37 +62,35 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      {/* 全寬頂列:MCP Center wordmark + 右側的全站搜尋;側欄與內容都從它下方開始 */}
-      <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-3 border-b border-border bg-muted px-4">
-        <IconButton
-          icon={sidebarOpen ? X : Menu}
-          title={sidebarOpen ? t('layout.closeMenu') : t('layout.openMenu')}
-          onClick={() => setSidebarOpen((open) => !open)}
-          className="lg:hidden"
-        />
-        <Wordmark name={t('layout.appName')} />
-        <GlobalSearch className="ml-3 hidden w-72 sm:flex" />
-      </header>
-
       {sidebarOpen && (
         <div
-          className="fixed inset-x-0 bottom-0 top-14 z-30 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Sidebar(頂列下方) */}
+      {/* Sidebar */}
       <aside
         className={clsx(
-          'fixed bottom-0 left-0 top-14 z-40 flex w-[272px] flex-col border-r border-border bg-muted',
+          'fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-border bg-muted',
           'transition-transform duration-200 ease-out lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
+        {/* Wordmark */}
+        <div className="flex h-14 items-center justify-between px-4">
+          <Wordmark name={t('layout.appName')} />
+          <IconButton
+            icon={X}
+            title={t('layout.closeMenu')}
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden"
+          />
+        </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-2 pt-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -144,7 +141,17 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="min-w-0 pt-14 lg:pl-[272px]">
+      <main className="min-w-0 lg:pl-[272px]">
+        {/* Mobile-only bar */}
+        <div className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-background px-4 lg:hidden">
+          <IconButton
+            icon={Menu}
+            title={t('layout.openMenu')}
+            onClick={() => setSidebarOpen(true)}
+          />
+          <Wordmark name={t('layout.appName')} />
+        </div>
+
         <div className="mx-auto w-full max-w-7xl px-6 py-8">
           <Outlet />
         </div>
