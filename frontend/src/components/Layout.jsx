@@ -89,12 +89,12 @@ export default function Layout() {
             className="lg:hidden"
           />
         </div>
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-3 pt-1">
           <GlobalSearch />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-2 pt-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}

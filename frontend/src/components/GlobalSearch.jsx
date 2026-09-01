@@ -122,13 +122,13 @@ export default function GlobalSearch() {
       type="button"
       onClick={() => setIsOpen(true)}
       className={clsx(
-        'flex h-8 w-full items-center gap-2 rounded-md border border-border bg-card px-2.5 text-left text-sm text-subtle-foreground',
+        'flex h-9 w-full items-center gap-2.5 rounded-md border border-border bg-card pl-3 pr-2 text-left text-sm text-subtle-foreground',
         'transition-colors duration-200 hover:border-border-strong hover:text-muted-foreground',
       )}
     >
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span className="flex-1 truncate">{t('components.search.placeholderTrigger')}</span>
-      <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
+      <Kbd className="hidden shrink-0 border-transparent bg-muted sm:inline-flex">⌘K</Kbd>
     </button>
   )
 
