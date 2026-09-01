@@ -8,11 +8,13 @@ import {
 import { servicesApi, discoveryApi, oauthApi } from '../services/api'
 import { exportServicesToCSV } from '../utils/export'
 import { formatMs } from '../utils/format'
+import { copyToClipboard } from '../utils/clipboard'
 import useVisiblePolling from '../hooks/usePolling'
 import LastChecked from '../components/LastChecked'
 import ServiceFormModal from '../components/ServiceFormModal'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useToast } from '../contexts/ToastContext'
+import HealthIndicator from '../components/HealthIndicator'
 import clsx from 'clsx'
 import {
   PageHeader, Button, IconButton, Badge, StatusPill, Card, EmptyState, Alert, LoadingBlock,
@@ -20,19 +22,7 @@ import {
   Dialog, DialogBody, DialogFooter, Field, Input, Radio as RadioInput, CheckRow,
 } from '../components/ui'
 
-const HEALTH_TONE = { online: 'success', offline: 'danger', error: 'warning', unknown: 'neutral' }
-
-// Health status indicator component
-export function HealthIndicator({ status, className }) {
-  const key = HEALTH_TONE[status] ? status : 'unknown'
-  return (
-    <StatusPill tone={HEALTH_TONE[key]} className={clsx('capitalize', className)}>
-      {status || 'unknown'}
-    </StatusPill>
-  )
-}
-
-// Tools modal(受 MCP Center 保護的服務由後端自簽 token 抓 tools,不需挑 token)
+// Tools modal (for services protected by MCP Center the backend self-signs a token to fetch tools; no token to pick)
 function ToolsModal({ service, onClose }) {
   const { t } = useTranslation()
   const [tools, setTools] = useState([])
@@ -103,7 +93,7 @@ function ToolsModal({ service, onClose }) {
                       icon={Copy}
                       size="sm"
                       onClick={() => {
-                        navigator.clipboard.writeText(JSON.stringify(tool.input_schema, null, 2))
+                        copyToClipboard(JSON.stringify(tool.input_schema, null, 2))
                         toast.success(t('services.common.schemaCopied'))
                       }}
                       title={t('services.common.copyInputSchema')}
@@ -333,7 +323,7 @@ export default function ServicesPage() {
     oauthApi.scopes.list().then((r) => setScopes(r.scopes || [])).catch(() => {})
   }, [])
 
-  // 健康狀態由排程器在背景更新;分頁可見時每 20s 靜默刷新
+  // Health is updated by the scheduler in the background; silently refresh every 20s while the tab is visible
   useVisiblePolling(() => loadData({ silent: true }), 20000)
 
   const handleBatchDelete = async () => {
@@ -462,7 +452,7 @@ export default function ServicesPage() {
 
       {isLoading ? (
         <LoadingBlock />
-      ) : services.length === 0 ? (
+      ) : error ? null : services.length === 0 ? (
         <Card padding="none">
           <EmptyState
             icon={Server}

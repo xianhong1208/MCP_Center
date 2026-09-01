@@ -1,17 +1,17 @@
 """Marketplace catalog loader
 
-掃 catalog/*.yaml 全部載入並快取。所有 YAML 都經過 Pydantic 驗證。
+Scans catalog/*.yaml, loads everything and caches it. Every YAML file goes through Pydantic validation.
 
-錯誤處理策略:**跳過壞檔,不要拖垮整個 marketplace**。
-單一 catalog YAML 驗證失敗時只記 logger.error 並略過該檔,錯誤留在
-`errors` 供 debug;其餘 entry 照常提供。理由:MCP Center 的主要職責是
-發 token,不該因為一個選配的 catalog 檔打錯字就讓 /auth/marketplace 回
-500(甚至擋住開機)。main.py 在 startup 會主動呼叫 load_all(),所以問題
-會出現在開機 log 裡,而不是等到管理者點進 marketplace 才發現。
+Error-handling strategy: **skip broken files, never take down the whole marketplace**.
+When a single catalog YAML fails validation, only logger.error is emitted and the file is skipped;
+the error is kept in `errors` for debugging and the remaining entries are served as usual. Rationale:
+MCP Center's primary job is issuing tokens, and a typo in one optional catalog file must not make
+/auth/marketplace return 500 (or even block startup). main.py calls load_all() eagerly at startup, so
+the problem shows up in the startup log instead of being discovered only when an admin opens the marketplace.
 
-已安裝但 catalog 變成無效的 process 會走 orchestrator 既有的錯誤路徑:
-`_start_locked` 找不到 catalog entry 會 raise OrchestratorError,reconcile
-把它標成 actual_state=failed 並寫入 last_error — 明確失敗,不會靜默。
+An installed process whose catalog has since become invalid takes the orchestrator's existing error path:
+`_start_locked` raises OrchestratorError when the catalog entry cannot be found, and reconcile marks it
+actual_state=failed and records last_error -- an explicit failure, never a silent one.
 """
 import logging
 from pathlib import Path
@@ -25,25 +25,25 @@ logger = logging.getLogger(__name__)
 
 
 class CatalogLoadError(Exception):
-    """讀取或驗證 catalog YAML 失敗"""
+    """Reading or validating a catalog YAML failed"""
 
 
 class CatalogLoader:
     def __init__(self, catalog_dir: Path):
         self.catalog_dir = catalog_dir
         self._cache: Optional[Dict[str, CatalogEntry]] = None
-        # filename → error message;每次 load 重建
+        # filename -> error message; rebuilt on every load
         self._errors: Dict[str, str] = {}
 
     def load_all(self) -> Dict[str, CatalogEntry]:
-        """讀所有 catalog YAML,回傳 id → CatalogEntry 的 dict。
-        結果快取,只會在首次呼叫時真的讀檔。
+        """Read all catalog YAML files and return a dict of id -> CatalogEntry.
+        The result is cached; files are only actually read on the first call.
         """
         if self._cache is not None:
             return self._cache
 
         if not self.catalog_dir.exists():
-            # 允許 catalog 資料夾不存在(開發初期),回傳空 dict
+            # Allow the catalog directory to be absent (early development); return an empty dict
             self._cache = {}
             self._errors = {}
             return self._cache
@@ -77,7 +77,7 @@ class CatalogLoader:
 
     @property
     def errors(self) -> Dict[str, str]:
-        """上次 load 中被跳過的檔案 → 原因。load_all() 之後才有意義。"""
+        """Files skipped during the last load -> reason. Only meaningful after load_all()."""
         return dict(self._errors)
 
     def get(self, catalog_id: str) -> Optional[CatalogEntry]:
@@ -85,15 +85,15 @@ class CatalogLoader:
 
     @property
     def images_dir(self) -> Path:
-        """離線 image tar 的存放目錄(catalog_dir/images)。"""
+        """Directory holding the offline image tars (catalog_dir/images)."""
         return self.catalog_dir / "images"
 
     def image_tar_path(self, entry: CatalogEntry) -> Path:
-        """某 catalog 項目的 image tar 完整路徑(檔案不一定存在)。"""
+        """Full path of a catalog entry's image tar (the file does not necessarily exist)."""
         return self.images_dir / entry.image_tar_name()
 
     def reload(self) -> Dict[str, CatalogEntry]:
-        """清除快取並重新讀取;給熱重載或測試用"""
+        """Clear the cache and read again; for hot reload or tests"""
         self._cache = None
         self._errors = {}
         return self.load_all()
@@ -105,11 +105,11 @@ _default_loader: Optional[CatalogLoader] = None
 
 
 def get_catalog_loader() -> CatalogLoader:
-    """取得預設 catalog loader
+    """Get the default catalog loader
 
-    路徑優先順序:
-      1. 環境變數 MCP_CATALOG_DIR(絕對路徑)
-      2. project_root / catalog/  (跟 main.py 的邏輯一致:
+    Path precedence:
+      1. the MCP_CATALOG_DIR environment variable (absolute path)
+      2. project_root / catalog/  (consistent with the logic in main.py:
          project_root = Path(sys.argv[0]).parent)
     """
     global _default_loader

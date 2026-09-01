@@ -1,24 +1,24 @@
 import assert from 'node:assert/strict'
 import { safeRedirectPath } from '../src/utils/redirect.js'
 
-// 合法的同站路徑照原樣回傳
+// Valid same-site paths are returned unchanged
 assert.equal(safeRedirectPath('/services/abc?tab=tools'), '/services/abc?tab=tools')
 assert.equal(safeRedirectPath('/'), '/')
-// 開放式重導向(open redirect)一律回 fallback
+// Open redirects always return the fallback
 assert.equal(safeRedirectPath('//evil.example.com'), '/')
 assert.equal(safeRedirectPath('/\\evil.example.com'), '/')
 assert.equal(safeRedirectPath('https://evil.example.com'), '/')
 assert.equal(safeRedirectPath('javascript:alert(1)'), '/')
 assert.equal(safeRedirectPath('/ok bad'), '/')
 assert.equal(safeRedirectPath('/ok\tbad'), '/')
-// 避免登入後又回登入頁
+// Avoid bouncing back to the login page after login
 assert.equal(safeRedirectPath('/login'), '/')
 assert.equal(safeRedirectPath('/login?next=x'), '/')
-// /setup 也是登入流程自己的頁面
+// /setup is also part of the login flow
 assert.equal(safeRedirectPath('/setup'), '/')
-// OAuth 同意頁必須能被記住,登入後才接得回授權流程
+// The OAuth consent page must be remembered so login can resume the authorization flow
 assert.equal(safeRedirectPath('/consent?rid=abc'), '/consent?rid=abc')
-// 非字串 / 空值 / 自訂 fallback / 超長
+// Non-string / empty / custom fallback / too long
 assert.equal(safeRedirectPath(null), '/')
 assert.equal(safeRedirectPath('', '/dashboard'), '/dashboard')
 assert.equal(safeRedirectPath('/' + 'x'.repeat(3000)), '/')

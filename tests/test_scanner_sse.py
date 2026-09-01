@@ -1,12 +1,14 @@
-"""Scanner:Streamable HTTP 的 SSE 回應必須「增量讀」
+"""Scanner: SSE responses over Streamable HTTP must be read incrementally
 
-背景(實測 firecrawl-mcp + supergateway 得到的結論):
-Streamable HTTP 的回應常是 `text/event-stream` + chunked,且**連線保持開啟**。
-先前 scanner 用 `response.read()/text()` 等整個 body 結束 —— 對 SSE 而言永遠
-不會結束,結果是逾時、連線被中斷,對端(supergateway)還會在回寫時因找不到
-連線而拋未捕捉例外整個崩潰,症狀就是服務永遠 offline、抓不到 tools。
+Background (conclusion from testing firecrawl-mcp + supergateway in practice):
+Streamable HTTP responses are often `text/event-stream` + chunked, and **the connection stays open**.
+The scanner previously used `response.read()/text()` to wait for the whole body -- which for SSE never
+ends. The result was a timeout and a torn-down connection, and the peer (supergateway) then threw an
+uncaught exception when writing back to a connection it could no longer find, crashing entirely. The
+symptom was a service that stayed offline forever and whose tools could never be fetched.
 
-本檔釘住:遇到不會結束的 SSE 串流,必須拿到第一則完整 JSON-RPC 訊息就返回。
+This file pins down: when facing a never-ending SSE stream, return as soon as the first complete
+JSON-RPC message is available.
 """
 import asyncio
 import json
@@ -17,7 +19,7 @@ from src.discovery.scanner import MCPScanner
 
 
 class _FakeContent:
-    """模擬 aiohttp response.content:吐完指定 chunk 後**永不結束**(如同真實 SSE)。"""
+    """Fake aiohttp response.content: after yielding the given chunks it **never ends** (like real SSE)."""
 
     def __init__(self, chunks, hang_forever=True):
         self._chunks = list(chunks)
@@ -27,7 +29,7 @@ class _FakeContent:
         for c in self._chunks:
             yield c
         if self._hang:
-            await asyncio.sleep(3600)  # 串流保持開啟 —— 若實作等 body 結束就會卡死
+            await asyncio.sleep(3600)  # Stream stays open -- an implementation waiting for the body to end hangs
 
 
 class _FakeResponse:
@@ -46,7 +48,7 @@ _MSG = {"jsonrpc": "2.0", "id": 1, "result": {"serverInfo": {"name": "x", "versi
 
 @pytest.mark.asyncio
 async def test_sse_returns_before_stream_ends():
-    """串流不會結束,但拿到第一則訊息就該返回(不可卡死)。"""
+    """The stream never ends, but we must return once the first message arrives (must not hang)."""
     chunks = [f"event: message\ndata: {json.dumps(_MSG)}\n\n".encode()]
     scanner = MCPScanner()
     got = await asyncio.wait_for(
@@ -57,7 +59,7 @@ async def test_sse_returns_before_stream_ends():
 
 @pytest.mark.asyncio
 async def test_sse_message_split_across_chunks():
-    """一則訊息被切在多個 chunk 中間也要能組回來。"""
+    """A message split across several chunks must be reassembled."""
     payload = f"event: message\ndata: {json.dumps(_MSG)}\n\n"
     mid = len(payload) // 2
     chunks = [payload[:mid].encode(), payload[mid:].encode()]
@@ -70,7 +72,7 @@ async def test_sse_message_split_across_chunks():
 
 @pytest.mark.asyncio
 async def test_sse_skips_non_data_lines():
-    """SSE 的 event/id/註解行要略過,只取 data。"""
+    """SSE event/id/comment lines are skipped; only data lines are taken."""
     chunks = [b": ping\nevent: message\nid: 7\n", f"data: {json.dumps(_MSG)}\n\n".encode()]
     scanner = MCPScanner()
     got = await asyncio.wait_for(
@@ -81,7 +83,7 @@ async def test_sse_skips_non_data_lines():
 
 @pytest.mark.asyncio
 async def test_plain_json_response_still_works():
-    """非 SSE(application/json)維持原本行為。"""
+    """Non-SSE (application/json) keeps the original behaviour."""
     scanner = MCPScanner()
     resp = _FakeResponse([], content_type="application/json", json_body=_MSG)
     got = await asyncio.wait_for(scanner._read_jsonrpc(resp), timeout=5)
@@ -90,7 +92,7 @@ async def test_plain_json_response_still_works():
 
 @pytest.mark.asyncio
 async def test_stream_ends_without_message_returns_none():
-    """串流結束卻沒有可解析的訊息 → None(不可拋例外)。"""
+    """Stream ends without a parseable message -> None (must not raise)."""
     scanner = MCPScanner()
     resp = _FakeResponse([b": comment only\n\n"], hang_forever=False)
     got = await asyncio.wait_for(scanner._read_jsonrpc(resp), timeout=5)

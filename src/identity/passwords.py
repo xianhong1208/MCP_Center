@@ -1,4 +1,4 @@
-"""密碼雜湊(bcrypt)。"""
+"""Password hashing (bcrypt)."""
 
 import bcrypt
 
@@ -19,7 +19,7 @@ def verify_password(password: str, password_hash: str | None) -> bool:
 
 
 def validate_password_strength(password: str) -> str | None:
-    """回傳錯誤碼(i18n key)或 None。"""
+    """Returns an error code (i18n key) or None."""
     if len(password or "") < MIN_PASSWORD_LENGTH:
         return "auth.validation_password_short"
     return None

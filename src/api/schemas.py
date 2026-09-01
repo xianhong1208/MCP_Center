@@ -1,4 +1,4 @@
-"""API 請求 / 回應模型。"""
+"""API request / response models."""
 
 from typing import List, Optional
 
@@ -16,9 +16,9 @@ class ServiceCreateRequest(BaseModel):
     mcp_path: str = "/mcp"
     tags: Optional[List[str]] = None
     requires_auth: bool = True
-    # 外部服務自己的靜態 Bearer(選填;受 MCP Center OAuth 保護的服務不需要)
+    # The external service's own static Bearer token (optional; not needed for services protected by MCP Center OAuth)
     auth_token: Optional[str] = None
-    # OAuth audience(RFC 8707 resource);留空則用 MCP URL
+    # OAuth audience (RFC 8707 resource); falls back to the MCP URL when empty
     oauth_audience: Optional[str] = None
     oauth_scopes: Optional[List[str]] = None
 
@@ -33,7 +33,7 @@ class ServiceUpdateRequest(BaseModel):
     mcp_path: Optional[str] = None
     tags: Optional[List[str]] = None
     requires_auth: Optional[bool] = None
-    auth_token: Optional[str] = None  # 空字串 = 清除
+    auth_token: Optional[str] = None  # empty string = clear
     oauth_audience: Optional[str] = None
     oauth_scopes: Optional[List[str]] = None
 

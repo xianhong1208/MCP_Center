@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 分頁可見時每 intervalMs 執行一次 fn;使用者切回分頁時立即補跑一次。
- * enabled=false 時完全停用(不佔用 timer)。
+ * Runs fn every intervalMs while the tab is visible; runs once immediately when the user returns to the tab.
+ * enabled=false disables it entirely (no timer is held).
  *
- * 為什麼要看 visibilityState:背景分頁持續打 API 只會浪費伺服器與電池,
- * 而且使用者回來時看到的仍可能是舊資料 —— 「切回即刷新」才是他們要的。
+ * Why check visibilityState: a background tab hammering the API only wastes server time and battery,
+ * and the user may still see stale data on return -- "refresh on return" is what they actually want.
  */
 export default function useVisiblePolling(fn, intervalMs, enabled = true) {
   const fnRef = useRef(fn)

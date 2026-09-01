@@ -4,8 +4,8 @@ import clsx from 'clsx'
 import { relativeTimeParts } from '../utils/format'
 
 /**
- * 「上次健康檢查」相對時間(例:3 分鐘前),hover 顯示絕對時間。
- * 沒有資料時不渲染 —— 呼叫端不必先判空。
+ * "Last health check" as relative time (e.g. 3 minutes ago); hover shows the absolute time.
+ * Renders nothing when there is no data, so callers need not null-check.
  */
 export default function LastChecked({ value, withIcon = true, className = '' }) {
   const { t } = useTranslation()

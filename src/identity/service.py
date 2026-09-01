@@ -1,4 +1,4 @@
-"""登入 / 首次設定 / 改密 / 第三方帳號對應(HTTP 無關的業務邏輯)。"""
+"""Login / first-time setup / password change / third-party account mapping (HTTP-agnostic business logic)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class IdentityError(Exception):
 
 
 def needs_setup(db: Session) -> bool:
-    """尚無任何帳號 → 需要走 /setup 建立擁有者。"""
+    """No account exists yet -> the owner must be created via /setup."""
     return AdminUserAdapter.get_count(db, include_inactive=True) == 0
 
 
@@ -51,10 +51,10 @@ def authenticate_local(db: Session, *, email: str, password: str) -> AdminUser:
 
 
 def login_external(db: Session, identity: ExternalIdentity) -> AdminUser:
-    """第三方登入 → 對應到本地帳號。
+    """Third-party login -> map to a local account.
 
-    順序:①同 provider+sub 的既有帳號 ②同 email 的既有帳號(自動綁定)
-    ③email 在 allowed_emails 白名單 → 自動建立;否則拒絕。
+    Order: (1) existing account with the same provider+sub, (2) existing account with the same email (auto-linked),
+    (3) email on the allowed_emails allowlist -> auto-create; otherwise reject.
     """
     user = AdminUserAdapter.get_by_provider(db, identity.provider, identity.sub)
     if user is None and identity.email:

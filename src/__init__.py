@@ -1,1 +1,1 @@
-"""MCP Center 源碼模組。"""
+"""MCP Center source package."""

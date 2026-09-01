@@ -7,7 +7,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
 import { Button, IconButton, Input, Field, Alert, Spinner } from '../components/ui'
 
-/** 首次啟動:建立擁有者帳號。之後永遠導回 /login。 */
+/** First run: create the owner account. Afterwards always redirects to /login. */
 export default function SetupPage() {
   const { t } = useTranslation()
   const { setup } = useAuth()

@@ -7,7 +7,7 @@ const sizes = {
   lg: 'h-6 w-6 border-2',
 }
 
-/** 圓形 spinner:用 currentColor,放在任何文字色裡都對 */
+/** Circular spinner: uses currentColor, so it works inside any text color */
 export default function Spinner({ size = 'md', className }) {
   return (
     <span
@@ -22,7 +22,7 @@ export default function Spinner({ size = 'md', className }) {
   )
 }
 
-/** 區塊載入中(頁面 / 卡片內容) */
+/** Block loading state (page / card content) */
 export function LoadingBlock({ className, size = 'md' }) {
   return (
     <div className={clsx('flex items-center justify-center py-12 text-subtle-foreground', className)}>

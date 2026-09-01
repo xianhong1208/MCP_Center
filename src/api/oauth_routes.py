@@ -1,12 +1,12 @@
-"""OAuth 2.1 Authorization Server 協定端點(公開,給 MCP client / MCP server 用)。
+"""OAuth 2.1 Authorization Server protocol endpoints (public; used by MCP clients / MCP servers).
 
   GET  /.well-known/oauth-authorization-server   RFC 8414 metadata
-  GET  /.well-known/openid-configuration         同上(相容只探這個路徑的 client)
-  GET  /.well-known/jwks.json                    公鑰
-  POST /oauth/register                           RFC 7591 動態註冊
-  GET  /oauth/authorize                          授權碼 + PKCE;未登入 / 需同意 → 導到 SPA /consent
-  GET  /oauth/authorize/requests/{rid}           同意頁資料(需登入)
-  POST /oauth/authorize/requests/{rid}/decision  同意 / 拒絕 → 回 redirect_to
+  GET  /.well-known/openid-configuration         same as above (for clients that only probe this path)
+  GET  /.well-known/jwks.json                    public keys
+  POST /oauth/register                           RFC 7591 dynamic registration
+  GET  /oauth/authorize                          code + PKCE; not logged in / consent needed -> redirect to SPA /consent
+  GET  /oauth/authorize/requests/{rid}           consent page data (login required)
+  POST /oauth/authorize/requests/{rid}/decision  approve / deny -> returns redirect_to
   POST /oauth/token                              authorization_code / refresh_token / client_credentials
   POST /oauth/revoke                             RFC 7009
   POST /oauth/introspect                         RFC 7662
@@ -48,7 +48,7 @@ def _client_ip(request: Request) -> Optional[str]:
 
 
 async def _form(request: Request) -> dict:
-    """application/x-www-form-urlencoded(OAuth 規範)— 手動解析,不需 python-multipart。"""
+    """application/x-www-form-urlencoded (per the OAuth spec) -- parsed by hand, no python-multipart needed."""
     raw = (await request.body()).decode("utf-8", "replace")
     return {k: v[0] for k, v in parse_qs(raw).items() if v}
 
@@ -105,7 +105,8 @@ async def authorize(
     db: Session = Depends(get_db),
     user: Optional[AdminUser] = Depends(get_optional_current_user),
 ):
-    """驗證參數 → 落地授權請求 →(已登入且可略過同意)直接發 code,否則導到 /consent。"""
+    """Validate params -> persist the authorization request -> issue the code directly (logged in and consent may be
+    skipped), otherwise redirect to /consent."""
     try:
         req = oauth.begin_authorization(
             db, response_type=response_type, client_id=client_id, redirect_uri=redirect_uri,
@@ -217,7 +218,8 @@ async def revoke(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/oauth/introspect")
 async def introspect(request: Request, db: Session = Depends(get_db)):
-    """需 client 認證。public client 只能查自己的 token;confidential client(resource server)可查任何 token。"""
+    """Requires client authentication. A public client can only introspect its own tokens; a confidential client
+    (resource server) can introspect any token."""
     try:
         form = await _form(request)
         caller = oauth.authenticate_client(db, authorization_header=request.headers.get("Authorization", ""), form=form)

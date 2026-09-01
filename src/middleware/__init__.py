@@ -1,4 +1,4 @@
-"""HTTP middleware:速率限制、安全回應標頭。"""
+"""HTTP middleware: rate limiting and security response headers."""
 
 from .rate_limiter import RateLimitMiddleware, RateLimitConfig, RateLimiter
 from .security_headers import SecurityHeadersMiddleware

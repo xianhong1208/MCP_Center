@@ -1,10 +1,10 @@
 /**
- * 登入過期 / 未登入時記住使用者所在頁面,登入後送回去。
- * OAuth 流程也靠這個:後端把未登入的瀏覽器導到 /consent?rid=...,
- * ProtectedRoute 記住它,登入(含第三方登入)後回到同意頁。
+ * Remember where the user was when the session expired / they were not logged in, and return there after login.
+ * The OAuth flow relies on this too: the backend sends an unauthenticated browser to /consent?rid=...,
+ * ProtectedRoute remembers it, and after login (including third-party login) we return to the consent page.
  *
- * 只接受同站的相對路徑:以單一 '/' 開頭、不是 '//'(協定相對 URL 會跳去外站)、
- * 不含控制字元與空白、也不是 /login 或 /setup 自己(避免登入後又回登入頁)。
+ * Only same-site relative paths are accepted: a single leading '/', not '//' (protocol-relative URLs leave the site),
+ * no control characters or whitespace, and not /login or /setup itself (to avoid bouncing back to the login page).
  */
 const STORAGE_KEY = 'mcp_redirect_after_login'
 
@@ -19,10 +19,10 @@ export function safeRedirectPath(raw, fallback = '/') {
 }
 
 export function rememberRedirect(path) {
-  try { sessionStorage.setItem(STORAGE_KEY, path) } catch { /* storage 不可用時靜默 */ }
+  try { sessionStorage.setItem(STORAGE_KEY, path) } catch { /* ignore when storage is unavailable */ }
 }
 
-/** 只看不清除(給第三方登入的 ?next= 用;登入完成後由 callback 直接導向)。 */
+/** Peek without clearing (for the third-party login ?next=; the callback redirects directly after login). */
 export function peekRedirect(fallback = '/') {
   try {
     return safeRedirectPath(sessionStorage.getItem(STORAGE_KEY), fallback)
@@ -31,7 +31,7 @@ export function peekRedirect(fallback = '/') {
   }
 }
 
-/** 取出並清除;永遠回傳安全路徑。 */
+/** Take and clear; always returns a safe path. */
 export function consumeRedirect(fallback = '/') {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)

@@ -1,4 +1,4 @@
-"""配置模型定義"""
+"""Configuration model definitions."""
 
 from typing import Dict, List
 
@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 
 class DatabaseConfig(BaseModel):
-    """資料庫配置
+    """Database configuration.
 
-    預設 SQLite 單檔(零依賴);設 DATABASE_URL 為 postgresql://... 即切換 PostgreSQL。
+    Defaults to a single SQLite file (zero dependencies); set DATABASE_URL to postgresql://... to switch to PostgreSQL.
     """
     url: str = "sqlite:///data/mcp_center.db"
     echo: bool = False
@@ -18,14 +18,14 @@ class DatabaseConfig(BaseModel):
 
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
-    # 0 = 從 oauth.issuer 推(見 ConfigModel.effective_port)
+    # 0 = derive from oauth.issuer (see ConfigModel.effective_port)
     port: int = 0
 
 
 class SessionConfig(BaseModel):
-    """管理台登入 session(httpOnly cookie 內的 HS256 JWT)。
+    """Admin console login session (an HS256 JWT inside an httpOnly cookie).
 
-    secret_key 為空時由 secrets store 自動產生並持久化(data/secrets.json)。
+    When secret_key is empty, the secrets store generates one and persists it (data/secrets.json).
     """
     secret_key: str = ""
     expire_hours: int = 12
@@ -33,36 +33,38 @@ class SessionConfig(BaseModel):
 
 
 class OAuthConfig(BaseModel):
-    """OAuth 2.1 Authorization Server 設定。
+    """OAuth 2.1 Authorization Server settings.
 
-    issuer 會寫進每個簽發 JWT 的 iss claim 與 discovery metadata,是所有 MCP server
-    驗 token 的信任錨點;對外部署時務必填公開網址(變更後既有 token 全部失效)。
+    issuer is written into the iss claim of every issued JWT and into the discovery metadata; it is the trust
+    anchor every MCP server uses to verify tokens. For public deployments it must be the public URL (changing it
+    invalidates all existing tokens).
     """
     issuer: str = "http://localhost:4568"
     signing_key_bits: int = 2048
     access_expire_minutes: int = 60
     refresh_expire_days: int = 30
     auth_code_ttl_seconds: int = 120
-    # 個人專案預設:動態註冊(DCR)的 client 直接可用;人的同意頁才是真正的閘門。
+    # Personal-project default: dynamically registered (DCR) clients are usable immediately; the human consent
+    # page is the real gate.
     dcr_auto_approve: bool = True
-    # 管理台直接簽發的 Personal Access Token 可設定的最長天數
+    # Maximum lifetime (days) allowed for Personal Access Tokens issued directly from the admin console
     pat_max_days: int = 365
 
 
 class OAuthLoginProviderConfig(BaseModel):
-    """管理台第三方登入(GitHub / Google)接口設定。client_id 為空即停用。"""
+    """Admin console third-party login (GitHub / Google) provider settings. An empty client_id disables it."""
     client_id: str = ""
     client_secret: str = ""
 
 
 class IdentityConfig(BaseModel):
-    """管理台身分驗證:本地帳密 + 可插拔的第三方登入。"""
+    """Admin console authentication: local email/password plus pluggable third-party login."""
     local_enabled: bool = True
     github: OAuthLoginProviderConfig = OAuthLoginProviderConfig()
     google: OAuthLoginProviderConfig = OAuthLoginProviderConfig()
-    # 允許用第三方登入的 email 白名單(空 = 只允許已存在的帳號)
+    # Email allowlist for third-party login (empty = only already-existing accounts may log in)
     allowed_emails: List[str] = []
-    # 首次啟動時自動建立的擁有者帳號(兩者皆設才建立;之後可用 /setup 頁面建立)
+    # Owner account created automatically on first start (only when both are set; otherwise use the /setup page)
     bootstrap_admin_email: str = ""
     bootstrap_admin_password: str = ""
 
@@ -77,7 +79,7 @@ class RateLimitConfig(BaseModel):
 
 class SecurityConfig(BaseModel):
     trusted_proxies: List[str] = ["127.0.0.1", "::1"]
-    # cookie 的 Secure 旗標;走 HTTPS 部署時設 true
+    # Secure flag on cookies; set to true when deploying over HTTPS
     secure_cookie: bool = False
     cookie_samesite: str = "lax"
 
@@ -115,9 +117,9 @@ class ConfigModel(BaseModel):
 
     @property
     def effective_port(self) -> int:
-        """實際 bind 的 port:明確設定 > OAUTH_ISSUER 裡的 port > 4568。
+        """The port actually bound: explicit setting > port in OAUTH_ISSUER > 4568.
 
-        issuer 是 https 網域(反向代理)時 URL 沒有 port,回 4568 讓 nginx 轉過來。
+        When the issuer is an https domain (reverse proxy) the URL has no port; return 4568 so nginx can forward to it.
         """
         if self.server.port and self.server.port > 0:
             return self.server.port

@@ -3,21 +3,22 @@
 @tailwind utilities;
 
 /* ============================================================================
-   Design tokens — "Navy Trust"(Minimalism & Swiss Style,dark-first)
+   Design tokens -- "Navy Trust" (Minimalism & Swiss Style, dark-first)
    ----------------------------------------------------------------------------
-   值是 "R G B" 三個整數(Tailwind 自己包 rgb() 並插 alpha);
-   border 兩個例外是完整的顏色字串(dark 用 8% / 16% 白,才能疊在任何底色上)。
-   dark 是預設與設計基準;light 是同一套設計去飽和(navy 文字、slate 中性),不是反轉。
+   Values are three "R G B" integers (Tailwind wraps them in rgb() and injects alpha);
+   the two border tokens are full color strings (dark uses 8% / 16% white so they work on any background).
+   Dark is the default and design baseline; light is the same design desaturated (navy text, slate neutrals),
+   not inverted.
 
-   - background / foreground           頁面底、主文字
-   - card / popover / muted            卡片、浮層、側欄與表頭底
-   - muted-foreground / subtle-foreground   次要文字兩階(都 ≥ 4.5:1)
-   - border / border-strong            分隔線、控制項邊框
-   - primary                           海軍藍 #1E3A5F:選中、側欄 active、次要實心
-   - accent                            綠色 CTA #22C55E(深字 #0F172A)
-   - link                              文字連結:dark 綠、light 海軍藍
-   - destructive                       實心刪除 #DC2626 + 白字
-   - success / warning / danger / info 語意色:文字、圓點、淡底(bg-x/10 ring-x/20)
+   - background / foreground           page background, primary text
+   - card / popover / muted            cards, overlays, sidebar and table header backgrounds
+   - muted-foreground / subtle-foreground   two levels of secondary text (both >= 4.5:1)
+   - border / border-strong            dividers, control borders
+   - primary                           navy #1E3A5F: selected state, sidebar active, secondary solid
+   - accent                            green CTA #22C55E (dark text #0F172A)
+   - link                              text links: green in dark, navy in light
+   - destructive                       solid delete #DC2626 + white text
+   - success / warning / danger / info semantic colors: text, dots, tinted backgrounds (bg-x/10 ring-x/20)
    ========================================================================== */
 :root,
 html.dark {
@@ -111,7 +112,7 @@ html.light {
   }
   ::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--color-subtle-foreground)); background-clip: padding-box; }
 
-  /* 原生控制項跟主題 */
+  /* Native controls follow the theme */
   input[type='checkbox'],
   input[type='radio'] {
     accent-color: rgb(var(--color-accent));
@@ -121,7 +122,7 @@ html.light {
     color: rgb(var(--color-foreground));
   }
 
-  /* 鍵盤焦點:統一用 ring token(dark 白、light 海軍藍) */
+  /* Keyboard focus: always the ring token (white in dark, navy in light) */
   :focus-visible {
     outline: 2px solid rgb(var(--color-ring));
     outline-offset: 2px;
@@ -131,10 +132,10 @@ html.light {
     outline: none;
   }
 
-  /* 數字預設等寬對齊 */
+  /* Tabular numerals by default */
   table, .tabular { font-variant-numeric: tabular-nums; }
 
-  /* 使用者要求減少動態:關掉所有動畫與轉場 */
+  /* User prefers reduced motion: disable all animations and transitions */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -148,7 +149,7 @@ html.light {
 }
 
 @layer components {
-  /* 唯一允許的 class 型 primitive:表單控制項(input / select / textarea 共用) */
+  /* The only class-based primitive allowed: form controls (shared by input / select / textarea) */
   .ui-input {
     @apply block w-full h-9 rounded-md border border-border-strong bg-background px-3 text-sm text-foreground;
     @apply placeholder:text-subtle-foreground;
@@ -175,7 +176,7 @@ html.light {
     @apply border-danger focus:border-danger focus:ring-danger/30;
   }
 
-  /* 自繪 checkbox:未勾 = 底色 + 邊框;勾選 = 綠底 + 深色勾(不靠瀏覽器 color-scheme 的灰底) */
+  /* Custom checkbox: unchecked = background + border; checked = green bg + dark check (no browser color-scheme gray) */
   .ui-checkbox {
     @apply h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-border-strong bg-background bg-center bg-no-repeat;
     @apply transition-colors duration-200;
@@ -195,13 +196,13 @@ html.light {
     @apply focus:ring-2 focus:ring-accent/40 focus:ring-offset-0;
   }
 
-  /* 骨架:單色、無 shimmer */
+  /* Skeleton: flat color, no shimmer */
   .skeleton {
     @apply rounded bg-muted animate-pulse;
   }
 }
 
-/* recharts:格線 / 文字 / 線色跟主題(stroke 屬性吃不到 CSS 變數,用 class 覆寫) */
+/* recharts: grid / text / line colors follow the theme (stroke attrs cannot read CSS vars, so override via class) */
 .recharts-cartesian-grid line {
   stroke: var(--color-border) !important;
 }

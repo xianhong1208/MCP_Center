@@ -1,20 +1,20 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 
 /**
- * WebSocket hook for real-time service updates(/ws/services,認證走 session cookie)
+ * WebSocket hook for real-time service updates (/ws/services, authenticated via the session cookie)
  *
- * 處理:
+ * Handles:
  *   health_update / service_added / service_removed / service_updated / pong
  *
- * Reconnect 策略:
- *   - close code 1000 (normal):不重連 — 是 user 主動關
- *   - close code 4001 / 4003 (auth 失敗):session 已失效 → emit 'auth-expired',交給 AuthContext 處理
- *   - 其他 (1006 abnormal / 1011 internal):exponential backoff,最多 30s、5 次
+ * Reconnect strategy:
+ *   - close code 1000 (normal): no reconnect -- the user closed it
+ *   - close code 4001 / 4003 (auth failure): session expired -> emit 'auth-expired' and let AuthContext handle it
+ *   - others (1006 abnormal / 1011 internal): exponential backoff, capped at 30s and 5 attempts
  *
  * Cleanup hygiene:
- *   - connect() 前若有舊 ws 先 close 並 null,避免堆積殭屍連線
- *   - reconnect timeout 在 disconnect / re-effect 時清掉
- *   - 用 isMountedRef 防止 unmount 後還跑 setState
+ *   - close and null any old ws before connect() to avoid piling up zombie connections
+ *   - the reconnect timeout is cleared on disconnect / re-effect
+ *   - isMountedRef prevents setState after unmount
  */
 export function useServiceWebSocket({ onHealthUpdate, onServiceAdded, onServiceRemoved, onServiceUpdated, enabled = true }) {
   const wsRef = useRef(null)
@@ -93,7 +93,7 @@ export function useServiceWebSocket({ onHealthUpdate, onServiceAdded, onServiceR
       if (!enabled) return
       if (event.code === 1000) return
 
-      // 後端明示認證失敗:session 已失效,不要無限重連
+      // Backend explicitly rejected auth: session expired, do not reconnect forever
       if (event.code === 4001 || event.code === 4003) {
         window.dispatchEvent(new CustomEvent('auth-expired', { detail: { reason: 'websocket' } }))
         return

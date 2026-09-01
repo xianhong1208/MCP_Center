@@ -55,7 +55,7 @@ export function ConfirmProvider({ children }) {
   }, [t])
 
   // itemName is now expected pre-translated by caller (e.g., t('tokens.common.tokenLabel'))
-  // 若 caller 沒給,fallback 用「此項目」(itemDefault)
+  // If the caller gives none, fall back to "this item" (itemDefault)
   const confirmDelete = useCallback((itemName) => {
     const item = itemName || t('confirm.itemDefault')
     return confirm({
@@ -78,8 +78,8 @@ export function ConfirmProvider({ children }) {
     })
   }, [confirm, t])
 
-  // itemType 可為 caller 傳的 i18n key path (e.g. 'tokens.common.tokenLabel')
-  // 或直接傳已翻譯的字串(像「Token」、「服務」)
+  // itemType may be an i18n key path passed by the caller (e.g. 'tokens.common.tokenLabel')
+  // or an already-translated string (like "Token" or "Service")
   const confirmBatchDelete = useCallback((count, itemTypeLabel) => {
     const label = itemTypeLabel || t('confirm.itemDefault')
     return confirm({

@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 
 /**
- * Card — card 底 + border 邊框,不投影(Swiss:平面、靠邊線分區)。
+ * Card -- card background + border, no shadow (Swiss: flat, separated by lines).
  * padding: 'md'(p-5)| 'sm'(p-4)| 'none'
- * 傳 `to` 變成可點擊的 Link 卡片(hover 邊框加深)。
+ * Pass `to` to make it a clickable Link card (border darkens on hover).
  */
 export default function Card({ as, to, padding = 'md', interactive = false, className, children, ...rest }) {
   const Comp = to ? Link : as || 'div'
@@ -25,7 +25,7 @@ export default function Card({ as, to, padding = 'md', interactive = false, clas
   )
 }
 
-/** 卡片標頭:標題(text-sm semibold)+ 說明 + 右側動作 */
+/** Card header: title (text-sm semibold) + description + actions on the right */
 export function CardHeader({ title, description, action, className, divided = false }) {
   return (
     <div
@@ -44,7 +44,7 @@ export function CardHeader({ title, description, action, className, divided = fa
   )
 }
 
-/** 區段小標:xs uppercase tracking-wide muted(全站唯一允許大寫的地方) */
+/** Section label: xs uppercase tracking-wide muted (the only place uppercase is allowed) */
 export function SectionLabel({ className, children, ...rest }) {
   return (
     <p className={clsx('text-xs font-medium uppercase tracking-wide text-muted-foreground', className)} {...rest}>
@@ -53,7 +53,7 @@ export function SectionLabel({ className, children, ...rest }) {
   )
 }
 
-/** 統計磚:label / value / meta */
+/** Stat tile: label / value / meta */
 export function StatTile({ label, value, meta, to, loading = false, className }) {
   return (
     <Card to={to} className={clsx('min-w-0', className)}>
@@ -68,7 +68,7 @@ export function StatTile({ label, value, meta, to, loading = false, className })
   )
 }
 
-/** 鍵值列表(detail 頁用):dt 在左、dd 在右 */
+/** Key-value list (for detail pages): dt on the left, dd on the right */
 export function DescriptionList({ items, className }) {
   return (
     <dl className={clsx('divide-y divide-border', className)}>

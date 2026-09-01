@@ -125,9 +125,9 @@ def colorized_format(record: dict) -> str:
     return fmt
 
 
-# 分類規則:module 名稱(來自 get_logger(name))對應到哪些檔案
-# 排序由窄到寬(更具體的規則放前面),但實際上每個 record 會經過所有 sink
-# (每個 sink 自己判斷是否要寫),所以一筆 log 可能同時寫到 app.log + http.log + error.log
+# Category rules: which files a module name (from get_logger(name)) maps to.
+# Ordered from narrow to wide (more specific rules first), but in practice every record passes through every sink
+# (each sink decides for itself whether to write), so one log line may land in app.log + http.log + error.log at once
 LOG_CATEGORIES = {
     # category_name → (filter_fn, level_override or None)
     "http":  (lambda m: m == "http", None),
@@ -160,29 +160,29 @@ def setup_logging(
 ):
     """Setup logging configuration with category-based file splits.
 
-    產出檔案(假設 log_dir="logs"):
-        logs/app_YYYY-MM-DD.log     全部 INFO+
-        logs/http_YYYY-MM-DD.log    HTTP 請求
-        logs/auth_YYYY-MM-DD.log    認證/權限/安全
-        logs/db_YYYY-MM-DD.log      資料庫操作
-        logs/error_YYYY-MM-DD.log   所有 ERROR+(跨模組安全網)
+    Files produced (assuming log_dir="logs"):
+        logs/app_YYYY-MM-DD.log     everything INFO+
+        logs/http_YYYY-MM-DD.log    HTTP requests
+        logs/auth_YYYY-MM-DD.log    authentication / authorization / security
+        logs/db_YYYY-MM-DD.log      database operations
+        logs/error_YYYY-MM-DD.log   all ERROR+ (cross-module safety net)
 
-    輪替:每日 00:00;保留 retention;舊檔自動壓縮。
+    Rotation: daily at 00:00; kept for `retention`; old files are compressed automatically.
 
     Args:
-        level: 預設層級(DEBUG/INFO/WARNING/ERROR/CRITICAL)
-        format_type: console 格式 — "json" 或 "colorized"
-        log_dir: 分類 log 的目錄
-        rotation: loguru 輪替條件,例如 "00:00" / "1 day" / "100 MB"
-        rotation_max_size: 預留接口(時間+大小組合 rotation,目前未啟用)
-        retention: 保留期,例如 "60 days"
-        compression: 舊檔壓縮 — "zip" / "gz" / "bz2" / None
+        level: default level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+        format_type: console format -- "json" or "colorized"
+        log_dir: directory for the category log files
+        rotation: loguru rotation condition, e.g. "00:00" / "1 day" / "100 MB"
+        rotation_max_size: reserved (combined time+size rotation, currently unused)
+        retention: retention period, e.g. "60 days"
+        compression: compression for old files -- "zip" / "gz" / "bz2" / None
     """
     # Remove default handler
     logger.remove()
 
-    # 全域 extra 預設值 — 避免有人直接 `from loguru import logger` 用,
-    # 沒 bind module 結果踩 `{extra[module]}` 的 KeyError
+    # Global extra defaults -- so that someone using `from loguru import logger` directly without binding a module
+    # does not hit a KeyError on `{extra[module]}`
     logger.configure(extra={"module": "unknown"})
 
     # ---- Console sink ----
@@ -196,12 +196,13 @@ def setup_logging(
     dir_path = Path(log_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    # 輪替策略:每日 00:00 換檔(rotation_max_size 預留接口,目前 loguru
-    # 公開 API 不支援「時間 OR 大小」組合條件,要組合得用 callable + 私有 API,
-    # 太脆弱,先單純時間輪替即可。單日爆量極罕見;真要防可降到 "12:00" 半日)
-    del rotation_max_size  # 顯式標示未用,避免 lint 抱怨
+    # Rotation policy: switch files daily at 00:00 (rotation_max_size is reserved; loguru's public API does not
+    # support a "time OR size" combined condition, and combining them needs a callable + private API, which is too
+    # fragile, so plain time-based rotation is enough for now. A single-day blow-up is extremely rare; if it must be
+    # guarded against, drop to "12:00" for half-day rotation)
+    del rotation_max_size  # explicitly mark as unused to keep lint quiet
 
-    # 「全部」彙整檔
+    # The "everything" aggregate file
     logger.add(
         str(dir_path / "app_{time:YYYY-MM-DD}.log"),
         format=_FILE_FORMAT,
@@ -209,10 +210,10 @@ def setup_logging(
         rotation=rotation,
         retention=retention,
         compression=compression,
-        enqueue=True,  # 非阻塞 — 多 sink 寫入時必開,避免 IO 卡住主線程
+        enqueue=True,  # non-blocking -- required with multiple sinks so IO does not stall the main thread
     )
 
-    # 分類檔案
+    # Category files
     for cat_name, (filter_pred, level_override) in LOG_CATEGORIES.items():
         logger.add(
             str(dir_path / f"{cat_name}_{{time:YYYY-MM-DD}}.log"),
@@ -225,7 +226,7 @@ def setup_logging(
             enqueue=True,
         )
 
-    # 跨模組的 ERROR 安全網 — 不論哪個 module 出 ERROR 都寫這
+    # Cross-module ERROR safety net -- an ERROR from any module lands here
     logger.add(
         str(dir_path / "error_{time:YYYY-MM-DD}.log"),
         format=_FILE_FORMAT,
@@ -235,7 +236,7 @@ def setup_logging(
         compression=compression,
         enqueue=True,
         backtrace=True,
-        diagnose=True,  # ERROR 多附 variable 值,debug 快很多
+        diagnose=True,  # ERRORs include variable values, which makes debugging much faster
     )
 
     logger.bind(module="logger").info(

@@ -11,6 +11,7 @@ import { servicesApi, statsApi, oauthApi } from '../services/api'
 import LastChecked from '../components/LastChecked'
 import CodeBlock from '../components/CodeBlock'
 import ServiceFormModal from '../components/ServiceFormModal'
+import HealthIndicator from '../components/HealthIndicator'
 import { copyToClipboard } from '../utils/clipboard'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useToast } from '../contexts/ToastContext'
@@ -18,10 +19,11 @@ import { KindBadge, StatusBadge, ScopeChips } from './TokensPage'
 import clsx from 'clsx'
 import {
   PageHeader, Button, IconButton, Badge, StatusPill, StatusDot, Card, CardHeader, SectionLabel, DescriptionList,
-  EmptyState, Alert, LoadingBlock, SegmentedControl,
+  EmptyState, Alert, LoadingBlock, Tabs, SegmentedControl,
 } from '../components/ui'
 
-// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+// recharts stroke attrs cannot read CSS vars: give fallback colors; the real line color
+// follows the theme via index.css .chart-line-*
 const CHART = { success: '#22C55E', failed: '#F87171' }
 
 function CustomTooltip({ active, payload, label }) {
@@ -37,20 +39,6 @@ function CustomTooltip({ active, payload, label }) {
       <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-1.5"><span className="text-muted-foreground">{t('services.detail.totalLabel')}</span><span className="tabular-nums font-medium text-foreground">{success + failed}</span></div>
     </div>
   )
-}
-
-const HEALTH_TONE = { online: 'success', offline: 'danger', error: 'warning', unknown: 'neutral' }
-
-function HealthIndicator({ status }) {
-  const { t } = useTranslation()
-  const key = HEALTH_TONE[status] ? status : 'unknown'
-  const label = {
-    online: t('dashboard.serviceHealth.online'),
-    offline: t('dashboard.serviceHealth.offline'),
-    error: t('dashboard.serviceHealth.error'),
-    unknown: t('dashboard.serviceHealth.unknown'),
-  }[key]
-  return <StatusPill tone={HEALTH_TONE[key]}>{label}</StatusPill>
 }
 
 function ToolItem({ tool }) {
@@ -96,13 +84,19 @@ function ToolItem({ tool }) {
   )
 }
 
-const SNIPPET_TABS = [
-  { key: 'claude_code_oauth', labelKey: 'services.detail.snippetClaudeOauth', lang: 'bash', icon: Terminal },
-  { key: 'claude_code_pat', labelKey: 'services.detail.snippetClaudePat', lang: 'bash', icon: Terminal },
-  { key: 'mcp_json_oauth', labelKey: 'services.detail.snippetMcpJsonOauth', lang: 'json', icon: FileJson },
-  { key: 'mcp_json_pat', labelKey: 'services.detail.snippetMcpJsonPat', lang: 'json', icon: FileJson },
-  { key: 'fastmcp_server', labelKey: 'services.detail.snippetFastmcpServer', lang: 'python', icon: Code2 },
-  { key: 'fastmcp_client', labelKey: 'services.detail.snippetFastmcpClient', lang: 'python', icon: Code2 },
+/** Turn a raw health-check exception into a short, translated label; the raw text stays in the tooltip. */
+function describeHealthError(t, raw) {
+  const text = String(raw || '')
+  if (/timed? ?out/i.test(text)) return t('services.health.timeout')
+  if (/cannot connect|connection (refused|failed|reset)|connect call failed|unreachable|name resolution/i.test(text)) return t('services.health.unreachable')
+  return t('services.health.failed')
+}
+
+// Integration snippets are grouped by target (family) and flavour (variant); the backend key is `${family}_${variant}`.
+const SNIPPET_FAMILIES = [
+  { key: 'claude_code', labelKey: 'services.detail.snippetFamily.claudeCode', icon: Terminal, lang: 'bash', variants: ['oauth', 'pat'] },
+  { key: 'mcp_json', labelKey: 'services.detail.snippetFamily.mcpJson', icon: FileJson, lang: 'json', variants: ['oauth', 'pat'] },
+  { key: 'fastmcp', labelKey: 'services.detail.snippetFamily.fastmcp', icon: Code2, lang: 'python', variants: ['server', 'client'] },
 ]
 
 export default function ServiceDetailPage() {
@@ -116,7 +110,8 @@ export default function ServiceDetailPage() {
   const [service, setService] = useState(null)
   const [scopes, setScopes] = useState([])
   const [snippets, setSnippets] = useState(null)
-  const [snippetTab, setSnippetTab] = useState('claude_code_oauth')
+  const [snippetFamily, setSnippetFamily] = useState('claude_code')
+  const [snippetVariant, setSnippetVariant] = useState('oauth')
   const [tokens, setTokens] = useState([])
   const [usageStats, setUsageStats] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -260,7 +255,15 @@ export default function ServiceDetailPage() {
   const totalFailed = usageStats.reduce((s, x) => s + (x.failed || 0), 0)
   const totalUsage = totalSuccess + totalFailed
   const hasMcpConnection = !!(service.host && service.port)
-  const activeSnippet = SNIPPET_TABS.find((s) => s.key === snippetTab) || SNIPPET_TABS[0]
+  const activeFamily = SNIPPET_FAMILIES.find((f) => f.key === snippetFamily) || SNIPPET_FAMILIES[0]
+  const activeVariant = activeFamily.variants.includes(snippetVariant) ? snippetVariant : activeFamily.variants[0]
+  const activeSnippetKey = `${activeFamily.key}_${activeVariant}`
+  const activeSnippetTitle = `${t(activeFamily.labelKey)} · ${t(`services.detail.snippetVariant.${activeVariant}`)}`
+  const selectFamily = (key) => {
+    const family = SNIPPET_FAMILIES.find((f) => f.key === key) || SNIPPET_FAMILIES[0]
+    setSnippetFamily(family.key)
+    if (!family.variants.includes(snippetVariant)) setSnippetVariant(family.variants[0])
+  }
 
   return (
     <div className="space-y-8">
@@ -361,7 +364,7 @@ export default function ServiceDetailPage() {
                 <span className="tabular-nums">{t('services.detail.createdAt', { date: formatDate(service.created_at) })}</span>
               )}
               {service.health?.error_message && (
-                <span className="max-w-full truncate text-danger" title={service.health.error_message}>{service.health.error_message}</span>
+                <span className="max-w-full truncate text-danger" title={service.health.error_message}>{describeHealthError(t, service.health.error_message)}</span>
               )}
             </div>
             )}
@@ -410,15 +413,22 @@ export default function ServiceDetailPage() {
               <p className="text-sm text-muted-foreground">{t('services.detail.snippetsUnavailable')}</p>
             ) : (
               <div className="space-y-4">
-                <div className="overflow-x-auto">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Tabs
+                    size="sm"
+                    value={activeFamily.key}
+                    onChange={selectFamily}
+                    className="min-w-0 flex-1"
+                    items={SNIPPET_FAMILIES.map((f) => ({ key: f.key, label: t(f.labelKey), icon: f.icon }))}
+                  />
                   <SegmentedControl
                     size="sm"
-                    value={snippetTab}
-                    onChange={setSnippetTab}
-                    items={SNIPPET_TABS.map((s) => ({ key: s.key, label: t(s.labelKey), icon: s.icon }))}
+                    value={activeVariant}
+                    onChange={setSnippetVariant}
+                    items={activeFamily.variants.map((v) => ({ key: v, label: t(`services.detail.snippetVariant.${v}`) }))}
                   />
                 </div>
-                <CodeBlock title={t(activeSnippet.labelKey)} language={activeSnippet.lang} value={snippets[activeSnippet.key]} rows={22} />
+                <CodeBlock title={activeSnippetTitle} language={activeFamily.lang} value={snippets[activeSnippetKey]} rows={22} />
                 <DescriptionList
                   items={[
                     { label: t('services.detail.issuerLabel'), value: snippets.issuer, mono: true },

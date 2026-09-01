@@ -1,12 +1,12 @@
-"""與真正的 FastMCP 互通(改版的驗收點)。
+"""Interop with the real FastMCP (the acceptance test for the rewrite).
 
-起兩個真實 HTTP server:
-  - MCP Center(本專案)     → issuer = http://127.0.0.1:<port>
-  - FastMCP demo server     → RemoteAuthProvider(JWTVerifier(jwks_uri=<center>/.well-known/jwks.json))
-然後:
-  1. RS 的 /.well-known/oauth-protected-resource 指向 MCP Center
-  2. 管理台簽的 Personal Access Token 可以直接呼叫 FastMCP tool;亂 token 被拒
-  3. FastMCP 自己的 OAuth client(DCR + PKCE + 同意頁 + token 交換)走完整流程
+Starts two real HTTP servers:
+  - MCP Center (this project) -> issuer = http://127.0.0.1:<port>
+  - FastMCP demo server       -> RemoteAuthProvider(JWTVerifier(jwks_uri=<center>/.well-known/jwks.json))
+Then:
+  1. The RS's /.well-known/oauth-protected-resource points at MCP Center
+  2. A Personal Access Token issued by the admin console can call a FastMCP tool directly; a bogus token is rejected
+  3. FastMCP's own OAuth client (DCR + PKCE + consent page + token exchange) completes the full flow
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class _ThreadServer:
 
 @pytest.fixture
 def center(seeded):
-    """真實 HTTP 的 MCP Center;issuer 指向自己的位址。"""
+    """MCP Center over real HTTP; the issuer points at its own address."""
     from main import create_app
     from src.config import Config
 
@@ -74,7 +74,7 @@ def center(seeded):
 
 @pytest.fixture
 def mcp_server(center):
-    """FastMCP demo server,只信任 MCP Center 的 JWKS。"""
+    """FastMCP demo server that trusts only MCP Center's JWKS."""
     from fastmcp import FastMCP
     from fastmcp.server.auth import RemoteAuthProvider
     from fastmcp.server.auth.providers.jwt import JWTVerifier
@@ -95,7 +95,7 @@ def mcp_server(center):
     def hello(name: str) -> str:
         return f"Hello, {name}!"
 
-    # 在 MCP Center 登錄這台 server(audience = MCP URL)
+    # Register this server in MCP Center (audience = MCP URL)
     with httpx.Client(base_url=center["url"], cookies={"mcp_session": center["cookie"]}) as c:
         r = c.post("/api/services", json={"name": "interop-demo", "host": "127.0.0.1", "port": port, "mcp_path": "/mcp"})
         assert r.status_code == 201, r.text
@@ -118,7 +118,7 @@ def test_protected_resource_metadata_points_to_center(center, mcp_server):
     assert r.status_code == 200, r.text
     meta = r.json()
     assert center["url"] in [str(u).rstrip("/") for u in meta["authorization_servers"]]
-    # 沒帶 token → 401 + WWW-Authenticate 指向 resource metadata(MCP 規範)
+    # No token -> 401 + WWW-Authenticate pointing at the resource metadata (per the MCP spec)
     r = httpx.post(mcp_server["url"], json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
                    headers={"Accept": "application/json, text/event-stream"})
     assert r.status_code == 401
@@ -142,7 +142,8 @@ async def test_personal_access_token_works_with_fastmcp(center, mcp_server):
 
 
 async def test_revoked_pat_still_valid_offline_but_inactive_on_introspect(center, mcp_server):
-    """JWKS 離線驗簽的 RS 看不到撤銷(JWT 先天限制);introspect 會回 active=false。"""
+    """An RS verifying offline via JWKS cannot see revocation (an inherent JWT limitation); introspect returns
+    active=false."""
     from fastmcp import Client
     from fastmcp.client.auth import BearerAuth
 
@@ -157,10 +158,10 @@ async def test_revoked_pat_still_valid_offline_but_inactive_on_introspect(center
 
 
 async def test_full_oauth_flow_with_fastmcp_client(center, mcp_server):
-    """FastMCP 內建 OAuth client:discovery → DCR → PKCE authorize → 同意頁 → callback → token。
+    """FastMCP's built-in OAuth client: discovery -> DCR -> PKCE authorize -> consent page -> callback -> token.
 
-    redirect_handler 原本會開瀏覽器;這裡改成用 httpx 模擬使用者:帶管理台 session 打
-    authorize URL、在同意頁按核准、再把 client 的 callback URL 打回去。
+    redirect_handler would normally open a browser; here httpx simulates the user instead: hit the authorize URL
+    with the admin console session, approve on the consent page, then call the client's callback URL back.
     """
     from fastmcp import Client
     from fastmcp.client.auth import OAuth
@@ -170,7 +171,7 @@ async def test_full_oauth_flow_with_fastmcp_client(center, mcp_server):
             asyncio.get_running_loop().create_task(self._simulate_browser(authorization_url))
 
         async def _simulate_browser(self, authorization_url: str) -> None:
-            await asyncio.sleep(0.3)  # 等 callback server 起來
+            await asyncio.sleep(0.3)  # wait for the callback server to come up
             async with httpx.AsyncClient(cookies={"mcp_session": center["cookie"]}, follow_redirects=False) as browser:
                 r = await browser.get(authorization_url)
                 assert r.status_code == 302, r.text
@@ -184,7 +185,7 @@ async def test_full_oauth_flow_with_fastmcp_client(center, mcp_server):
                                            json={"approve": True, "remember": True})
                     location = d.json()["redirect_to"]
                 assert "code=" in location
-                # 這一下就是「瀏覽器被導回 client 的 localhost callback」
+                # This is the "browser gets redirected back to the client's localhost callback" step
                 await browser.get(location)
 
     oauth = HeadlessOAuth(mcp_url=mcp_server["url"], client_name="interop-test-client", callback_timeout=30)
@@ -194,7 +195,7 @@ async def test_full_oauth_flow_with_fastmcp_client(center, mcp_server):
         result = await client.call_tool("hello", {"name": "OAuth"})
         assert "Hello, OAuth!" in str(result.content[0].text)
 
-    # MCP Center 端留下了 DCR client、已記住的同意與已發 token
+    # MCP Center now holds the DCR client, the remembered consent and the issued tokens
     with httpx.Client(base_url=center["url"], cookies={"mcp_session": center["cookie"]}) as c:
         clients = c.get("/api/oauth/clients").json()["clients"]
         assert any(cl["client_name"] == "interop-test-client" and cl["created_via"] == "dcr" for cl in clients)

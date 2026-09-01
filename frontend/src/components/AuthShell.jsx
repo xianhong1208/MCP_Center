@@ -5,8 +5,8 @@ import LanguageSwitcher from './LanguageSwitcher'
 import { Wordmark } from './ui'
 
 /**
- * 全螢幕置中卡片版面(登入 / 首次設定 / OAuth 同意頁共用):
- * background 底、頂部 wordmark、card 卡 + border、右上角語言 / 主題切換。
+ * Full-screen centered card layout (shared by login / first-run setup / OAuth consent):
+ * background fill, wordmark on top, card + border, language / theme switchers in the top-right corner.
  */
 export default function AuthShell({ children, maxWidth = 'max-w-sm', showLogo = true }) {
   const { t } = useTranslation()

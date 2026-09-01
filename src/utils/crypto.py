@@ -1,6 +1,6 @@
-"""AES-256-GCM 靜態資料加密(私鑰、服務 token、容器 env)與 SHA-256 雜湊工具。
+"""AES-256-GCM encryption at rest (private keys, service tokens, container env) and SHA-256 hashing helpers.
 
-金鑰來源:ENCRYPTION_KEY 環境變數;未設定則由 secrets_store 自動產生並持久化。
+Key source: the ENCRYPTION_KEY environment variable; if unset, secrets_store generates and persists one.
 """
 
 import base64
@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 class TokenCrypto:
-    """AES-256-GCM 加密/解密。"""
+    """AES-256-GCM encrypt/decrypt."""
 
     def __init__(self, secret_key: Optional[str] = None):
         if secret_key is None:
@@ -51,7 +51,7 @@ def get_crypto() -> TokenCrypto:
 
 
 def reset_crypto() -> None:
-    """測試用:換金鑰後重建 singleton。"""
+    """For tests: rebuild the singleton after changing the key."""
     global _crypto_instance
     _crypto_instance = None
 
@@ -65,7 +65,8 @@ def decrypt_token(encrypted: str) -> str:
 
 
 def hash_token(token: str) -> str:
-    """SHA-256 hex(用於 client secret / 授權碼等只需比對不需還原的值)。"""
+    """SHA-256 hex (for values like client secrets / authorization codes that only need comparing, never
+    recovering)."""
     return hashlib.sha256(token.encode()).hexdigest()
 
 

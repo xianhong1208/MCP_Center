@@ -1,4 +1,4 @@
-"""OAuth 2.1 端到端:discovery → DCR → authorize + consent → token(PKCE)→ introspect → refresh → revoke。"""
+"""OAuth 2.1 end to end: discovery -> DCR -> authorize + consent -> token (PKCE) -> introspect -> refresh -> revoke."""
 
 from urllib.parse import parse_qs, urlparse
 
@@ -105,8 +105,8 @@ def test_dcr_confidential_client_gets_secret_once(client):
 
 
 def test_authorize_requires_login_then_consent(client, service):
-    """未登入 → 導到 /consent(SPA 會再導去登入);登入後同意 → code。"""
-    client.post("/api/session/logout")  # service fixture 用同一個 client 登入過
+    """Not logged in -> redirected to /consent (the SPA then redirects to login); consent after login -> code."""
+    client.post("/api/session/logout")  # the service fixture logged in with this same client
     reg = _register(client)
     verifier, challenge = make_pkce()
     r = client.get("/oauth/authorize", params={
@@ -115,7 +115,7 @@ def test_authorize_requires_login_then_consent(client, service):
     }, follow_redirects=False)
     assert r.status_code == 302 and r.headers["location"].startswith("/consent?rid=")
     rid = parse_qs(urlparse(r.headers["location"]).query)["rid"][0]
-    # 未登入不能讀同意頁資料
+    # Consent page data cannot be read without being logged in
     assert client.get(f"/oauth/authorize/requests/{rid}").status_code == 401
 
 
@@ -129,7 +129,7 @@ def test_full_authorization_code_flow(owner_client, service):
     assert body["token_type"] == "Bearer" and body["refresh_token"] and body["expires_in"] > 0
     assert "mcp:tools:invoke" in body["scope"].split()
 
-    # 用 JWKS 離線驗簽(= FastMCP JWTVerifier 的行為):iss / aud / scope
+    # Verify offline with the JWKS (= what FastMCP JWTVerifier does): iss / aud / scope
     claims = jwt.decode(body["access_token"], _jwks_key(owner_client, body["access_token"]),
                         algorithms=["RS256"], audience=RESOURCE, issuer="http://testserver")
     assert claims["client_id"] == reg["client_id"]
@@ -137,11 +137,11 @@ def test_full_authorization_code_flow(owner_client, service):
     assert claims["token_use"] == "access"
     assert jwt.get_unverified_header(body["access_token"])["typ"] == "at+jwt"
 
-    # introspect(public client 只帶 client_id)
+    # introspect (public client sends only client_id)
     intro = owner_client.post("/oauth/introspect", data={"token": body["access_token"], "client_id": reg["client_id"]}).json()
     assert intro["active"] is True and intro["aud"] == RESOURCE and intro["sub"] == claims["sub"]
 
-    # 同一 code 再用一次 → invalid_grant,且(RFC 6749 §4.1.2)用該 code 換出的 token 全部撤銷
+    # Reusing the same code -> invalid_grant, and (RFC 6749 section 4.1.2) every token exchanged from it is revoked
     r2 = _exchange(owner_client, reg["client_id"], code, verifier)
     assert r2.status_code == 400 and r2.json()["error"] == "invalid_grant"
     intro = owner_client.post("/oauth/introspect", data={"token": body["access_token"], "client_id": reg["client_id"]}).json()
@@ -163,7 +163,7 @@ def test_unknown_resource_rejected(owner_client, service):
         "code_challenge": challenge, "code_challenge_method": "S256", "state": "s1",
         "resource": "http://unknown.example.com/mcp",
     }, follow_redirects=False)
-    # resource 不認識 → 可安全導回 redirect_uri 帶 error=invalid_target
+    # Unknown resource -> safe to redirect back to redirect_uri with error=invalid_target
     assert r.status_code == 302
     q = parse_qs(urlparse(r.headers["location"]).query)
     assert q["error"] == ["invalid_target"] and q["state"] == ["s1"]
@@ -190,7 +190,7 @@ def test_refresh_rotation_and_replay_detection(owner_client, service):
     second = r.json()
     assert second["refresh_token"] != first["refresh_token"]
 
-    # 舊 refresh 重放 → 拒絕,且整條鏈(含剛發的新 token)被撤銷
+    # Replaying the old refresh token -> rejected, and the whole chain (incl. the just-issued tokens) is revoked
     replay = owner_client.post("/oauth/token", data={"grant_type": "refresh_token", "client_id": reg["client_id"],
                                                      "refresh_token": first["refresh_token"]})
     assert replay.status_code == 400 and replay.json()["error"] == "invalid_grant"
@@ -206,7 +206,7 @@ def test_revoke_endpoint(owner_client, service):
     assert r.status_code == 200
     intro = owner_client.post("/oauth/introspect", data={"token": tokens["access_token"], "client_id": reg["client_id"]}).json()
     assert intro["active"] is False
-    # 撤銷別人的 / 亂七八糟的 token 也回 200(不洩漏)
+    # Revoking someone else's / garbage tokens also returns 200 (no information leak)
     assert owner_client.post("/oauth/revoke", data={"token": "garbage", "client_id": reg["client_id"]}).status_code == 200
 
 
@@ -218,7 +218,7 @@ def test_consent_remembered_skips_second_time(owner_client, service):
         "response_type": "code", "client_id": reg["client_id"], "redirect_uri": REDIRECT_URI,
         "code_challenge": challenge, "code_challenge_method": "S256", "resource": RESOURCE, "state": "again",
     }, follow_redirects=False)
-    # 第二次直接帶 code 導回 client,不再經過 /consent
+    # The second time the client is redirected with the code directly, without passing through /consent
     assert r.status_code == 302 and r.headers["location"].startswith(REDIRECT_URI)
     assert "code=" in r.headers["location"]
     consents = owner_client.get("/api/oauth/consents").json()["consents"]
@@ -290,7 +290,7 @@ def test_admin_client_management(owner_client):
     assert any(c["client_id"] == reg["client_id"] for c in listed)
     r = owner_client.post(f"/api/oauth/clients/{reg['client_id']}/revoke")
     assert r.status_code == 200 and r.json()["is_active"] is False
-    # 停用後不能再拿 code
+    # No more codes once the client is deactivated
     verifier, challenge = make_pkce()
     r = owner_client.get("/oauth/authorize", params={
         "response_type": "code", "client_id": reg["client_id"], "redirect_uri": REDIRECT_URI,
@@ -308,10 +308,10 @@ def test_key_rotation_keeps_old_tokens_verifiable(owner_client, service):
     assert len(keys) == 2 and sum(1 for k in keys if k["is_active"]) == 1
     jwks = owner_client.get("/.well-known/jwks.json").json()
     assert len(jwks["keys"]) == 2
-    # 舊 token 仍能用 JWKS 裡的舊公鑰驗
+    # Old tokens still verify with the old public key kept in the JWKS
     jwt.decode(pat["access_token"], _jwks_key(owner_client, pat["access_token"]), algorithms=["RS256"],
                audience=RESOURCE)
-    # 新 token 用新 kid
+    # New tokens use the new kid
     pat2 = owner_client.post("/api/oauth/tokens/personal", json={"service_id": service["id"], "expires_days": 1}).json()
     assert jwt.get_unverified_header(pat2["access_token"])["kid"] != jwt.get_unverified_header(pat["access_token"])["kid"]
 

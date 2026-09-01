@@ -1,4 +1,4 @@
-"""第三方登入接口。填了 client_id 的 provider 才會啟用。"""
+"""Third-party login interface. A provider is enabled only when its client_id is configured."""
 
 from typing import Dict, List
 
@@ -24,7 +24,7 @@ def get_enabled_providers() -> Dict[str, OAuthLoginProvider]:
 
 
 def describe_providers() -> List[dict]:
-    """給登入頁用:哪些登入方式可用。"""
+    """For the login page: which login methods are available."""
     cfg = Config.get_identity_config()
     out = []
     if cfg.local_enabled:

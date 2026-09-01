@@ -1,19 +1,19 @@
-"""例外處理測試
+"""Exception handling tests
 
-測試涵蓋：
-1. 認證例外
-2. 資料庫例外
-3. 服務例外
-4. 基礎例外
+Coverage:
+1. Auth exceptions
+2. Database exceptions
+3. Service exceptions
+4. Base exceptions
 """
 
 
 
 class TestAuthExceptions:
-    """認證例外測試"""
+    """Auth exception tests"""
 
     def test_authentication_error(self):
-        """測試認證錯誤例外"""
+        """Test the authentication error exception"""
         from src.exceptions.auth import AuthenticationError
 
         exc = AuthenticationError("Authentication failed")
@@ -21,14 +21,14 @@ class TestAuthExceptions:
         assert exc.code == "AUTHENTICATION_ERROR"
 
     def test_invalid_credentials_error(self):
-        """測試無效憑證例外"""
+        """Test the invalid credentials exception"""
         from src.exceptions.auth import InvalidCredentialsError
 
         exc = InvalidCredentialsError()
         assert exc.status_code == 401
 
     def test_token_expired_error(self):
-        """測試 Token 過期例外"""
+        """Test the token expired exception"""
         from src.exceptions.auth import TokenExpiredError
 
         exc = TokenExpiredError(expired_at="2024-01-01T00:00:00")
@@ -36,7 +36,7 @@ class TestAuthExceptions:
         assert exc.code == "TOKEN_EXPIRED"
 
     def test_token_not_found_error(self):
-        """測試 Token 不存在例外"""
+        """Test the token not found exception"""
         from src.exceptions.auth import TokenNotFoundError
 
         exc = TokenNotFoundError(token_preview="abc123...")
@@ -44,7 +44,7 @@ class TestAuthExceptions:
         assert exc.code == "TOKEN_NOT_FOUND"
 
     def test_invalid_token_error(self):
-        """測試無效 Token 例外"""
+        """Test the invalid token exception"""
         from src.exceptions.auth import InvalidTokenError
 
         exc = InvalidTokenError(reason="Malformed JWT")
@@ -52,7 +52,7 @@ class TestAuthExceptions:
         assert exc.code == "INVALID_TOKEN"
 
     def test_token_revoked_error(self):
-        """測試 Token 已撤銷例外"""
+        """Test the token revoked exception"""
         from src.exceptions.auth import TokenRevokedError
 
         exc = TokenRevokedError()
@@ -60,7 +60,7 @@ class TestAuthExceptions:
         assert exc.code == "TOKEN_REVOKED"
 
     def test_insufficient_scope_error(self):
-        """測試權限不足例外"""
+        """Test the insufficient scope exception"""
         from src.exceptions.auth import InsufficientScopeError
 
         exc = InsufficientScopeError(required_scopes=["admin"], token_scopes=["read"])
@@ -68,7 +68,7 @@ class TestAuthExceptions:
         assert exc.code == "INSUFFICIENT_SCOPE"
 
     def test_service_mismatch_error(self):
-        """測試服務不匹配例外"""
+        """Test the service mismatch exception"""
         from src.exceptions.auth import ServiceMismatchError
 
         exc = ServiceMismatchError()
@@ -76,17 +76,17 @@ class TestAuthExceptions:
 
 
 class TestDatabaseExceptions:
-    """資料庫例外測試"""
+    """Database exception tests"""
 
     def test_database_error(self):
-        """測試資料庫錯誤例外"""
+        """Test the database error exception"""
         from src.exceptions.database import DatabaseError
 
         exc = DatabaseError("Connection failed")
         assert exc.status_code == 500
 
     def test_record_not_found_error(self):
-        """測試記錄不存在例外"""
+        """Test the record not found exception"""
         from src.exceptions.database import RecordNotFoundError
 
         exc = RecordNotFoundError(model="user", identifier="123")
@@ -94,7 +94,7 @@ class TestDatabaseExceptions:
         assert exc.code == "RECORD_NOT_FOUND"
 
     def test_duplicate_record_error(self):
-        """測試重複記錄例外"""
+        """Test the duplicate record exception"""
         from src.exceptions.database import DuplicateRecordError
 
         exc = DuplicateRecordError(field="username", value="admin")
@@ -103,10 +103,10 @@ class TestDatabaseExceptions:
 
 
 class TestServiceExceptions:
-    """服務例外測試"""
+    """Service exception tests"""
 
     def test_service_error(self):
-        """測試服務錯誤例外"""
+        """Test the service error exception"""
         from src.exceptions.service import ServiceError
 
         exc = ServiceError()
@@ -114,7 +114,7 @@ class TestServiceExceptions:
         assert exc.code == "SERVICE_ERROR"
 
     def test_service_not_found_error(self):
-        """測試服務不存在例外"""
+        """Test the service not found exception"""
         from src.exceptions.service import ServiceNotFoundError
 
         exc = ServiceNotFoundError(service_name="my-service")
@@ -122,7 +122,7 @@ class TestServiceExceptions:
         assert exc.code == "SERVICE_NOT_FOUND"
 
     def test_service_already_exists_error(self):
-        """測試服務已存在例外"""
+        """Test the service already exists exception"""
         from src.exceptions.service import ServiceAlreadyExistsError
 
         exc = ServiceAlreadyExistsError(service_name="my-service")
@@ -130,10 +130,10 @@ class TestServiceExceptions:
 
 
 class TestBaseExceptions:
-    """基礎例外測試"""
+    """Base exception tests"""
 
     def test_token_server_error(self):
-        """測試基礎錯誤例外"""
+        """Test the base error exception"""
         from src.exceptions.base import MCPCenterError
 
         exc = MCPCenterError(message="Test error", code="TEST_ERROR")
@@ -142,7 +142,7 @@ class TestBaseExceptions:
         assert exc.status_code == 500
 
     def test_token_server_http_exception(self):
-        """測試 HTTP 例外"""
+        """Test the HTTP exception"""
         from src.exceptions.base import MCPCenterHTTPException
 
         exc = MCPCenterHTTPException(
@@ -155,7 +155,7 @@ class TestBaseExceptions:
         assert exc.code == "CUSTOM_ERROR"
 
     def test_exception_to_dict(self):
-        """測試例外轉換為字典"""
+        """Test converting an exception to a dict"""
         from src.exceptions.base import MCPCenterError
 
         exc = MCPCenterError(
@@ -170,7 +170,7 @@ class TestBaseExceptions:
         assert result["details"]["key"] == "value"
 
     def test_exception_to_http_exception(self):
-        """測試例外轉換為 HTTPException"""
+        """Test converting an exception to HTTPException"""
         from src.exceptions.base import MCPCenterHTTPException
         from fastapi import HTTPException
 
@@ -185,10 +185,10 @@ class TestBaseExceptions:
 
 
 class TestExceptionHandlerMiddleware:
-    """例外處理 middleware 測試 (REQ-EXCEPTIONS-10)"""
+    """Exception handler middleware tests (REQ-EXCEPTIONS-10)"""
 
     def test_custom_exception_converted_to_json_error_response(self):
-        """自訂例外經 handler 轉為正確的 JSON 錯誤回應與狀態碼"""
+        """A custom exception is converted by the handler into the correct JSON error response and status code"""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
         from src.exceptions.base import MCPCenterError
@@ -199,7 +199,7 @@ class TestExceptionHandlerMiddleware:
             message = "short and stout"
             status_code = 418
 
-        # 建立最小 app,註冊 handlers,並加一個會拋自訂例外的路由
+        # Build a minimal app, register the handlers, and add a route that raises a custom exception
         app = FastAPI()
         register_exception_handlers(app)
 
@@ -210,10 +210,10 @@ class TestExceptionHandlerMiddleware:
         client = TestClient(app)
         response = client.get("/boom")
 
-        # 狀態碼取自例外
+        # Status code comes from the exception
         assert response.status_code == 418
 
-        # error body 形狀符合 to_dict() 契約
+        # Error body shape matches the to_dict() contract
         body = response.json()
         assert body["error"] == "IM_A_TEAPOT"
         assert body["message"] == "short and stout"
@@ -221,7 +221,7 @@ class TestExceptionHandlerMiddleware:
 
 
 class TestExceptionInAPI:
-    """API 中例外處理測試"""
+    """Exception handling tests within the API"""
 
     def test_invalid_session_returns_401(self, client):
         response = client.get("/api/session/me", headers={"Authorization": "Bearer invalid-token"})

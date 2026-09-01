@@ -1,8 +1,9 @@
-"""本機密鑰儲存:環境變數優先,否則自動產生並持久化到 data/secrets.json。
+"""Local secrets store: environment variables take precedence; otherwise generate and persist to data/secrets.json.
 
-個人專案要能「clone 下來直接跑」,所以 SESSION_SECRET_KEY / ENCRYPTION_KEY 不再強制
-要求人工設定。第一次啟動時自動產生、寫入 data/secrets.json(權限 0600),之後每次啟動
-都讀同一份 —— 尤其 ENCRYPTION_KEY 一旦換掉,DB 內所有加密資料都解不開。
+A personal project should "clone and run", so SESSION_SECRET_KEY / ENCRYPTION_KEY are no longer required to be
+set by hand. On first start they are generated and written to data/secrets.json (mode 0600), and every later start
+reads that same file -- this matters most for ENCRYPTION_KEY: once it changes, nothing encrypted in the DB can be
+decrypted.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ def _save_file(data: Dict[str, str]) -> None:
 
 
 def get_secret(name: str, *, env_var: Optional[str] = None, length: int = 32) -> str:
-    """取得密鑰:env → cache → data/secrets.json → 自動產生並存檔。"""
+    """Get a secret: env -> cache -> data/secrets.json -> generate and persist."""
     env_name = env_var or name
     value = os.environ.get(env_name, "").strip()
     if value:

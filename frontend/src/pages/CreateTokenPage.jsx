@@ -6,6 +6,7 @@ import { Check, Sparkles } from 'lucide-react'
 import { oauthApi, servicesApi } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
 import CodeBlock from '../components/CodeBlock'
+import { describeScope } from '../utils/scopes'
 import clsx from 'clsx'
 import {
   PageHeader, Button, Badge, Card, CardHeader, Alert, Field, Input, Select, SectionLabel, DescriptionList,
@@ -13,7 +14,7 @@ import {
 
 const QUICK_DAYS = [7, 30, 90, 365]
 
-/** 簽發 Personal Access Token:貼到 MCP client 設定的 Authorization: Bearer。明文只顯示一次。 */
+/** Issue a Personal Access Token to paste into the MCP client's Authorization: Bearer. The plaintext is shown once. */
 export default function CreateTokenPage() {
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
@@ -49,17 +50,17 @@ export default function CreateTokenPage() {
 
   const service = useMemo(() => services.find((s) => s.id === serviceId) || null, [services, serviceId])
 
-  // 可選 scope = 註冊表 ∩ 服務允許的 scope(服務未限制 → 全部)
+  // Selectable scopes = registry scopes intersected with the service's allowed scopes (unrestricted -> all)
   const availableScopes = useMemo(() => {
     if (!service || !service.oauth_scopes || service.oauth_scopes.length === 0) return scopes
     const allowed = new Set(service.oauth_scopes)
     const known = scopes.filter((s) => allowed.has(s.name))
-    // 服務允許但註冊表沒有的 scope 也列出來,避免使用者看不到
+    // Also list scopes the service allows but the registry lacks, so the user can still see them
     const extra = service.oauth_scopes.filter((n) => !scopes.some((s) => s.name === n)).map((name) => ({ name, description: null, is_default: false }))
     return [...known, ...extra]
   }, [service, scopes])
 
-  // 換服務時重設為預設 scope
+  // Reset to the default scopes when the service changes
   useEffect(() => {
     setSelectedScopes(new Set(availableScopes.filter((s) => s.is_default).map((s) => s.name)))
   }, [availableScopes])
@@ -101,7 +102,7 @@ export default function CreateTokenPage() {
     setError('')
   }
 
-  // ---------- 成功畫面 ----------
+  // ---------- Success screen ----------
   if (result) {
     const mcpUrl = service?.mcp_url || service?.effective_audience || '<your-mcp-server-url>'
     const name = service?.name || result.service_name || 'mcp-server'
@@ -122,9 +123,9 @@ export default function CreateTokenPage() {
           }
           actions={
             <>
-              <Button variant="secondary" icon={Sparkles} onClick={resetForm}>{t('tokens.create.issueAnother')}</Button>
-              <Button variant="secondary" to={`/tokens/${encodeURIComponent(result.jti)}`}>{t('tokens.create.viewToken')}</Button>
-              <Button variant="primary" to="/tokens">{t('tokens.create.viewAll')}</Button>
+              <Button variant="ghost" icon={Sparkles} onClick={resetForm}>{t('tokens.create.issueAnother')}</Button>
+              <Button variant="ghost" to={`/tokens/${encodeURIComponent(result.jti)}`}>{t('tokens.create.viewToken')}</Button>
+              <Button variant="secondary" to="/tokens">{t('tokens.create.viewAll')}</Button>
             </>
           }
         />
@@ -134,7 +135,7 @@ export default function CreateTokenPage() {
             {t('tokens.create.oneTimeBody')}
           </Alert>
 
-          <CodeBlock title={t('tokens.create.tokenLabel')} value={result.access_token} sensitive />
+          <CodeBlock title={t('tokens.create.tokenLabel')} value={result.access_token} sensitive copyLabel={t('tokens.create.copyToken')} />
 
           <DescriptionList
             className="rounded-md border border-border px-4"
@@ -155,7 +156,7 @@ export default function CreateTokenPage() {
     )
   }
 
-  // ---------- 表單 ----------
+  // ---------- Form ----------
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <PageHeader
@@ -229,7 +230,7 @@ export default function CreateTokenPage() {
                           {s.name}
                           {s.is_default && <Badge tone="success">{t('tokens.create.defaultTag')}</Badge>}
                         </span>
-                        {s.description && <span className="mt-0.5 block text-xs text-muted-foreground">{s.description}</span>}
+                        {describeScope(t, s.name, s.description) && <span className="mt-0.5 block text-xs text-muted-foreground">{describeScope(t, s.name, s.description)}</span>}
                       </span>
                     </label>
                   )

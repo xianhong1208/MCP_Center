@@ -1,56 +1,60 @@
-# MCP Center 設定檔
+# MCP Center configuration file
 #
-# 環境變數語法:
-#   ${VAR_NAME}           必須設定
-#   ${VAR_NAME:-default}  可選,有預設值
-# 所有敏感值(密鑰、密碼)都只從環境變數帶入,不要直接寫在這裡。
+# Environment variable syntax:
+#   ${VAR_NAME}           required
+#   ${VAR_NAME:-default}  optional, with a default value
+# All sensitive values (keys, passwords) come only from environment variables; never write them here directly.
 
 database:
-  # 預設 SQLite 單檔(零依賴);要用 PostgreSQL 就設 DATABASE_URL=postgresql://user:pwd@host/db
+  # Defaults to a single SQLite file (zero dependencies); for PostgreSQL set DATABASE_URL=postgresql://user:pwd@host/db
   url: "${DATABASE_URL:-sqlite:///data/mcp_center.db}"
   echo: false
   pool_size: 5
   max_overflow: 10
 
-# 通常不用改:port 留 0 會自動取 OAUTH_ISSUER 裡的 port(沒寫就是 4568)。
-# 只有反向代理(issuer 是網域、程式其實 bind 別的 port)才需要明確設 SERVER_PORT。
+# Usually no need to change: leaving port at 0 takes the port from OAUTH_ISSUER (4568 if none is given).
+# Only a reverse proxy setup (issuer is a domain while the app actually binds another port) needs an explicit
+# SERVER_PORT.
 server:
   host: "${SERVER_HOST:-0.0.0.0}"
   port: ${SERVER_PORT:-0}
 
-# 管理台登入 session(httpOnly cookie)
+# Admin console login session (httpOnly cookie)
 session:
-  # 留空 → 首次啟動自動產生並存到 data/secrets.json
+  # Leave empty -> generated on first start and stored in data/secrets.json
   secret_key: "${SESSION_SECRET_KEY:-}"
   expire_hours: ${SESSION_EXPIRE_HOURS:-12}
   idle_timeout_minutes: ${SESSION_IDLE_TIMEOUT_MINUTES:-30}
 
 # OAuth 2.1 Authorization Server
 oauth:
-  # 會寫進每個 JWT 的 iss 與 /.well-known 文件;對外部署務必填公開網址
+  # Written into the iss of every JWT and the /.well-known documents; for public deployments use the public URL
   issuer: "${OAUTH_ISSUER:-http://localhost:4568}"
   signing_key_bits: ${OAUTH_SIGNING_KEY_BITS:-2048}
   access_expire_minutes: ${OAUTH_ACCESS_EXPIRE_MINUTES:-60}
   refresh_expire_days: ${OAUTH_REFRESH_EXPIRE_DAYS:-30}
   auth_code_ttl_seconds: 120
-  # 動態註冊(RFC 7591)的 client 是否免審核直接可用(人的同意頁才是真正閘門)
+  # Whether dynamically registered (RFC 7591) clients are usable without review (the human consent page is the
+  # real gate)
   dcr_auto_approve: ${OAUTH_DCR_AUTO_APPROVE:-true}
   pat_max_days: 365
 
-# 管理台身分驗證
+# Admin console authentication
 identity:
   local_enabled: true
-  # 第三方登入接口:填 client_id / client_secret 即啟用(callback 為 <issuer>/api/session/oauth/<provider>/callback)
+  # Third-party login providers: filling in client_id / client_secret enables one
+  # (callback is <issuer>/api/session/oauth/<provider>/callback)
   github:
     client_id: "${GITHUB_CLIENT_ID:-}"
     client_secret: "${GITHUB_CLIENT_SECRET:-}"
   google:
     client_id: "${GOOGLE_CLIENT_ID:-}"
     client_secret: "${GOOGLE_CLIENT_SECRET:-}"
-  # 第三方登入時允許「自動建立帳號」的 email(YAML 清單;email 必須經 provider 驗證)。
-  # 空清單 = 只有已存在的帳號(或同 email 的帳號自動綁定)能用第三方登入。
+  # Emails allowed to have an account auto-created on third-party login (YAML list; the email must be verified by
+  # the provider). Empty list = only existing accounts (or an account with the same email, which is linked
+  # automatically) can use third-party login.
   allowed_emails: []
-  # 首次啟動自動建立擁有者帳號(兩者皆設才建立;不設則到 /setup 頁面建立)
+  # Owner account created automatically on first start (only when both are set; otherwise create it on the /setup page)
   bootstrap_admin_email: "${ADMIN_EMAIL:-}"
   bootstrap_admin_password: "${ADMIN_PASSWORD:-}"
 
@@ -72,7 +76,7 @@ security:
   trusted_proxies:
     - "127.0.0.1"
     - "::1"
-  # HTTPS 部署時設 true
+  # Set to true when deploying over HTTPS
   secure_cookie: ${SECURE_COOKIE:-false}
   cookie_samesite: "${COOKIE_SAMESITE:-lax}"
 

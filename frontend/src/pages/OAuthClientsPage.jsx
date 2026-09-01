@@ -10,6 +10,7 @@ import { useToast } from '../contexts/ToastContext'
 import CodeBlock from '../components/CodeBlock'
 import LastChecked from '../components/LastChecked'
 import clsx from 'clsx'
+import { describeScope } from '../utils/scopes'
 import {
   PageHeader, Button, IconButton, Badge, StatusPill, Card, CardHeader, EmptyState, Alert, LoadingBlock, Tabs,
   Table, THead, TBody, TR, TH, TD, RowActions,
@@ -259,7 +260,7 @@ function ScopesSection() {
                   {s.name}
                   {s.is_default && <Badge tone="success">{t('clients.scopes.default')}</Badge>}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">{s.description || t('clients.scopes.noDescription')}</p>
+                <p className="truncate text-xs text-muted-foreground">{describeScope(t, s.name, s.description) || t('clients.scopes.noDescription')}</p>
               </div>
               <RowActions>
                 <IconButton
@@ -449,7 +450,7 @@ export default function OAuthClientsPage() {
 
         {isLoading ? (
           <Card padding="none"><LoadingBlock /></Card>
-        ) : visible.length === 0 ? (
+        ) : error ? null : visible.length === 0 ? (
           <Card padding="none">
             <EmptyState
               icon={Bot}
@@ -464,10 +465,10 @@ export default function OAuthClientsPage() {
                 <TH>{t('clients.col.name')}</TH>
                 <TH>{t('clients.col.createdVia')}</TH>
                 <TH>{t('clients.col.grantTypes')}</TH>
-                <TH>{t('clients.col.redirectUris')}</TH>
-                <TH>{t('clients.col.lastUsed')}</TH>
+                <TH className="hidden 2xl:table-cell">{t('clients.col.redirectUris')}</TH>
+                <TH className="hidden lg:table-cell">{t('clients.col.lastUsed')}</TH>
                 <TH>{t('clients.col.status')}</TH>
-                <TH align="right" className="w-36"><span className="sr-only">{t('clients.col.actions')}</span></TH>
+                <TH align="right"><span className="sr-only">{t('clients.col.actions')}</span></TH>
               </TR>
             </THead>
             <TBody>
@@ -506,7 +507,7 @@ export default function OAuthClientsPage() {
                         {(c.grant_types || []).map((g) => <Badge key={g} tone="neutral" mono>{g}</Badge>)}
                       </div>
                     </TD>
-                    <TD className="max-w-[16rem]">
+                    <TD className="hidden max-w-[16rem] 2xl:table-cell">
                       {(c.redirect_uris || []).length === 0 ? (
                         <span className="text-xs text-subtle-foreground">{t('clients.noRedirect')}</span>
                       ) : (
@@ -516,7 +517,7 @@ export default function OAuthClientsPage() {
                         </div>
                       )}
                     </TD>
-                    <TD className="whitespace-nowrap text-xs text-muted-foreground">
+                    <TD className="hidden whitespace-nowrap text-xs text-muted-foreground lg:table-cell">
                       {c.last_used_at ? <LastChecked value={c.last_used_at} /> : <span className="text-subtle-foreground">{t('clients.neverUsed')}</span>}
                     </TD>
                     <TD>

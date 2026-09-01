@@ -1,8 +1,9 @@
-"""OAuth 簽章金鑰(RS256)。
+"""OAuth signing keys (RS256).
 
-私鑰只在 MCP Center(AES-256-GCM 加密入庫);公鑰經 /.well-known/jwks.json 公開,
-FastMCP 的 JWTVerifier 用它驗簽。kid = RFC 7638 JWK thumbprint,讓多把金鑰並存:
-輪替時舊金鑰退役(不再簽發)但留在 JWKS,尚未過期的舊 token 仍可驗。
+The private key lives only in MCP Center (stored AES-256-GCM encrypted in the DB); the public key is published via
+/.well-known/jwks.json and FastMCP's JWTVerifier uses it to verify signatures. kid = RFC 7638 JWK thumbprint, so
+several keys can coexist: on rotation the old key is retired (no longer signs) but stays in the JWKS, so old tokens
+that have not yet expired still verify.
 """
 
 import base64
@@ -68,7 +69,7 @@ def ensure_active_signing_key(db: Session) -> OAuthSigningKey:
 
 
 def rotate_signing_key(db: Session) -> OAuthSigningKey:
-    """產生新金鑰並設為 active;舊金鑰退役但保留供驗證。"""
+    """Generate a new key and make it active; old keys are retired but kept for verification."""
     return create_signing_key(db, make_active=True)
 
 

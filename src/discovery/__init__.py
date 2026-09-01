@@ -1,4 +1,4 @@
-"""MCP 服務發現與健康監控模組"""
+"""MCP service discovery and health monitoring module"""
 
 from src.discovery.scanner import MCPScanner, MCPVerifyResult, MCPToolInfo, DiscoveredService
 from src.discovery.websocket_manager import WSManager, WSMessage

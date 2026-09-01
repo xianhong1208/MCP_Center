@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""MCP Center 啟動腳本
+"""MCP Center startup script.
 
-OAuth 2.1 Authorization Server + MCP server 管理台。
+OAuth 2.1 Authorization Server + MCP server admin console.
 
-使用方式:
+Usage:
     python main.py
     python main.py --config config/config.yaml --port 4568
     python main.py --migrate-only status
@@ -41,7 +41,7 @@ logger = get_logger("main")
 
 STATIC_DIR = project_root / "static" / "web"
 
-# SPA catch-all 不該吃掉的 API 前綴
+# API prefixes the SPA catch-all must not swallow
 API_PREFIXES = ("api/", "oauth/", ".well-known/", "ws/", "health", "docs", "redoc", "openapi.json")
 
 
@@ -170,16 +170,16 @@ def parse_args():
     parser.add_argument("--host", type=str)
     parser.add_argument("--port", type=int)
     parser.add_argument("--reload", action="store_true")
-    parser.add_argument("--no-migrate", action="store_true", help="跳過 migration(假設 DB 已就緒)")
+    parser.add_argument("--no-migrate", action="store_true", help="Skip migrations (assumes the DB is already ready)")
     parser.add_argument("--migrate-only", nargs="?", const="auto", metavar="ACTION",
-                        help="只跑 migration 不啟動 server:auto, status, upgrade, downgrade, stamp, current, heads, history, generate")
-    parser.add_argument("-m", "--message", help="Migration message(配 --migrate-only generate)")
+                        help="Run migrations only, without starting the server: auto, status, upgrade, downgrade, stamp, current, heads, history, generate")
+    parser.add_argument("-m", "--message", help="Migration message (used with --migrate-only generate)")
     parser.add_argument("-r", "--revision", default="-1")
     return parser.parse_args()
 
 
 def init_database(*, run_migrations: bool = True) -> dict:
-    """bootstrap → migrate → seed。回傳 seed 摘要。"""
+    """bootstrap -> migrate -> seed. Returns the seed summary."""
     from src.utils.db_bootstrap import ensure_database_ready
 
     ensure_database_ready(Config.get_database_config().url, logger)

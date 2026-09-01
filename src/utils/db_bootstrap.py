@@ -1,19 +1,21 @@
-"""DB Bootstrap — 確保目標 DB 存在(在 Alembic migration 之前跑)
+"""DB Bootstrap -- make sure the target DB exists (runs before Alembic migrations)
 
-雞生蛋問題:`CREATE DATABASE` 不能在自己內部執行,必須先連到 PostgreSQL
-預設的 `postgres` 系統 DB 才能下指令;且 CREATE DATABASE 不能在 transaction
-內,故用 AUTOCOMMIT。
+Chicken-and-egg problem: `CREATE DATABASE` cannot be run from inside the database itself; we must first connect
+to PostgreSQL's default `postgres` system DB to issue it. CREATE DATABASE also cannot run inside a transaction,
+hence AUTOCOMMIT.
 
-流程:
-  1. 解析 DATABASE_URL,取出目標 dbname 並驗證
-  2. 用 SQLAlchemy engine 連 `postgres` 系統 DB(AUTOCOMMIT)
-  3. 查 pg_database;不存在則 CREATE DATABASE
+Flow:
+  1. Parse DATABASE_URL, extract the target dbname and validate it
+  2. Connect to the `postgres` system DB with a SQLAlchemy engine (AUTOCOMMIT)
+  3. Query pg_database; CREATE DATABASE if it does not exist
 
-設計考量:
-  - PostgreSQL 才需要;SQLite 只確保目錄存在。
-  - 冪等:跑幾次都安全;並發下若被別人先建好,吞掉 duplicate 錯誤。
-  - 一律走 SQLAlchemy(與專案其餘 DB 存取一致);identifier 以 SQL 標準跳脫
-    (雙引號括住 + 內嵌 " 加倍),dbname 另先過 _validate_dbname 白名單。
+Design notes:
+  - Only needed for PostgreSQL; for SQLite we only make sure the directory exists.
+  - Idempotent: safe to run any number of times; if someone else created the DB first under concurrency,
+    the duplicate error is swallowed.
+  - Always goes through SQLAlchemy (consistent with the rest of the project's DB access); the identifier is
+    escaped per the SQL standard (wrapped in double quotes, embedded " doubled), and the dbname is additionally
+    checked against the _validate_dbname allowlist first.
 """
 
 from __future__ import annotations
@@ -24,39 +26,39 @@ from urllib.parse import unquote, urlparse
 from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.exc import ProgrammingError
 
-# Postgres 識別字上限 63 bytes (NAMEDATALEN-1)。超過會被**靜默截斷**,於是
-# CREATE DATABASE 建出來的名字和後續連線用的名字不一致,產生很難查的錯誤。
+# Postgres identifiers are limited to 63 bytes (NAMEDATALEN-1). Anything longer is **silently truncated**, so the
+# name CREATE DATABASE produces differs from the name later connections use, causing errors that are hard to trace.
 _MAX_IDENTIFIER_BYTES = 63
 
-# dbname 白名單。用於在來源端 fail-fast:
-#   1. 讓 config → SQL 這條路徑上有明確的 sanitizer。
-#   2. 擋掉打錯的 DATABASE_URL(整段 URL 被誤當成 dbname、超長被截斷等)。
+# dbname allowlist. Used to fail fast at the source:
+#   1. Put an explicit sanitizer on the config -> SQL path.
+#   2. Reject mistyped DATABASE_URLs (the whole URL taken as the dbname, over-long names getting truncated, etc.).
 _DBNAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_$-]*")
 
 
 def _validate_dbname(dbname: str) -> str:
-    """驗證從 DATABASE_URL 解析出來的 dbname,不合法就 raise ValueError。
+    """Validate the dbname parsed from DATABASE_URL; raise ValueError if it is invalid.
 
-    呼叫端(main.py)已把 bootstrap 包在 try/except 裡並 sys.exit(1),所以設定
-    錯誤會在開機時明確失敗,而不是帶著怪名字繼續跑。
+    The caller (main.py) already wraps bootstrap in try/except and sys.exit(1)s, so a configuration error fails
+    loudly at startup instead of continuing to run with a strange name.
     """
     if not _DBNAME_RE.fullmatch(dbname):
         raise ValueError(
-            f"DATABASE_URL 的資料庫名稱不合法: {dbname!r}。"
-            f"只允許字母/數字/底線/連字號/$,且須以字母或底線開頭"
+            f"Invalid database name in DATABASE_URL: {dbname!r}. "
+            f"Only letters/digits/underscore/hyphen/$ are allowed, and it must start with a letter or underscore"
         )
     if len(dbname.encode("utf-8")) > _MAX_IDENTIFIER_BYTES:
         raise ValueError(
-            f"DATABASE_URL 的資料庫名稱超過 Postgres 上限 "
-            f"{_MAX_IDENTIFIER_BYTES} bytes(會被靜默截斷): {dbname!r}"
+            f"Database name in DATABASE_URL exceeds the Postgres limit of "
+            f"{_MAX_IDENTIFIER_BYTES} bytes (it would be silently truncated): {dbname!r}"
         )
     return dbname
 
 
 def _parse_db_url(url: str) -> dict:
     parsed = urlparse(url)
-    # urlparse 不解百分比編碼,但 SQLAlchemy make_url(引擎端)會 —— 帳密含特殊
-    # 字元(如 p%40ss = p@ss)時需一致。手動 unquote 帳號/密碼,與 make_url 對齊。
+    # urlparse does not decode percent-encoding, but SQLAlchemy's make_url (engine side) does -- they must agree
+    # when credentials contain special characters (e.g. p%40ss = p@ss). Unquote user/password by hand to match make_url.
     return {
         "scheme": parsed.scheme,
         "user": unquote(parsed.username) if parsed.username else parsed.username,
@@ -68,23 +70,23 @@ def _parse_db_url(url: str) -> dict:
 
 
 def ensure_database_ready(db_url: str, logger) -> None:
-    """確保目標 DB 存在(冪等)
+    """Make sure the target DB exists (idempotent)
 
-    呼叫時機:必須在 alembic migration / 任何 ORM 操作之前。
+    When to call: must run before alembic migrations / any ORM operation.
 
     Args:
-        db_url: SQLAlchemy DB URL,例如 postgresql://user:pwd@host/dbname
-        logger: 主程式 logger 實例
+        db_url: SQLAlchemy DB URL, e.g. postgresql://user:pwd@host/dbname
+        logger: the main program's logger instance
 
     Raises:
-        sqlalchemy.exc.OperationalError: 連 postgres 系統 DB 都失敗(密碼錯/服務沒起)
-        sqlalchemy.exc.ProgrammingError: 無 CREATEDB 權限等
+        sqlalchemy.exc.OperationalError: even connecting to the postgres system DB failed (bad password / service down)
+        sqlalchemy.exc.ProgrammingError: no CREATEDB privilege, etc.
     """
     params = _parse_db_url(db_url)
 
-    # 非 PostgreSQL(例如 SQLite)不需要 bootstrap — SQLite 第一次 open 就建檔
+    # Non-PostgreSQL (e.g. SQLite) needs no bootstrap -- SQLite creates the file on first open
     if not params["scheme"].startswith("postgres"):
-        # SQLite:確保資料夾存在即可,第一次 open 就會建檔
+        # SQLite: just make sure the directory exists; the file is created on first open
         if params["scheme"].startswith("sqlite"):
             from db.database import _ensure_sqlite_dir
             _ensure_sqlite_dir(db_url)
@@ -96,14 +98,14 @@ def ensure_database_ready(db_url: str, logger) -> None:
         logger.warning("⚠️ No database name in DATABASE_URL, skipping bootstrap")
         return
 
-    # 在任何連線 / SQL 之前驗證 dbname(見 _validate_dbname 的說明)
+    # Validate the dbname before any connection / SQL (see the notes on _validate_dbname)
     target_dbname = _validate_dbname(target_dbname)
 
     logger.info(f"Bootstrapping database '{target_dbname}'...")
 
-    # 連 postgres 系統 DB 才能 CREATE DATABASE。make_url 安全處理帳密特殊字元,
-    # 並把目標 dbname 換成 postgres;AUTOCOMMIT 因 CREATE DATABASE 不能在
-    # transaction 內執行。
+    # CREATE DATABASE requires connecting to the postgres system DB. make_url handles special characters in the
+    # credentials safely and swaps the target dbname for postgres; AUTOCOMMIT because CREATE DATABASE cannot run
+    # inside a transaction.
     admin_url = make_url(db_url).set(database="postgres")
     admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     try:
@@ -117,14 +119,14 @@ def ensure_database_ready(db_url: str, logger) -> None:
                 return
 
             logger.warning(f"Database '{target_dbname}' not found, creating...")
-            # CREATE DATABASE 不能用 bind param 帶 identifier。以 SQL 標準跳脫:
-            # 雙引號括住 identifier,內嵌的 " 加倍。dbname 另已過 _validate_dbname
-            # 白名單(根本不含 "),此為 defense-in-depth。
+            # CREATE DATABASE cannot take the identifier as a bind parameter. Escape per the SQL standard: wrap
+            # the identifier in double quotes and double any embedded ". The dbname has also already passed the
+            # _validate_dbname allowlist (it cannot contain " at all), so this is defense-in-depth.
             safe_name = target_dbname.replace('"', '""')
             conn.execute(text(f'CREATE DATABASE "{safe_name}"'))
             logger.info(f"Database '{target_dbname}' created successfully")
     except ProgrammingError as e:
-        # 並發下另一個 process 先建好(duplicate_database)→ 視同成功
+        # Another process created it first under concurrency (duplicate_database) -> treat as success
         if "already exists" in str(e).lower():
             logger.info(f"Database '{target_dbname}' was created concurrently (by another process)")
             return

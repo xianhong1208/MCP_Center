@@ -1,12 +1,12 @@
-"""db_bootstrap 的 dbname 驗證測試
+"""dbname validation tests for db_bootstrap
 
-背景:SAST 對 db_bootstrap.py 的 CREATE DATABASE 報 Second-Order SQL
-Injection。該 SQL 本身是安全的(psycopg2 `sql.Identifier`,dbname 全程是
-Identifier 物件,無字串串接),但我們仍在來源端加白名單:
+Background: SAST flagged the CREATE DATABASE in db_bootstrap.py as a Second-Order SQL Injection. The SQL itself
+is safe (psycopg2 `sql.Identifier`; the dbname is an Identifier object throughout, with no string concatenation),
+but we still add an allowlist at the source:
 
-  1. 讓 config → SQL 這條路徑上有明確的 sanitizer。
-  2. 擋掉打錯的 DATABASE_URL —— 尤其超長名字會被 Postgres 靜默截斷成 63
-     bytes,導致「建出來的 DB 名」和「後續連線用的名」不一致。
+  1. Put an explicit sanitizer on the config -> SQL path.
+  2. Reject mistyped DATABASE_URLs -- in particular, over-long names are silently truncated by Postgres to 63
+     bytes, so "the DB name that got created" and "the name later connections use" no longer match.
 """
 import pytest
 
@@ -44,9 +44,9 @@ def test_invalid_dbnames_rejected(dbname):
 
 
 def test_oversized_dbname_rejected():
-    """超過 63 bytes 會被 Postgres 靜默截斷 — 必須先擋住"""
+    """Anything over 63 bytes is silently truncated by Postgres -- it must be rejected up front"""
     assert _validate_dbname("a" * _MAX_IDENTIFIER_BYTES)
-    with pytest.raises(ValueError, match="超過"):
+    with pytest.raises(ValueError, match="exceeds"):
         _validate_dbname("a" * (_MAX_IDENTIFIER_BYTES + 1))
 
 
@@ -59,6 +59,6 @@ def test_oversized_dbname_rejected():
     ],
 )
 def test_readme_urls_parse_and_validate(url):
-    """README / docs 裡的所有 DATABASE_URL 範例都必須通過"""
+    """Every DATABASE_URL example in README / docs must pass"""
     dbname = _parse_db_url(url)["dbname"]
     assert _validate_dbname(dbname) == "mcp_center"

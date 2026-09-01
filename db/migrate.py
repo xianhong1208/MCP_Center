@@ -1,18 +1,18 @@
 """Database Migration Manager
 
-封裝 Alembic 操作,提供乾淨的 Python API 給 main.py 與 CLI 使用。
+Wraps Alembic operations and exposes a clean Python API for main.py and the CLI.
 
-設計重點:
-  - 使用 Alembic 高階 API(`command.*`),不用自己 parse migration 檔案
-  - `auto_migrate()` 處理三種 DB 狀態:全新 / 舊有但無 alembic 紀錄 / 已在 alembic 管理下
-  - 「schema 超前 alembic_version」的歷史包袱會自動修(stamp 到 head)
+Design highlights:
+  - Uses Alembic's high-level API (`command.*`) instead of parsing migration files ourselves
+  - `auto_migrate()` handles three DB states: fresh / legacy without alembic history / already managed by alembic
+  - The historical "schema ahead of alembic_version" baggage is repaired automatically (stamp to head)
 
-CLI 用法:
-    python -m db.migrate                    # 預設 auto
-    python -m db.migrate status             # 顯示狀態
-    python -m db.migrate upgrade            # 升級到 head
-    python -m db.migrate downgrade -r -1    # 退一版
-    python -m db.migrate generate -m "..."  # 產生新 migration(autogenerate)
+CLI usage:
+    python -m db.migrate                    # default: auto
+    python -m db.migrate status             # show status
+    python -m db.migrate upgrade            # upgrade to head
+    python -m db.migrate downgrade -r -1    # roll back one revision
+    python -m db.migrate generate -m "..."  # create a new migration (autogenerate)
 """
 
 from __future__ import annotations
@@ -36,25 +36,25 @@ from src.utils.runtime_paths import resolve_external_dir
 def _env_flag_enabled(name: str) -> bool:
     """Parse a boolean env var safely.
 
-    bool("false") is True in Python (non-empty string),所以不能用 bool(os.environ.get).
+    bool("false") is True in Python (non-empty string), so bool(os.environ.get) cannot be used.
     """
     return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
-# Dev 模式下的專案根:db/migrate.py → 上一層即 project root
+# Project root in dev mode: db/migrate.py -> one level up is the project root
 _dev_project_root = Path(__file__).resolve().parent.parent
 
 logger = get_logger("db.migrate")
 
 
 def _resolve_alembic_dir() -> Path:
-    """跨部署模式找 alembic/ 目錄
+    """Find the alembic/ directory across deployment modes
 
-    解析順序(由 resolve_external_dir 提供):
-      ① Nuitka onefile 真實 binary 旁邊
-      ② /proc/self/exe 旁邊
-      ③ sys.executable 旁邊
-      ④ /app/alembic(Docker volume mount)
-      ⑤ dev 模式 project_root / alembic
+    Resolution order (provided by resolve_external_dir):
+      (1) next to the real Nuitka onefile binary
+      (2) next to /proc/self/exe
+      (3) next to sys.executable
+      (4) /app/alembic (Docker volume mount)
+      (5) dev mode project_root / alembic
     """
     resolved = resolve_external_dir("alembic", dev_root=_dev_project_root)
     if resolved is None:
@@ -66,12 +66,12 @@ def _resolve_alembic_dir() -> Path:
 
 
 class DatabaseMigrator:
-    """封裝 Alembic 操作的單一進入點
+    """Single entry point wrapping Alembic operations
 
-    每個 public method 都是冪等的(跑幾次都不會炸),適合 server 啟動流程。
+    Every public method is idempotent (safe to run any number of times), which suits the server startup flow.
     """
 
-    # 「DB 已被應用初始化過」的判斷依據 — 出現任一張表就算
+    # Criterion for "the DB has already been initialized by the app" -- any one of these tables present counts
     APP_TABLE_MARKERS = ("services", "admin_users", "oauth_clients")
 
     def __init__(self):
@@ -80,21 +80,21 @@ class DatabaseMigrator:
 
         self.db_url = Config.get_database_config().url
 
-        # 不使用 alembic.ini — 所有設定純 Python API 注入。alembic CLI 已不支援使用。
+        # No alembic.ini -- all settings are injected via the pure Python API. The alembic CLI is no longer supported.
         self.alembic_cfg = AlembicConfig()
         self.alembic_cfg.set_main_option("script_location", str(self.alembic_dir))
         self.alembic_cfg.set_main_option("sqlalchemy.url", self.db_url)
         logger.debug(f"Alembic dir resolved to: {self.alembic_dir}")
 
-    # ---- 內部工具 ----
+    # ---- Internal helpers ----
 
     def _get_engine(self):
-        """延遲取得 engine — 避免在 import 階段就連線"""
+        """Get the engine lazily -- avoid connecting at import time"""
         from db.database import get_engine
         return get_engine()
 
     def _get_db_revision(self) -> Optional[str]:
-        """讀 alembic_version 表的當前版本(若表不存在回 None)"""
+        """Read the current revision from the alembic_version table (None if the table does not exist)"""
         engine = self._get_engine()
         inspector = inspect(engine)
         if "alembic_version" not in inspector.get_table_names():
@@ -104,15 +104,15 @@ class DatabaseMigrator:
             return row[0] if row else None
 
     def _get_head_revision(self) -> Optional[str]:
-        """讀 migration 檔案的 head revision"""
+        """Read the head revision from the migration files"""
         script = ScriptDirectory.from_config(self.alembic_cfg)
         return script.get_current_head()
 
     def _classify_db_state(self) -> str:
-        """判斷 DB 處於哪種狀態,回傳:
-        - "fresh"         全新空 DB(沒 alembic 也沒 app 表)
-        - "legacy"        舊 DB 有 app 表但沒 alembic 紀錄
-        - "managed"       已被 alembic 管理(有 alembic_version 表)
+        """Determine which state the DB is in; returns:
+        - "fresh"         brand-new empty DB (neither alembic nor app tables)
+        - "legacy"        old DB with app tables but no alembic history
+        - "managed"       already managed by alembic (alembic_version table exists)
         """
         engine = self._get_engine()
         inspector = inspect(engine)
@@ -130,22 +130,22 @@ class DatabaseMigrator:
     # ---- Public API ----
 
     def auto_migrate(self) -> bool:
-        """自動 migration — server 啟動預設呼叫這個
+        """Automatic migration -- called by default at server startup
 
-        分三種情況處理:
-          fresh   → 從頭跑所有 migration
-          legacy  → stamp 到 head(視為已套用完畢,但日後 migration 仍會 run)
-          managed → 比對 db_rev 與 head_rev,需要才 upgrade
+        Three cases are handled:
+          fresh   -> run every migration from scratch
+          legacy  -> stamp to head (treated as fully applied, but future migrations will still run)
+          managed -> compare db_rev with head_rev and upgrade only when needed
 
-        關於 DuplicateTable / DuplicateColumn 自動修復:
-          預設 **關閉**。若 upgrade 中途撞到 schema 已存在的衝突,直接 fail
-          並要求人工介入 — 這類錯誤可能是:
-            (a) 歷史包袱:舊 create_all() 殘留(可安全 stamp)
-            (b) Partial migration 失敗:前一次 upgrade 跑到一半 crash
-            (c) 多進程競態:另一個 server instance 同時跑 migration
-          (b)(c) 情境下 stamp head 會把破損 DB 標記為「最新」,後續 autogenerate
-          會悄悄丟東西。要啟用自動 stamp,設 `ALEMBIC_AUTO_STAMP_ON_CONFLICT=true`,
-          並確認你的部署只會撞到 (a)。
+        On automatic repair of DuplicateTable / DuplicateColumn:
+          **Off** by default. If an upgrade hits a schema-already-exists conflict midway, it fails outright and
+          requires manual intervention -- such errors may be:
+            (a) historical baggage: leftovers from the old create_all() (safe to stamp)
+            (b) a failed partial migration: the previous upgrade crashed halfway
+            (c) a multi-process race: another server instance is running the migration at the same time
+          In cases (b) and (c), stamping head would mark a broken DB as "up to date", and later autogenerate
+          runs would silently drop things. To enable auto-stamp, set `ALEMBIC_AUTO_STAMP_ON_CONFLICT=true` and
+          make sure your deployment can only hit (a).
         """
         try:
             state = self._classify_db_state()
@@ -183,7 +183,7 @@ class DatabaseMigrator:
                 if not is_dup_conflict:
                     raise
 
-                # 撞到 schema-already-exists 衝突 — 預設不自動 stamp
+                # Hit a schema-already-exists conflict -- no auto-stamp by default
                 auto_stamp = _env_flag_enabled("ALEMBIC_AUTO_STAMP_ON_CONFLICT")
                 if not auto_stamp:
                     logger.error(
@@ -222,7 +222,7 @@ class DatabaseMigrator:
             return False
 
     def _rollback_dirty_transaction(self) -> None:
-        """alembic upgrade 失敗時 transaction 可能殘留,主動清掉"""
+        """A failed alembic upgrade may leave a dangling transaction; clear it proactively"""
         try:
             with self._get_engine().connect() as conn:
                 conn.execute(text("ROLLBACK"))
@@ -259,7 +259,7 @@ class DatabaseMigrator:
             return False
 
     def status(self) -> Tuple[bool, Optional[str], Optional[str]]:
-        """回傳 (is_up_to_date, current_rev, head_rev) — 並印出可讀報告"""
+        """Return (is_up_to_date, current_rev, head_rev) -- and print a human-readable report"""
         db_rev = self._get_db_revision()
         head_rev = self._get_head_revision()
         is_up_to_date = (db_rev == head_rev and db_rev is not None)
@@ -302,19 +302,19 @@ class DatabaseMigrator:
 
 def run_migration_command(action: str, message: Optional[str] = None,
                           revision: str = "-1") -> bool:
-    """Dispatch migration action — 給 main.py 與 CLI 共用
+    """Dispatch migration action -- shared by main.py and the CLI
 
     Actions:
-        auto       自動套用所有未套用的 migrations(預設)
-        status     顯示狀態
-        upgrade    升級到指定 revision(--revision,預設 head)
-        downgrade  降級到指定 revision
-        rollback   等同 downgrade
-        stamp      標記版本但不執行
-        current    顯示當前版本
-        heads      顯示 head 版本
-        history    顯示歷史
-        generate   產生新 migration(需要 --message)
+        auto       apply all pending migrations automatically (default)
+        status     show status
+        upgrade    upgrade to the given revision (--revision, default head)
+        downgrade  downgrade to the given revision
+        rollback   same as downgrade
+        stamp      mark the revision without running it
+        current    show the current revision
+        heads      show the head revision
+        history    show history
+        generate   create a new migration (requires --message)
     """
     try:
         m = DatabaseMigrator()
@@ -354,7 +354,7 @@ def main():
     import argparse
     import os
 
-    # CLI 走獨立進入點,必須自己載 .env + config(server 模式由 main.py 處理)
+    # The CLI is a standalone entry point and must load .env + config itself (main.py handles this in server mode)
     from dotenv import load_dotenv
     load_dotenv(_dev_project_root / ".env")
 
@@ -382,7 +382,7 @@ Examples:
 
     Config.set_config(args.config)
 
-    # 連 DB 前先確保 DB 存在(generate 不需要 DB,例外)
+    # Make sure the DB exists before connecting (generate is the exception: it needs no DB)
     if args.action != "generate":
         import logging
         cli_logger = logging.getLogger("db.migrate")

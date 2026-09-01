@@ -5,6 +5,8 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import en from './locales/en.json'
 import zhTW from './locales/zh-TW.json'
 
+// English is the project default. The browser locale is deliberately not consulted: only an explicit
+// choice made with the language switcher (persisted in localStorage) changes the UI language.
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -17,7 +19,7 @@ i18n
     supportedLngs: ['en', 'zh-TW'],
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       lookupLocalStorage: 'language',
       caches: ['localStorage'],
     },

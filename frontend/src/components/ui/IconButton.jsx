@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 
 /**
- * IconButton — 8x8(h-8 w-8)的方形 icon 按鈕,一定要給 `title`(同時當 aria-label)。
+ * IconButton -- square 8x8 (h-8 w-8) icon button; `title` is required (it doubles as aria-label).
  * variant: ghost | secondary | destructive | accent
  * size: md(h-8)| sm(h-7)
  */

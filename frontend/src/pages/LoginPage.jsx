@@ -9,7 +9,7 @@ import { Eye, EyeOff, Globe } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
 import { Button, IconButton, Input, Field, Alert, DividerWithText } from '../components/ui'
 
-/** 單色 provider 圖示(currentColor,不用品牌色) */
+/** Monochrome provider icons (currentColor, no brand colors) */
 function GithubIcon({ className }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
@@ -48,14 +48,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(() => describeLoginError(searchParams.get('error')))
-  const [providers, setProviders] = useState(null)   // null = 尚未載入
+  const [providers, setProviders] = useState(null)   // null = not loaded yet
 
-  // 已登入者直接送回原本要去的頁面(例如 /consent?rid=...)
+  // Already logged in: send the user straight back to where they were going (e.g. /consent?rid=...)
   useEffect(() => {
     if (!authLoading && isAuthenticated) navigate(consumeRedirect(), { replace: true })
   }, [authLoading, isAuthenticated, navigate])
 
-  // 首次啟動 → 設定頁;同時取得可用登入方式
+  // First run -> setup page; also fetch the available login methods
   useEffect(() => {
     let cancelled = false
     sessionApi.status()
@@ -72,7 +72,7 @@ export default function LoginPage() {
   }, [navigate])
 
   const oauthProviders = (providers || []).filter((p) => p.kind === 'oauth')
-  // providers 未載入前先顯示密碼表單,避免畫面閃動
+  // Show the password form before providers load, to avoid a flash
   const localEnabled = providers === null || providers.some((p) => p.kind === 'password')
   const nextPath = peekRedirect()
 

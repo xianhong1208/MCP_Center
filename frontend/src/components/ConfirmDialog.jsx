@@ -26,7 +26,7 @@ export default function ConfirmDialog({
   const { t } = useTranslation()
   if (!isOpen) return null
 
-  // Defaults via i18n,不能用 fn default 因為 hook 必須在頂端
+  // Defaults come from i18n; they cannot be function defaults because the hook must run first
   const resolvedTitle = title || t('components.confirm.title')
   const resolvedConfirmText = confirmText || t('components.confirm.confirm')
   const resolvedCancelText = cancelText || t('components.confirm.cancel')
@@ -52,10 +52,10 @@ export default function ConfirmDialog({
         </div>
       </div>
       <DialogFooter>
-        <Button variant="secondary" onClick={onClose} disabled={isLoading}>
+        <Button variant="secondary" onClick={onClose} disabled={isLoading} autoFocus>
           {resolvedCancelText}
         </Button>
-        <Button variant={cfg.button} onClick={handleConfirm} loading={isLoading} autoFocus>
+        <Button variant={cfg.button} onClick={handleConfirm} loading={isLoading}>
           {resolvedConfirmText}
         </Button>
       </DialogFooter>

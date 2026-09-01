@@ -1,4 +1,4 @@
-"""核心 API(/api/*):MCP 服務登錄 / tools / 健康、統計、審計、系統。需登入(session)。"""
+"""Core API (/api/*): MCP service registration / tools / health, statistics, audit, system. Requires login (session)."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def _audit(db, request, user, action, resource_type, resource_id, details=None, 
     )
 
 
-# ==================== 公開 ====================
+# ==================== Public ====================
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
@@ -174,7 +174,10 @@ async def get_service_tools(service_id: str, db: Session = Depends(get_db), _: A
 @router.post("/api/services/{service_id}/refresh-tools", response_model=RefreshToolsResponse, tags=["Services"])
 async def refresh_service_tools(service_id: str, http_request: Request, db: Session = Depends(get_db),
                                 user: AdminUser = Depends(get_current_user)):
-    """連到服務抓 tools 列表並同步。受 MCP Center OAuth 保護的服務會自簽短命 token 連線。"""
+    """Connect to the service, fetch its tools list and sync it.
+
+    Services protected by MCP Center OAuth connect with a self-signed short-lived token.
+    """
     from src.discovery.health_monitor import resolve_service_auth_token
     from src.discovery.scanner import get_scanner
 
@@ -251,7 +254,7 @@ async def check_service_health(service_id: str, db: Session = Depends(get_db), _
                 desc += f" v{result.server_version}"
             if result.server_description:
                 desc += f"\n\n{result.server_description}"
-            ServiceAdapter.update(db, service_id, description=desc)  # 不覆蓋使用者取的名稱
+            ServiceAdapter.update(db, service_id, description=desc)  # Do not overwrite the user-chosen name
         ServiceAdapter.update_health(db, service_id, status=new_status, response_time_ms=result.response_time_ms,
                                      error_message=None, reset_fail_count=True)
     else:

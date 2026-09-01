@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react'
 import clsx from 'clsx'
 
-/** 語意色都是「淡底(/10)+ 同色邊框(/20)+ 主文字」;icon 用語意色 */
+/** Every semantic tone is "tinted bg (/10) + same-hue border (/20) + primary text"; the icon uses the tone color */
 const tones = {
   danger: {
     icon: AlertCircle,
@@ -30,7 +30,7 @@ const tones = {
   },
 }
 
-/** 行內訊息框:淡底 + 同色系邊框 + icon */
+/** Inline message box: tinted background + same-hue border + icon */
 export default function Alert({ tone = 'danger', title, icon, className, children, action }) {
   const cfg = tones[tone] || tones.danger
   const Icon = icon === null ? null : icon || cfg.icon

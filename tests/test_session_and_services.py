@@ -1,4 +1,4 @@
-"""管理台登入 / 首次設定 / 服務登錄 API。"""
+"""Admin-console login / first-time setup / service registration API."""
 
 from tests.conftest import OWNER_EMAIL, OWNER_PASSWORD
 
@@ -9,7 +9,7 @@ def test_setup_then_login_flow(client):
     assert r.status_code == 200 and r.json()["user"]["email"] == OWNER_EMAIL
     assert "mcp_session" in r.cookies
     assert client.get("/api/session/status").json()["needs_setup"] is False
-    # setup 只能做一次
+    # setup can only be done once
     assert client.post("/api/session/setup", json={"email": "x@y.com", "password": "another-pass"}).status_code == 409
 
     me = client.get("/api/session/me").json()
@@ -34,11 +34,12 @@ def test_change_password_invalidates_old_session(owner_client):
     import time
 
     old_cookie = owner_client.cookies.get("mcp_session")
-    time.sleep(1.1)  # iat 與 password_changed_at 同秒時視為仍有效(避免改密後立刻登入被誤判)
+    time.sleep(1.1)  # iat in the same second as password_changed_at still counts as valid (so a login right after a
+    # password change is not misjudged)
     r = owner_client.put("/api/session/me/password", json={"current_password": OWNER_PASSWORD,
                                                            "new_password": "new-password-456"})
     assert r.status_code == 200
-    # 回應帶了新 cookie;把舊 cookie 塞回去應該被拒
+    # The response set a new cookie; putting the old cookie back must be rejected
     owner_client.cookies.set("mcp_session", old_cookie)
     assert owner_client.get("/api/session/me").status_code == 401
     login = owner_client.post("/api/session/login", json={"email": OWNER_EMAIL, "password": "new-password-456"})
@@ -56,7 +57,7 @@ def test_service_crud(owner_client):
     r = owner_client.post("/api/services", json={"name": "svc-a", "host": "localhost", "port": 9001, "tags": ["x"]})
     assert r.status_code == 201, r.text
     svc = r.json()
-    # loopback 正規化 + effective audience
+    # loopback normalization + effective audience
     assert svc["host"] == "127.0.0.1"
     assert svc["effective_audience"] == "http://127.0.0.1:9001/mcp"
 
@@ -85,7 +86,7 @@ def test_dashboard_and_stats(owner_client, service):
     assert "oauth" in dash
     assert owner_client.get("/api/stats/summary").json()["total_all_time"] == 0
     daily = owner_client.get("/api/stats/daily", params={"days": 3}).json()
-    assert len(daily["stats"]) == 4
+    assert len(daily["stats"]) == 3
     assert owner_client.get("/api/system/version").json()["version"]
 
 

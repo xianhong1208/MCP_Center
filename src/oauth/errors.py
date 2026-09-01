@@ -1,10 +1,10 @@
-"""OAuth 錯誤(RFC 6749 §5.2 error code)。"""
+"""OAuth errors (RFC 6749 section 5.2 error codes)."""
 
 
 class OAuthError(Exception):
     """error:invalid_request / invalid_client / invalid_grant / unauthorized_client /
     unsupported_grant_type / invalid_scope / invalid_target / access_denied / server_error …
-    redirectable=True 代表 redirect_uri 已驗證,可安全把錯誤導回 client。
+    redirectable=True means redirect_uri has been validated and the error can safely be redirected back to the client.
     """
 
     def __init__(self, error: str, description: str = "", status_code: int = 400, *, redirectable: bool = False):

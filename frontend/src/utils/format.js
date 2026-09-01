@@ -1,14 +1,14 @@
 /**
- * 顯示用格式化(純函式,無 React 相依)
+ * Display formatting helpers (pure functions, no React dependency)
  */
 
 /**
- * 毫秒 → 人看得懂的字串。
+ * Milliseconds -> human-readable string.
  *   842      → "842 ms"
  *   1480     → "1.5 s"
  *   60226    → "60.2 s"
  *   125000   → "2.1 min"
- * 原始 "60226ms" 對使用者毫無意義 —— 這類數字要先翻譯成人的尺度。
+ * A raw "60226ms" means nothing to users; such numbers must be scaled to a human range first.
  */
 export function formatMs(ms) {
   if (ms == null || Number.isNaN(Number(ms))) return ''
@@ -20,9 +20,9 @@ export function formatMs(ms) {
 }
 
 /**
- * 後端時間字串 → Date。
- * 後端回 'YYYY-MM-DD HH:MM:SS'(伺服器本地時間,無時區標記);把空白換成 T 讓
- * 所有瀏覽器都能解析。瀏覽器與伺服器同時區時結果正確(內網部署的常態)。
+ * Backend time string -> Date.
+ * The backend returns 'YYYY-MM-DD HH:MM:SS' (server local time, no zone marker); replacing the space with T
+ * makes every browser parse it. Correct when browser and server share a time zone (the norm for intranet deployments).
  */
 export function parseServerDate(value) {
   if (!value) return null
@@ -31,8 +31,8 @@ export function parseServerDate(value) {
 }
 
 /**
- * 相對時間拆解 → { key, n },由呼叫端以 i18n 翻譯(common.relative.<key>)。
- * 拆成資料而不直接回字串,是為了讓純函式可在 node 下測、又不用把 i18n 拉進 utils。
+ * Relative time broken into { key, n }; the caller translates via i18n (common.relative.<key>).
+ * Returning data instead of a string keeps this pure and testable under node without pulling i18n into utils.
  */
 export function relativeTimeParts(value, now = Date.now()) {
   const d = parseServerDate(value)
@@ -47,8 +47,8 @@ export function relativeTimeParts(value, now = Date.now()) {
 }
 
 /**
- * 後端時間字串 → 固定格式「YYYY/MM/DD HH:mm」(本地時區,不隨語系變動,年/月/日順序)。
- * withSeconds=true 追加 :ss。無法解析時回原字串。
+ * Backend time string -> fixed "YYYY/MM/DD HH:mm" format (local zone, locale-independent, year/month/day order).
+ * withSeconds=true appends :ss. Returns the original string when it cannot be parsed.
  */
 export function formatDateTime(value, { withSeconds = false } = {}) {
   const d = parseServerDate(value)
@@ -58,7 +58,15 @@ export function formatDateTime(value, { withSeconds = false } = {}) {
   return withSeconds ? `${base}:${pad(d.getSeconds())}` : base
 }
 
-/** 只有日期:YYYY/MM/DD */
+/** Time of day only: HH:mm:ss (local time zone). */
+export function formatTime(value) {
+  const d = parseServerDate(value)
+  if (!d) return value || ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** Date only: YYYY/MM/DD */
 export function formatDate(value) {
   const d = parseServerDate(value)
   if (!d) return value || ''

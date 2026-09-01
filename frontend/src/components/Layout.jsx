@@ -25,22 +25,22 @@ import clsx from 'clsx'
 import { IconButton, Avatar, Wordmark } from './ui'
 
 /**
- * App shell(業界後台慣例:GitHub / Vercel / Supabase):
+ * App shell (standard admin layout, as in GitHub / Vercel / Supabase):
  *
  *   ┌──────────────────────────────────────────────────────────────┐
- *   │ [≡] 🛡 MCP Center   [🔍 全站搜尋]          ⚙ ☀ 文 │ 👤 name  ⎋ │  頂列 56px,全寬
+ *   │ [≡] 🛡 MCP Center   [🔍 search]            ⚙ ☀ A │ 👤 name  ⎋ │  top bar 56px, full width
  *   ├────────────┬─────────────────────────────────────────────────┤
- *   │ 導航        │ 頁面標題                          [主要動作]     │
- *   │ …          │ 內容                                             │
- *   │ 版本        │                                                 │
+ *   │ nav        │ page title                     [primary action] │
+ *   │ …          │ content                                         │
+ *   │ version    │                                                 │
  *   └────────────┴─────────────────────────────────────────────────┘
  *
- * - 頂列:品牌 + 搜尋 + 帳號相關動作(設定 / 主題 / 語言 / 個人資料 / 登出)
- * - 側欄:只有導航(256px),從頂列下方開始
- * - 內容:從頂列下方開始,標題與內容左緣對齊
+ * - Top bar: brand + search + account actions (settings / theme / language / profile / logout)
+ * - Sidebar: navigation only (256px), starts below the top bar
+ * - Content: starts below the top bar; title and content share the same left edge
  */
 
-// 單租戶:登入即管理員,選單不做權限過濾
+// Single tenant: any logged-in user is the admin, so the menu is not permission-filtered
 const navItems = [
   { to: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard', end: true },
   { to: '/services', icon: Server, labelKey: 'nav.services' },
@@ -84,14 +84,14 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      {/* ── 頂列 ─────────────────────────────────────────────────────────── */}
+      {/* ── Top bar ────────────────────────────────────────────────────── */}
       <header
         className={clsx(
           'fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4',
           TOPBAR_HEIGHT,
         )}
       >
-        {/* 左:選單(手機)+ 品牌;寬度與側欄一致,讓品牌落在側欄正上方 */}
+        {/* Left: menu (mobile) + brand; same width as the sidebar so the brand sits right above it */}
         <div className="flex shrink-0 items-center gap-1 lg:w-[calc(theme(spacing.64)-theme(spacing.4))]">
           <IconButton
             icon={sidebarOpen ? X : Menu}
@@ -102,12 +102,12 @@ export default function Layout() {
           <Wordmark name={t('layout.appName')} />
         </div>
 
-        {/* 中:全站搜尋(緊接在品牌右側,與內容區左緣對齊) */}
+        {/* Middle: global search (right after the brand, aligned with the content's left edge) */}
         <GlobalSearch className="hidden w-80 md:flex" />
 
         <div className="flex-1" />
 
-        {/* 右:帳號相關動作 */}
+        {/* Right: account actions */}
         <div className="flex items-center gap-0.5">
           <IconButton icon={Settings} title={t('layout.settings')} onClick={() => setShowSettings(true)} />
           <ThemeToggle />
@@ -128,7 +128,7 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* 手機版抽屜遮罩 */}
+      {/* Mobile drawer backdrop */}
       {sidebarOpen && (
         <div
           className={clsx('fixed inset-x-0 bottom-0 z-30 bg-black/60 lg:hidden', TOPBAR_OFFSET)}
@@ -137,7 +137,7 @@ export default function Layout() {
         />
       )}
 
-      {/* ── 側欄(只有導航,從頂列下方開始)──────────────────────────────── */}
+      {/* ── Sidebar (navigation only, starts below the top bar) ───────── */}
       <aside
         className={clsx(
           'fixed bottom-0 left-0 z-40 flex flex-col border-r border-border bg-muted',
@@ -168,12 +168,12 @@ export default function Layout() {
         </nav>
         {version && (
           <div className="border-t border-border px-5 py-3">
-            <p className="text-2xs text-subtle-foreground">{t('layout.version', { version: version.version })}</p>
+            <p className="text-2xs text-muted-foreground">{t('layout.version', { version: version.version })}</p>
           </div>
         )}
       </aside>
 
-      {/* ── 內容 ─────────────────────────────────────────────────────────── */}
+      {/* ── Content ────────────────────────────────────────────────────── */}
       <main className={clsx('min-w-0 pt-14', SIDEBAR_OFFSET)}>
         <div className="mx-auto w-full max-w-7xl px-6 py-8">
           <Outlet />

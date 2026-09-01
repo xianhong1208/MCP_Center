@@ -1,8 +1,8 @@
-"""架構 fitness function:三層不變量
+"""Architecture fitness function: the three-layer invariants.
 
-routes(src/api、main.py)→ adapters(src/adapters)→ db.crud。
-只有 adapter 層可以 import db.crud;這條規則原本只寫在 src/adapters/__init__.py 的
-文件裡、靠人工 grep 檢查,這裡把它釘進 CI —— 誰在 route 直接 import crud 就會紅。
+routes (src/api, main.py) -> adapters (src/adapters) -> db.crud.
+Only the adapter layer may import db.crud. This rule used to live only in the docs of src/adapters/__init__.py and
+was checked by manual grep; here it is pinned into CI -- any route that imports crud directly goes red.
 """
 import re
 from pathlib import Path
@@ -30,11 +30,12 @@ def test_only_adapters_import_db_crud():
             continue
         if CRUD_IMPORT.search(f.read_text(encoding="utf-8")):
             offenders.append(rel)
-    assert offenders == [], f"這些檔案繞過 adapter 層直接 import db.crud:{offenders}"
+    assert offenders == [], f"These files bypass the adapter layer and import db.crud directly: {offenders}"
 
 
 def test_adapters_do_import_crud():
-    """反向哨兵:若 adapter 層完全不 import crud,代表規則的前提已改變,測試也該重寫。"""
+    """Reverse sentinel: if the adapter layer no longer imports crud at all, the rule's premise has changed and
+    this test should be rewritten."""
     assert any(
         CRUD_IMPORT.search(f.read_text(encoding="utf-8")) for f in _py_files("src/adapters")
     )
@@ -42,11 +43,11 @@ def test_adapters_do_import_crud():
 
 @pytest.mark.parametrize("layer", ["src/api", "src/orchestrator", "src/discovery"])
 def test_no_direct_db_session_commit_outside_adapters(layer):
-    """route / 服務層不應自己 db.commit():交易邊界屬於 adapter。
+    """Routes / service layers must not db.commit() themselves: the transaction boundary belongs to the adapter.
 
-    scheduler 不在此列 —— 它自己 make_session(),交易由它自己負責。
-    下面的允許清單是「已知技術債的盤點」,不是許可:數字只能往下走,
-    收斂一個就從清單刪一個;新增檔案一律不得直接 commit。
+    The scheduler is exempt -- it calls make_session() itself and owns its own transactions.
+    The allowlist below is an inventory of known technical debt, not a permit: the numbers may only go down,
+    and each one paid off is removed from the list; new files must never commit directly.
     """
     allowed = {}
     offenders = []
@@ -55,4 +56,4 @@ def test_no_direct_db_session_commit_outside_adapters(layer):
         n = len(re.findall(r"\bdb\.commit\(\)", f.read_text(encoding="utf-8")))
         if n > allowed.get(rel, 0):
             offenders.append(f"{rel} ({n} > allowed {allowed.get(rel, 0)})")
-    assert offenders == [], f"{layer} 內直接 db.commit() 超出已盤點的技術債:{offenders}"
+    assert offenders == [], f"Direct db.commit() in {layer} exceeds the inventoried technical debt: {offenders}"

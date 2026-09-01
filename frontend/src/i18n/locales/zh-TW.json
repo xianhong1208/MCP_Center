@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "儀表板",
-    "services": "MCP 服務",
+    "services": "服務",
     "tokens": "Token",
     "issueToken": "簽發 Token",
     "clients": "OAuth Client",
@@ -42,6 +42,11 @@
       "minutesAgo": "{{n}} 分鐘前",
       "hoursAgo": "{{n}} 小時前",
       "daysAgo": "{{n}} 天前"
+    },
+    "close": "關閉",
+    "pagination": {
+      "previous": "上一頁",
+      "next": "下一頁"
     }
   },
   "auth": {
@@ -134,7 +139,7 @@
     "live": "即時",
     "issueToken": "簽發 Token",
     "stats": {
-      "services": "MCP 服務",
+      "services": "服務",
       "onlineSuffix": "{{n}} 個在線",
       "clients": "OAuth Client",
       "pendingSuffix": "{{n}} 個待核准",
@@ -190,9 +195,9 @@
     "tokenKinds": {
       "title": "有效 Token 種類",
       "empty": "目前沒有有效 token",
-      "pat": "Personal",
-      "access": "Access",
-      "refresh": "Refresh"
+      "pat": "個人",
+      "access": "存取",
+      "refresh": "更新"
     },
     "activity": {
       "title": "最近活動",
@@ -207,6 +212,12 @@
         "issued": "簽發 token",
         "introspect": "內省 token",
         "revoked": "撤銷 token"
+      },
+      "grantTypes": {
+        "authorization_code": "授權碼",
+        "refresh_token": "更新",
+        "personal_access_token": "個人 token",
+        "client_credentials": "Client 憑證"
       }
     },
     "quickActions": {
@@ -222,9 +233,9 @@
   },
   "tokens": {
     "kind": {
-      "pat": "Personal",
-      "access": "Access",
-      "refresh": "Refresh"
+      "pat": "個人",
+      "access": "存取",
+      "refresh": "更新"
     },
     "status": {
       "active": "有效",
@@ -297,7 +308,9 @@
       "chartFailed": "失敗",
       "loadFail": "無法載入 token",
       "revokeSuccess": "Token 已撤銷",
-      "revokeFail": "撤銷失敗:{{message}}"
+      "revokeFail": "撤銷失敗:{{message}}",
+      "identitySection": "身分",
+      "lifecycleSection": "生命週期"
     },
     "create": {
       "title": "簽發 Personal Access Token",
@@ -339,7 +352,8 @@
       "issueAnother": "再簽發一個",
       "viewToken": "Token 詳情",
       "viewAll": "全部 Token",
-      "footerHint": "支援 OAuth 的 client(Claude Code、FastMCP Client)不需要 Personal Access Token,它們會透過同意頁登入。"
+      "footerHint": "支援 OAuth 的 client(Claude Code、FastMCP Client)不需要 Personal Access Token,它們會透過同意頁登入。",
+      "copyToken": "複製 token"
     }
   },
   "services": {
@@ -429,7 +443,7 @@
     },
     "create": {
       "title": "註冊新服務",
-      "name": "服務名稱 *",
+      "name": "服務名稱",
       "namePlaceholder": "例如:my-mcp-service",
       "submit": "建立服務",
       "submitting": "建立中...",
@@ -485,16 +499,16 @@
       "delete": "刪除",
       "copy": "複製",
       "copied": "已複製!",
-      "authRequired": "需要認證:",
+      "authRequired": "需要認證",
       "yes": "是",
       "no": "否",
-      "responseTime": "回應時間:",
+      "responseTime": "回應時間",
       "hostLabel": "Host",
       "portLabel": "Port",
       "protocolLabel": "Protocol",
       "mcpPathLabel": "MCP Path",
       "descriptionTitle": "描述",
-      "createdAt": "建立時間:{{date}}",
+      "createdAt": "建立於 {{date}}",
       "tagsTitle": "標籤",
       "noTags": "尚無標籤",
       "mcpToolsTitle": "MCP Tools ({{n}})",
@@ -528,19 +542,24 @@
       "scopesAll": "不限制,任何已註冊的 scope 都可簽發。",
       "integrationTitle": "接入設定",
       "integrationSubtitle": "Server 端(FastMCP)與 MCP client 端可直接複製的設定。",
-      "snippetClaudeOauth": "Claude Code(OAuth)",
-      "snippetClaudePat": "Claude Code(Personal token)",
-      "snippetMcpJsonOauth": "mcp.json(OAuth)",
-      "snippetMcpJsonPat": "mcp.json(Personal token)",
-      "snippetFastmcpServer": "FastMCP server",
-      "snippetFastmcpClient": "FastMCP client",
       "snippetsUnavailable": "目前無法取得接入範例。",
       "issuerLabel": "Issuer",
       "issuePat": "簽發 Personal Token",
       "tokensTitle": "有效 token({{n}})",
       "tokensEmpty": "此 server 目前沒有有效 token",
       "tokensHint": "簽發 Personal Access Token,或連接 OAuth client",
-      "viewAllTokens": "查看全部"
+      "viewAllTokens": "查看全部",
+      "snippetFamily": {
+        "claudeCode": "Claude Code",
+        "mcpJson": "mcp.json",
+        "fastmcp": "FastMCP"
+      },
+      "snippetVariant": {
+        "oauth": "OAuth",
+        "pat": "個人 token",
+        "server": "伺服器端",
+        "client": "用戶端"
+      }
     },
     "form": {
       "oauthSection": "OAuth 保護",
@@ -559,6 +578,11 @@
       "staticTokenPlaceholder": "受 MCP Center 保護的 server 請留空",
       "staticTokenKeep": "留空則保留目前儲存的 token",
       "staticTokenClear": "移除已儲存的 token"
+    },
+    "health": {
+      "unreachable": "無法連線到伺服器",
+      "timeout": "健康檢查逾時",
+      "failed": "健康檢查失敗"
     }
   },
   "clients": {
@@ -1012,7 +1036,12 @@
       "provider": "登入方式:{{provider}}",
       "setPassword": "設定密碼",
       "setPasswordTitle": "設定密碼",
-      "noPasswordHint": "設定密碼後也可以用電子郵件 / 密碼登入。"
+      "noPasswordHint": "設定密碼後也可以用電子郵件 / 密碼登入。",
+      "providers": {
+        "local": "Email 與密碼",
+        "github": "GitHub",
+        "google": "Google"
+      }
     },
     "search": {
       "placeholderTrigger": "搜尋...",
@@ -1026,12 +1055,22 @@
       "resultsSingular": "{{n}} 個結果",
       "resultsPlural": "{{n}} 個結果",
       "noDescription": "無描述",
-      "clients": "Client"
+      "clients": "Client",
+      "clear": "清除搜尋"
     },
     "code": {
       "copy": "複製",
       "copied": "已複製到剪貼簿",
       "copyFailed": "複製失敗,請手動選取並複製"
+    }
+  },
+  "scopes": {
+    "desc": {
+      "mcp_tools_read": "列出 / 讀取 tool 資訊",
+      "mcp_tools_invoke": "呼叫 tools",
+      "mcp_resources_read": "讀取 resources",
+      "mcp_prompts_read": "讀取 prompts",
+      "offline_access": "要求 refresh token"
     }
   }
 }

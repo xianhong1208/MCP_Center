@@ -4,17 +4,17 @@ import clsx from 'clsx'
 import Spinner from './Spinner'
 
 /**
- * Button — 全站唯一的按鈕樣式來源。
+ * Button -- the single source of button styles for the whole app.
  *
  * variant:
- *   primary      實心綠 CTA(深字;每個畫面最多一顆)
- *   secondary    卡片底 + border 邊框(outline)
- *   ghost        無邊框,hover 才有底
- *   destructive  danger 文字,hover 淡 danger 底(只在確認 dialog 內用 destructiveSolid)
- *   destructiveSolid  實心 #DC2626 + 白字
- *   soft         實心海軍藍(選中 / 切換狀態用,不要用 className 覆寫 secondary 來做選中)
+ *   primary      solid green CTA (dark text; at most one per screen)
+ *   secondary    card background + border (outline)
+ *   ghost        no border, background only on hover
+ *   destructive  danger text, tinted danger background on hover (use destructiveSolid only inside confirm dialogs)
+ *   destructiveSolid  solid #DC2626 + white text
+ *   soft         solid navy (for selected / toggled state; do not fake it by overriding secondary via className)
  * size: md(h-9)| sm(h-8)| xs(h-7)
- * 傳 `to` 會 render 成 <Link>,傳 `href` 會 render 成 <a>。
+ * Pass `to` to render a <Link>, `href` to render an <a>.
  */
 export const buttonVariants = {
   primary:

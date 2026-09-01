@@ -1,4 +1,4 @@
-"""GitHub 登入(OAuth App)。GitHub 沒有 OIDC id_token,身分用 /user + /user/emails 取。"""
+"""GitHub login (OAuth App). GitHub has no OIDC id_token, so identity comes from /user + /user/emails."""
 
 import httpx
 

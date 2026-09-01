@@ -1,15 +1,15 @@
-"""LaunchSpec:orchestrator 的統一啟動描述
+"""LaunchSpec: the orchestrator's unified launch description
 
-把兩種來源正規化成同一份描述,讓 orchestrator 不必在乎來源是「檔案 catalog」
-還是「使用者 BYO 定義」:
+Normalises both sources into one description so the orchestrator does not care whether
+the source is a "file catalog" or a "user BYO definition":
 
-  - catalog(repo YAML) → 既有 http / stdio image。
-  - user definition(BYO) → 受控基底 image + supergateway 橋接內層 stdio 指令。
+  - catalog (repo YAML) -> existing http / stdio image.
+  - user definition (BYO) -> managed base image + supergateway bridging the inner stdio command.
 
-BYO 的執行模型(設計文件 §3-4):一切都在 container 內。內層 MCP 指令
-(npx/uvx/node/python + args)由基底 image 內的 supergateway spawn,並橋接
-stdio↔HTTP;我方只把「supergateway + 內層指令」以 **list** 傳給 docker SDK
-(無 shell、無 subprocess sink)。
+BYO execution model (design doc section 3-4): everything runs inside the container. The inner
+MCP command (npx/uvx/node/python + args) is spawned by supergateway inside the base image,
+which bridges stdio<->HTTP; we only hand "supergateway + inner command" to the docker SDK as
+a **list** (no shell, no subprocess sink).
 """
 import os
 from dataclasses import dataclass, field
@@ -17,26 +17,27 @@ from typing import List, Optional
 
 from db.models import ManagedMcpProcess
 
-# 受控基底 image:內含 node(supergateway)+ python + uv,平台維護、pin 版本。
-# 離線環境需先 docker load 進來(一次性平台設定)。可用環境變數覆寫。
+# Managed base image: contains node (supergateway) + python + uv, maintained by the platform with
+# pinned versions. Offline environments must docker load it first (one-time platform setup).
+# Can be overridden via env var.
 MCP_RUNTIME_IMAGE = os.environ.get("MCP_RUNTIME_IMAGE", "mcp-runtime:1")
 
-# BYO 來源前綴:ManagedMcpProcess.catalog_id = "user:<definition_uuid>"
+# BYO source prefix: ManagedMcpProcess.catalog_id = "user:<definition_uuid>"
 USER_SOURCE_PREFIX = "user:"
 
 
 @dataclass
 class LaunchSpec:
-    """orchestrator 啟動一個 managed process 所需的全部資訊(來源無關)。"""
+    """Everything the orchestrator needs to start a managed process (source-agnostic)."""
     source_kind: str            # "catalog" | "user"
-    source_id: str              # catalog id 或 definition uuid
+    source_id: str              # catalog id or definition uuid
     name: str
     transport: str              # "http" | "stdio"
-    image_ref: str              # http: 使用者 image:tag;stdio-BYO: 受控基底 image
+    image_ref: str              # http: the user's image:tag; stdio-BYO: managed base image
     container_port: int
     run_flags: List[str] = field(default_factory=list)     # docker run flag tokens
     entrypoint_args: List[str] = field(default_factory=list)  # http: image entrypoint args
-    stdio_command: List[str] = field(default_factory=list)    # stdio-BYO: 內層 MCP 指令 tokens
+    stdio_command: List[str] = field(default_factory=list)    # stdio-BYO: inner MCP command tokens
 
 
 def is_user_source(catalog_id: Optional[str]) -> bool:
@@ -44,7 +45,7 @@ def is_user_source(catalog_id: Optional[str]) -> bool:
 
 
 def user_source_id(definition_id: str) -> str:
-    """把 definition uuid 包成 ManagedMcpProcess.catalog_id 用的來源字串。"""
+    """Wrap a definition uuid into the source string used as ManagedMcpProcess.catalog_id."""
     return f"{USER_SOURCE_PREFIX}{definition_id}"
 
 
@@ -53,18 +54,18 @@ def _definition_uuid(catalog_id: str) -> str:
 
 
 def resolve_launch_spec(db, process: ManagedMcpProcess) -> LaunchSpec:
-    """把一個 ManagedMcpProcess 解析成 LaunchSpec(catalog 或 user 皆可)。
+    """Resolve a ManagedMcpProcess into a LaunchSpec (catalog or user source).
 
     Raises:
-        LookupError: 來源(catalog 檔或 user 定義)已不存在。
+        LookupError: the source (catalog file or user definition) no longer exists.
     """
     import json
 
     catalog_id = process.catalog_id
 
-    # ---- BYO 使用者定義:受控基底 image + supergateway 橋接內層 stdio 指令 ----
+    # ---- BYO user definition: managed base image + supergateway bridging the inner stdio command ----
     if is_user_source(catalog_id):
-        # 經 adapter 存取(維持「只有 src/adapters 碰 db.crud」不變量)
+        # Access via adapter (keeps the "only src/adapters touches db.crud" invariant)
         from src.adapters.managed_adapter import BYODefinitionAdapter
 
         definition = BYODefinitionAdapter.get_by_id(db, _definition_uuid(catalog_id))
@@ -82,7 +83,7 @@ def resolve_launch_spec(db, process: ManagedMcpProcess) -> LaunchSpec:
             stdio_command=inner,
         )
 
-    # ---- 檔案 catalog:沿用既有 http / stdio image ----
+    # ---- File catalog: use the existing http / stdio image ----
     from src.marketplace.loader import get_catalog_loader
 
     catalog = get_catalog_loader().get(catalog_id)

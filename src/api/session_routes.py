@@ -1,4 +1,4 @@
-"""管理台登入 / 首次設定 / 個人資料(/api/session/*)。"""
+"""Admin-console login / first-time setup / profile (/api/session/*)."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def _login_response(user: AdminUser, extra: Optional[dict] = None) -> JSONRespon
 
 @router.get("/status")
 async def session_status(db: Session = Depends(get_db)):
-    """登入頁需要的資訊:是否需要首次設定、有哪些登入方式。"""
+    """What the login page needs: whether first-time setup is required and which login methods are available."""
     return {
         "needs_setup": identity_service.needs_setup(db),
         "providers": describe_providers(),
@@ -71,7 +71,7 @@ async def session_status(db: Session = Depends(get_db)):
 
 @router.post("/setup")
 async def setup(request: SetupRequest, http_request: Request, db: Session = Depends(get_db)):
-    """首次啟動:建立擁有者帳號並直接登入。之後此端點永遠回 409。"""
+    """First boot: create the owner account and log in directly. Afterwards this endpoint always returns 409."""
     try:
         user = identity_service.setup_owner(db, email=request.email, password=request.password,
                                             username=request.username or "")
@@ -133,7 +133,7 @@ async def update_profile(request: UpdateProfileRequest, db: Session = Depends(ge
 @router.put("/me/password")
 async def change_password(request: ChangePasswordRequest, http_request: Request, db: Session = Depends(get_db),
                           current_user: AdminUser = Depends(get_current_user)):
-    """改密後舊 session 全部失效,回應同時發新 session cookie。"""
+    """After a password change every old session is invalidated; the response also sets a new session cookie."""
     try:
         identity_service.change_password(db, current_user, current_password=request.current_password,
                                          new_password=request.new_password)
@@ -148,7 +148,7 @@ async def change_password(request: ChangePasswordRequest, http_request: Request,
 
 
 # ---------------------------------------------------------------------------
-# 第三方登入(GitHub / Google)
+# Third-party login (GitHub / Google)
 # ---------------------------------------------------------------------------
 def _callback_url(provider: str) -> str:
     return f"{Config.get_oauth_config().issuer.rstrip('/')}/api/session/oauth/{provider}/callback"

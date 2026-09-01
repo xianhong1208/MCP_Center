@@ -1,14 +1,17 @@
-"""SPA 靜態資源快取策略
+"""SPA static asset caching policy
 
-背景(實際踩到):index.html 沒帶 Cache-Control → 瀏覽器啟發式快取 → 部署後
-使用者拿舊 index 去載已被新 build 刪除的舊 bundle → 整頁空白,直到硬重新整理。
+Background (hit in practice): index.html carried no Cache-Control -> browser heuristic caching -> after a
+deploy, users loaded old bundles (already deleted by the new build) via the stale index -> blank page
+until a hard refresh.
 
-策略:
-  - index.html(無 hash,每次 build 內容改變)→ no-cache(每次以 ETag 條件請求驗證)
-  - /assets/*(檔名含內容 hash,永不變)→ immutable 長期快取
+Policy:
+  - index.html (no hash, content changes every build) -> no-cache (revalidated with an ETag conditional
+    request every time)
+  - /assets/* (filenames contain a content hash, never change) -> immutable long-term caching
 
-注意:pytest 下 main.STATIC_DIR 依啟動程式推導會指到錯的位置(共用 client fixture
-沒有掛載前端),因此這裡自建 app 並把 STATIC_DIR 指向 repo 內真實的 static/web。
+Note: under pytest, main.STATIC_DIR is derived from the launching program and points to the wrong place
+(the shared client fixture does not mount the frontend), so this file builds its own app and points
+STATIC_DIR at the real static/web inside the repo.
 """
 from pathlib import Path
 
@@ -20,9 +23,9 @@ REAL_STATIC = Path(__file__).resolve().parent.parent / "static" / "web"
 
 @pytest.fixture
 def spa_client(client, monkeypatch):
-    """沿用 client fixture 完成的 DB/config 設定,另建一個有掛前端的 app。"""
+    """Reuse the DB/config setup done by the client fixture, but build a separate app with the frontend mounted."""
     if not (REAL_STATIC / "index.html").exists():
-        pytest.skip("前端尚未 build(static/web/index.html 不存在)")
+        pytest.skip("Frontend not built yet (static/web/index.html does not exist)")
     import main
     monkeypatch.setattr(main, "STATIC_DIR", REAL_STATIC)
     app = main.create_app()
@@ -37,7 +40,7 @@ class TestIndexHtmlCaching:
         assert resp.status_code == 200
         assert "text/html" in resp.headers.get("content-type", "")
         assert resp.headers.get("cache-control") == "no-cache"
-        # 仍要有 ETag,讓 no-cache 走廉價的 304 條件請求
+        # An ETag is still required so no-cache can use a cheap 304 conditional request
         assert resp.headers.get("etag")
 
     def test_index_revalidates_with_etag(self, spa_client):
@@ -55,7 +58,7 @@ class TestIndexHtmlCaching:
 class TestHashedAssetsCaching:
     def test_hashed_asset_is_immutable(self, spa_client):
         js = sorted((REAL_STATIC / "assets").glob("index-*.js"))
-        assert js, "build 產物應存在"
+        assert js, "build output should exist"
         resp = spa_client.get(f"/assets/{js[0].name}")
         assert resp.status_code == 200
         assert resp.headers.get("cache-control") == "public, max-age=31536000, immutable"

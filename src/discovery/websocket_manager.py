@@ -1,9 +1,9 @@
-"""WebSocket 連線管理
+"""WebSocket connection management
 
-功能：
-- 管理 WebSocket 連線
-- 廣播健康狀態變更
-- 廣播服務新增/移除事件
+Features:
+- Manage WebSocket connections
+- Broadcast health status changes
+- Broadcast service added/removed events
 """
 
 import asyncio
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class WSMessageType(str, Enum):
-    """WebSocket 訊息類型"""
+    """WebSocket message types"""
     HEALTH_UPDATE = "health_update"
     SERVICE_ADDED = "service_added"
     SERVICE_REMOVED = "service_removed"
@@ -32,7 +32,7 @@ class WSMessageType(str, Enum):
 
 @dataclass
 class WSMessage:
-    """WebSocket 訊息"""
+    """WebSocket message"""
     type: WSMessageType
     service_id: Optional[str] = None
     service_name: Optional[str] = None
@@ -44,33 +44,33 @@ class WSMessage:
             self.timestamp = datetime.now().isoformat()
 
     def to_json(self) -> str:
-        """轉換為 JSON 字串"""
+        """Convert to a JSON string."""
         d = asdict(self)
         d["type"] = self.type.value
         return json.dumps(d)
 
 
 class WSManager:
-    """WebSocket 連線管理器
+    """WebSocket connection manager
 
-    管理所有 WebSocket 連線，提供廣播功能。
+    Manages all WebSocket connections and provides broadcasting.
     """
 
     def __init__(self):
-        """初始化 WebSocket 管理器"""
+        """Initialize the WebSocket manager."""
         self._connections: Set[WebSocket] = set()
         self._lock = asyncio.Lock()
 
     @property
     def connection_count(self) -> int:
-        """取得連線數量"""
+        """Get the number of connections."""
         return len(self._connections)
 
     async def connect(self, websocket: WebSocket) -> None:
-        """接受新的 WebSocket 連線
+        """Accept a new WebSocket connection.
 
         Args:
-            websocket: WebSocket 連線
+            websocket: WebSocket connection
         """
         await websocket.accept()
         async with self._lock:
@@ -78,23 +78,23 @@ class WSManager:
         logger.info(f"WebSocket connected. Total connections: {self.connection_count}")
 
     async def disconnect(self, websocket: WebSocket) -> None:
-        """移除 WebSocket 連線
+        """Remove a WebSocket connection.
 
         Args:
-            websocket: WebSocket 連線
+            websocket: WebSocket connection
         """
         async with self._lock:
             self._connections.discard(websocket)
         logger.info(f"WebSocket disconnected. Total connections: {self.connection_count}")
 
     async def broadcast(self, message: WSMessage) -> int:
-        """廣播訊息到所有連線
+        """Broadcast a message to all connections.
 
         Args:
-            message: WSMessage 訊息
+            message: WSMessage to send
 
         Returns:
-            成功發送的連線數
+            Number of connections the message was sent to successfully
         """
         if not self._connections:
             return 0
@@ -114,7 +114,7 @@ class WSManager:
                 logger.warning(f"Failed to send message to WebSocket: {e}")
                 failed_connections.append(websocket)
 
-        # 移除失敗的連線
+        # Remove failed connections
         if failed_connections:
             async with self._lock:
                 for ws in failed_connections:
@@ -128,15 +128,15 @@ class WSManager:
         service_name: str,
         health: Dict[str, Any]
     ) -> int:
-        """廣播健康狀態更新
+        """Broadcast a health status update.
 
         Args:
-            service_id: 服務 ID
-            service_name: 服務名稱
-            health: 健康狀態資料
+            service_id: Service ID
+            service_name: Service name
+            health: Health status data
 
         Returns:
-            成功發送的連線數
+            Number of connections the message was sent to successfully
         """
         message = WSMessage(
             type=WSMessageType.HEALTH_UPDATE,
@@ -152,15 +152,15 @@ class WSManager:
         service_name: str,
         service_data: Optional[Dict[str, Any]] = None
     ) -> int:
-        """廣播服務新增事件
+        """Broadcast a service-added event.
 
         Args:
-            service_id: 服務 ID
-            service_name: 服務名稱
-            service_data: 服務資料 (可選)
+            service_id: Service ID
+            service_name: Service name
+            service_data: Service data (optional)
 
         Returns:
-            成功發送的連線數
+            Number of connections the message was sent to successfully
         """
         message = WSMessage(
             type=WSMessageType.SERVICE_ADDED,
@@ -175,14 +175,14 @@ class WSManager:
         service_id: str,
         service_name: str
     ) -> int:
-        """廣播服務移除事件
+        """Broadcast a service-removed event.
 
         Args:
-            service_id: 服務 ID
-            service_name: 服務名稱
+            service_id: Service ID
+            service_name: Service name
 
         Returns:
-            成功發送的連線數
+            Number of connections the message was sent to successfully
         """
         message = WSMessage(
             type=WSMessageType.SERVICE_REMOVED,
@@ -197,15 +197,15 @@ class WSManager:
         service_name: str,
         service_data: Optional[Dict[str, Any]] = None
     ) -> int:
-        """廣播服務更新事件
+        """Broadcast a service-updated event.
 
         Args:
-            service_id: 服務 ID
-            service_name: 服務名稱
-            service_data: 更新後的服務資料 (可選)
+            service_id: Service ID
+            service_name: Service name
+            service_data: Updated service data (optional)
 
         Returns:
-            成功發送的連線數
+            Number of connections the message was sent to successfully
         """
         message = WSMessage(
             type=WSMessageType.SERVICE_UPDATED,
@@ -216,14 +216,14 @@ class WSManager:
         return await self.broadcast(message)
 
     async def send_to(self, websocket: WebSocket, message: WSMessage) -> bool:
-        """發送訊息到特定連線
+        """Send a message to a specific connection.
 
         Args:
-            websocket: 目標 WebSocket 連線
-            message: WSMessage 訊息
+            websocket: Target WebSocket connection
+            message: WSMessage to send
 
         Returns:
-            是否發送成功
+            Whether the send succeeded
         """
         try:
             await websocket.send_text(message.to_json())
@@ -233,23 +233,23 @@ class WSManager:
             return False
 
     async def handle_connection(self, websocket: WebSocket) -> None:
-        """處理 WebSocket 連線的完整生命週期
+        """Handle the full lifecycle of a WebSocket connection.
 
-        這是一個便捷方法，處理連線、接收訊息、斷線等。
+        A convenience method that handles connecting, receiving messages, disconnecting, etc.
 
         Args:
-            websocket: WebSocket 連線
+            websocket: WebSocket connection
         """
         await self.connect(websocket)
         try:
             while True:
-                # 接收訊息
+                # Receive a message
                 data = await websocket.receive_text()
                 try:
                     msg = json.loads(data)
                     msg_type = msg.get("type")
 
-                    # 處理 ping
+                    # Handle ping
                     if msg_type == "ping":
                         await self.send_to(
                             websocket,
@@ -272,12 +272,12 @@ class WSManager:
             await self.disconnect(websocket)
 
 
-# 全域 WebSocket manager instance
+# Global WebSocket manager instance
 _ws_manager: Optional[WSManager] = None
 
 
 def get_ws_manager() -> WSManager:
-    """取得 WSManager singleton instance"""
+    """Get the WSManager singleton instance."""
     global _ws_manager
     if _ws_manager is None:
         _ws_manager = WSManager()

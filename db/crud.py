@@ -1,4 +1,4 @@
-"""資料存取層(純 CRUD,無 HTTP / 業務規則)。只有 src/adapters 可以 import 這裡。"""
+"""Data access layer (pure CRUD, no HTTP / business rules). Only src/adapters may import this module."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from db.models import (
     OAuthToken, Service, TokenUsage, UserMcpDefinition, local_now,
 )
 
-# Loopback 同義詞 → 統一存 / 查為 127.0.0.1
+# Loopback aliases -> always stored / looked up as 127.0.0.1
 _LOOPBACK_ALIASES = {"localhost", "0.0.0.0", "127.0.0.1", "::1", "[::1]"}
 
 
@@ -28,7 +28,7 @@ def normalize_service_host(host):
 
 
 def normalize_audience(value: Optional[str]) -> Optional[str]:
-    """resource / audience 正規化:小寫 scheme+host、去尾端斜線、去 fragment。"""
+    """Normalize a resource / audience: lowercase scheme+host, strip trailing slash, drop fragment."""
     if not value:
         return value
     from urllib.parse import urlsplit, urlunsplit
@@ -102,15 +102,15 @@ class ServiceCRUD:
 
     @staticmethod
     def get_by_audience(db: Session, audience: str) -> Optional[Service]:
-        """依 effective audience(oauth_audience 或 MCP URL)找服務。"""
+        """Find a service by its effective audience (oauth_audience or MCP URL)."""
         target = normalize_audience(audience)
         if not target:
             return None
-        # ① 明確設定的 oauth_audience 已在寫入時正規化 → 直接用索引查
+        # (1) An explicitly configured oauth_audience was normalized on write -> look it up directly via the index
         svc = db.query(Service).filter(Service.is_active.is_(True), Service.oauth_audience == target).first()
         if svc:
             return svc
-        # ② 沒設 oauth_audience 的服務以 MCP URL 為 audience:從 URL 拆 host/port 後再比對
+        # (2) Services without oauth_audience use the MCP URL as audience: split host/port out of the URL, then compare
         from urllib.parse import urlsplit
         parts = urlsplit(target)
         if not parts.hostname or not parts.port:
@@ -129,7 +129,7 @@ class ServiceCRUD:
         db: Session, include_inactive: bool = False, health_status: Optional[str] = None,
         source: Optional[str] = None, tag: Optional[str] = None, requires_auth: Optional[bool] = None,
     ) -> List[Service]:
-        # 預載 tools:列表頁要顯示 tools 數量,避免每列一次查詢(N+1)
+        # Eager-load tools: the list page shows the tool count, so avoid one query per row (N+1)
         query = db.query(Service).options(selectinload(Service.tools))
         if not include_inactive:
             query = query.filter(Service.is_active.is_(True))
@@ -269,10 +269,10 @@ class MCPToolCRUD:
         return result
 
 
-# ==================== Token 事件 / 統計 ====================
+# ==================== Token events / statistics ====================
 
 class TokenUsageCRUD:
-    """token 事件流。統計在 Python 端分桶,SQLite / PostgreSQL 行為一致。"""
+    """Token event stream. Statistics are bucketed in Python so SQLite and PostgreSQL behave identically."""
 
     @staticmethod
     def record(
@@ -303,8 +303,9 @@ class TokenUsageCRUD:
     @staticmethod
     def get_daily_stats(db: Session, days: int = 7, service_id: Optional[str] = None,
                         audience: Optional[str] = None, event: Optional[str] = None) -> List[dict]:
+        # `days` calendar days including today, so days=7 yields exactly seven buckets
         end = local_now()
-        start = end - timedelta(days=days)
+        start = (end - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
         buckets: dict = {}
         for row in TokenUsageCRUD._query(db, start, service_id, audience, event).all():
             key = row.used_at.strftime("%Y-%m-%d")
@@ -383,7 +384,7 @@ class TokenUsageCRUD:
         return deleted
 
 
-# ==================== 管理台使用者 ====================
+# ==================== Console users ====================
 
 class AdminUserCRUD:
 
@@ -708,7 +709,7 @@ class OAuthTokenCRUD:
 
     @staticmethod
     def revoke_family(db: Session, parent_jti: str, reason: str) -> int:
-        """撤銷同一條授權鏈(同 parent_jti)上所有仍有效的 token。"""
+        """Revoke every still-valid token on the same grant chain (same parent_jti)."""
         now = local_now()
         count = 0
         for t in db.query(OAuthToken).filter(
@@ -799,8 +800,8 @@ class OAuthConsentCRUD:
 # ==================== Managed / BYO MCP ====================
 
 class ManagedMcpProcessCRUD:
-    """加密邊界:create / update_env_vars 收明文 env_vars,內部加密後存;
-    解密只在 ManagedMcpProcess.get_env_vars()(orchestrator 啟動容器用)。"""
+    """Encryption boundary: create / update_env_vars accept plaintext env_vars and encrypt them before storing;
+    decryption happens only in ManagedMcpProcess.get_env_vars() (used by the orchestrator to start containers)."""
 
     @staticmethod
     def _encrypt_env_vars(env_vars):
@@ -866,7 +867,8 @@ class ManagedMcpProcessCRUD:
         bridge_container_id: Optional[str] = None, port: Optional[int] = None,
         last_error: Optional[str] = None, service_id: Optional[str] = None,
     ) -> Optional[ManagedMcpProcess]:
-        """None = 不動;清除 container_id / bridge_container_id / last_error 傳空字串;port 清除傳 0。"""
+        """None = leave unchanged; pass an empty string to clear container_id / bridge_container_id / last_error;
+        pass 0 to clear port."""
         process = ManagedMcpProcessCRUD.get_by_id(db, process_id)
         if not process:
             return None
@@ -967,7 +969,7 @@ class UserMcpDefinitionCRUD:
         return True
 
 
-# ==================== 審計 ====================
+# ==================== Audit ====================
 
 class AuditLogCRUD:
 

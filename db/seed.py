@@ -1,8 +1,8 @@
-"""啟動時的種子資料(冪等)。
+"""Startup seed data (idempotent).
 
-1. OAuth scope 註冊表
-2. 內建 client `mcp-center-console`(管理台簽 PAT / 掃描器自簽 token 用)
-3. 擁有者帳號(ADMIN_EMAIL + ADMIN_PASSWORD 都設才建;沒設就留給 /setup 頁)
+1. OAuth scope registry
+2. Built-in client `mcp-center-console` (used by the console to sign PATs / by the scanner to self-sign tokens)
+3. Owner account (created only when both ADMIN_EMAIL and ADMIN_PASSWORD are set; otherwise left to the /setup page)
 """
 
 from typing import Dict, List, Tuple
@@ -13,11 +13,11 @@ from db.models import AdminUser, OAuthClient, OAuthScope, local_now
 
 # (name, description, is_default)
 DEFAULT_SCOPES: List[Tuple[str, str, bool]] = [
-    ("mcp:tools:read", "列出 / 讀取工具中繼資料", True),
-    ("mcp:tools:invoke", "呼叫工具", True),
-    ("mcp:resources:read", "讀取 resource", True),
-    ("mcp:prompts:read", "讀取 prompt", True),
-    ("offline_access", "索取 refresh token", False),
+    ("mcp:tools:read", "List / read tool metadata", True),
+    ("mcp:tools:invoke", "Invoke tools", True),
+    ("mcp:resources:read", "Read resources", True),
+    ("mcp:prompts:read", "Read prompts", True),
+    ("offline_access", "Request a refresh token", False),
 ]
 
 CONSOLE_CLIENT_ID = "mcp-center-console"
@@ -65,7 +65,7 @@ def seed_system_clients(db: Session) -> None:
 
 
 def seed_owner(db: Session, email: str, password: str, username: str = "owner") -> AdminUser | None:
-    """建立擁有者帳號(已有任何帳號則不動)。"""
+    """Create the owner account (no-op if any account already exists)."""
     if not email or not password:
         return None
     if db.query(AdminUser).count() > 0:

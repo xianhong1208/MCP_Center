@@ -1,11 +1,11 @@
-"""OAuth 2.1 Authorization Server 核心邏輯(HTTP 無關)。
+"""OAuth 2.1 Authorization Server core logic (HTTP-agnostic).
 
-- client 註冊(RFC 7591)/ 認證 / redirect_uri 白名單
-- resource(RFC 8707)→ 已註冊 MCP server 的 audience 綁定
-- 授權請求 → 同意 → 授權碼(hash 儲存、一次性、短 TTL、PKCE S256)
-- access / refresh token 簽發(RS256,含 iss/aud/scope/client_id/jti)與紀錄
-- refresh 輪替 + 重放偵測、撤銷(RFC 7009)、內省(RFC 7662)
-- 管理台 Personal Access Token、掃描器自簽 token
+- client registration (RFC 7591) / authentication / redirect_uri allowlist
+- resource (RFC 8707) -> audience binding to a registered MCP server
+- authorization request -> consent -> authorization code (stored hashed, single-use, short TTL, PKCE S256)
+- access / refresh token issuance (RS256, with iss/aud/scope/client_id/jti) and record keeping
+- refresh rotation + replay detection, revocation (RFC 7009), introspection (RFC 7662)
+- admin-console Personal Access Tokens, scanner self-signed tokens
 """
 
 from __future__ import annotations
@@ -60,7 +60,8 @@ def _exp_to_dt(exp: Optional[int]) -> datetime:
 
 
 def _valid_redirect_uri(uri: str) -> bool:
-    """絕對 URL;http 只允許 loopback(native / dev client),其餘須 https 或自訂 scheme。"""
+    """Must be an absolute URL; http is only allowed for loopback (native / dev clients), everything else must be
+    https or a custom scheme."""
     try:
         p = urlparse(uri)
     except Exception:
@@ -71,7 +72,7 @@ def _valid_redirect_uri(uri: str) -> bool:
         return bool(p.netloc)
     if p.scheme == "http":
         return (p.hostname or "").lower() in ("localhost", "127.0.0.1", "::1")
-    # 自訂 scheme(如 cursor://、claude://)給桌面 app 用
+    # Custom schemes (e.g. cursor://, claude://) are for desktop apps
     return p.scheme not in ("javascript", "data", "file")
 
 
@@ -91,7 +92,7 @@ def register_client(
     db: Session, metadata: dict, *, created_via: str = "dcr", is_approved: Optional[bool] = None,
     owner_id=None,
 ) -> tuple[OAuthClient, Optional[str]]:
-    """依 RFC 7591 驗證 metadata 並建立 client;confidential client 的 secret 只回傳一次。"""
+    """Validate metadata per RFC 7591 and create the client; a confidential client's secret is returned only once."""
     if not isinstance(metadata, dict):
         raise OAuthError("invalid_client_metadata", "client metadata must be a JSON object")
     client_name = (metadata.get("client_name") or "").strip()
@@ -182,7 +183,7 @@ def verify_client_secret(client: OAuthClient, secret: Optional[str]) -> bool:
 
 
 def authenticate_client(db: Session, *, authorization_header: str, form: dict) -> OAuthClient:
-    """token / revoke / introspect 端點的 client 認證(Basic、form body 或 public client)。"""
+    """Client authentication for the token / revoke / introspect endpoints (Basic, form body, or public client)."""
     client_id = form.get("client_id")
     client_secret = form.get("client_secret")
     if authorization_header.startswith("Basic "):
@@ -220,12 +221,12 @@ def supported_scope_names(db: Session) -> list[str]:
 
 def resolve_scope(db: Session, requested: Optional[str], client: Optional[OAuthClient],
                   service: Optional[Service]) -> str:
-    """決定實際授予的 scope。
+    """Decide the scope actually granted.
 
-    - 未知 scope → invalid_scope
-    - client 註冊時限定了 scope → 不能超出
-    - 服務設定了 oauth_scopes → 不能超出
-    - 沒指定 → 預設 scope ∩ 以上限制
+    - unknown scope -> invalid_scope
+    - client registered with a restricted scope -> cannot exceed it
+    - service configured with oauth_scopes -> cannot exceed it
+    - nothing requested -> default scope, intersected with the limits above
     """
     registry = scope_registry(db)
     allowed: Optional[set] = None
@@ -253,7 +254,7 @@ def resolve_scope(db: Session, requested: Optional[str], client: Optional[OAuthC
 
 
 def resolve_resource(db: Session, resource: Optional[str]) -> tuple[Optional[str], Optional[Service]]:
-    """RFC 8707 resource → (aud, service)。resource 必須對應一個已註冊的 MCP server。"""
+    """RFC 8707 resource -> (aud, service). The resource must map to a registered MCP server."""
     if not resource:
         return None, None
     service = ServiceAdapter.get_by_audience(db, resource)
@@ -280,10 +281,10 @@ def begin_authorization(
     db: Session, *, response_type: str, client_id: str, redirect_uri: str, code_challenge: Optional[str],
     code_challenge_method: str, scope: Optional[str], state: Optional[str], resource: Optional[str],
 ) -> OAuthAuthorizationRequest:
-    """驗證 /authorize 參數並落地為待同意請求。
+    """Validate the /authorize parameters and persist them as a pending consent request.
 
-    client_id / redirect_uri 不合法時的錯誤 redirectable=False(不可導回未驗證的位址);
-    其餘錯誤可帶 error 導回 redirect_uri。
+    Errors for an invalid client_id / redirect_uri use redirectable=False (never redirect to an unverified address);
+    all other errors may be redirected back to redirect_uri with an error parameter.
     """
     client = OAuthClientAdapter.get(db, client_id)
     if not client or not client.is_active:
@@ -329,7 +330,7 @@ def get_pending_request(db: Session, request_id: str) -> OAuthAuthorizationReque
 
 
 def describe_request(db: Session, req: OAuthAuthorizationRequest, user: AdminUser) -> dict:
-    """同意頁要顯示的資訊。"""
+    """Information shown on the consent page."""
     registry = scope_registry(db)
     scopes = req.scope.split() if req.scope else []
     service = ServiceAdapter.get_by_audience(db, req.resource) if req.resource else None
@@ -355,7 +356,7 @@ def approve_request(
     db: Session, req: OAuthAuthorizationRequest, user: AdminUser, *,
     granted_scopes: Optional[Iterable[str]] = None, remember: bool = False,
 ) -> str:
-    """使用者同意 → 產生授權碼,回傳要導回 client 的完整 URL。"""
+    """User consented -> generate the authorization code and return the full URL to redirect the client to."""
     requested = req.scope.split() if req.scope else []
     if granted_scopes is None:
         scope_list = requested
@@ -379,7 +380,7 @@ def approve_request(
     if remember:
         OAuthConsentAdapter.upsert(db, user.id, req.client_id, req.resource, scope_str)
     OAuthAuthRequestAdapter.mark_decided(db, req)
-    # RFC 9207:回應帶 iss,讓 client 確認是哪個 AS 回的(防 mix-up)
+    # RFC 9207: include iss in the response so the client can confirm which AS answered (prevents mix-up attacks)
     return redirect_with(req.redirect_uri, {"code": code, "state": req.state, "iss": issuer()})
 
 
@@ -459,7 +460,8 @@ def issue_refresh_token(
 
 
 def verify_jwt(db: Session, token: str, *, expect_use: Optional[str] = None) -> dict:
-    """用 header 的 kid 找公鑰驗簽 + iss + exp;不強制 aud(由 RS 自己驗)。"""
+    """Look up the public key by the header kid, then verify signature + iss + exp; aud is not enforced here (the
+    resource server verifies it itself)."""
     try:
         header = unverified_header(token)
     except JWTVerifyError as e:
@@ -507,7 +509,7 @@ def authorization_code_grant(
     if not rec:
         raise OAuthError("invalid_grant", "unknown authorization code")
     if rec.used_at is not None:
-        # 授權碼重放 → 可能外洩,撤銷這個 code 之前換出的全部 token
+        # Authorization code replay -> possibly leaked; revoke every token previously exchanged from this code
         OAuthTokenAdapter.revoke_family(db, rec.code_hash, reason="code_replay")
         raise OAuthError("invalid_grant", "authorization code already used")
     if rec.expires_at < local_now():
@@ -549,11 +551,11 @@ def refresh_token_grant(db: Session, *, client: OAuthClient, refresh_token: str,
     rec = OAuthTokenAdapter.get(db, claims.get("jti", ""))
     if rec is None:
         raise OAuthError("invalid_grant", "unknown refresh token")
-    # RFC 8707:refresh 時帶 resource 必須與原授權相同(audience 不能換)
+    # RFC 8707: a resource sent on refresh must match the original grant (the audience cannot change)
     if resource and normalize_audience(resource) != (rec.audience or None):
         raise OAuthError("invalid_target", "resource does not match the original grant")
     if rec.is_revoked:
-        # 已輪替過的 refresh 又被拿來用 → 重放,整條鏈撤銷
+        # An already-rotated refresh token was used again -> replay; revoke the whole chain
         if rec.revoke_reason == "rotated":
             OAuthTokenAdapter.revoke_family(db, rec.parent_jti or rec.jti, reason="refresh_replay")
         raise OAuthError("invalid_grant", "refresh token revoked")
@@ -600,7 +602,7 @@ def client_credentials_grant(db: Session, *, client: OAuthClient, scope: Optiona
 # revoke / introspect
 # ---------------------------------------------------------------------------
 def revoke_token(db: Session, *, client: OAuthClient, token: str, ip: Optional[str] = None) -> None:
-    """RFC 7009:只撤銷發給該 client 的 token;其他情況靜默(端點一律回 200)。"""
+    """RFC 7009: only revoke tokens issued to this client; stay silent otherwise (the endpoint always returns 200)."""
     try:
         claims = verify_jwt(db, token)
     except OAuthError:
@@ -612,18 +614,18 @@ def revoke_token(db: Session, *, client: OAuthClient, token: str, ip: Optional[s
         return
     OAuthTokenAdapter.revoke(db, rec, reason="client_revoke")
     if rec.kind == "refresh":
-        # 撤銷 refresh 連同它換出的 access 一起失效
+        # Revoking a refresh token also invalidates the access token exchanged from it
         OAuthTokenAdapter.revoke_family(db, rec.parent_jti or rec.jti, reason="client_revoke")
     _record_event(db, event="revoked", jti=rec.jti, grant_type=None, client_id=client.client_id,
                   sub=rec.sub, audience=rec.audience, service=rec.service, ip=ip)
 
 
 def introspect_token(db: Session, token: str, *, caller: OAuthClient, ip: Optional[str] = None) -> dict:
-    """RFC 7662。撤銷 / 過期 / 驗簽失敗一律 active=false。
+    """RFC 7662. Revoked / expired / signature failure all yield active=false.
 
-    誰能看:token 的擁有 client 自己,或 confidential client(有 secret,視為 resource
-    server —— FastMCP 的 IntrospectionTokenVerifier 就是這種)。public client 只能查自己
-    的 token,避免任何人用 DCR 註冊一個丟棄式 client 就能讀別人 token 的 sub / email / scope。
+    Who may look: the client that owns the token, or a confidential client (has a secret, treated as a resource
+    server -- FastMCP's IntrospectionTokenVerifier is exactly this). A public client can only introspect its own
+    tokens, so nobody can register a throwaway client via DCR and read another token's sub / email / scope.
     """
     inactive = {"active": False}
     try:
@@ -662,7 +664,7 @@ def introspect_token(db: Session, token: str, *, caller: OAuthClient, ip: Option
 # ---------------------------------------------------------------------------
 def mint_personal_token(db: Session, *, user: AdminUser, service: Service, scopes: Optional[Iterable[str]],
                         days: int, label: Optional[str]) -> tuple[str, OAuthToken]:
-    """管理台簽發 Personal Access Token(長效 access token,aud = 該服務)。"""
+    """Admin console issues a Personal Access Token (long-lived access token, aud = that service)."""
     cfg = Config.get_oauth_config()
     days = max(1, min(int(days), cfg.pat_max_days))
     audience = normalize_audience(service.effective_audience)
@@ -679,7 +681,8 @@ def mint_personal_token(db: Session, *, user: AdminUser, service: Service, scope
 
 
 def mint_scanner_token(db: Session, service: Service) -> Optional[str]:
-    """掃描 / 健康檢查 OAuth 保護的服務時當場自簽的短命 token(不入紀錄)。"""
+    """Short-lived token self-signed on the spot for scanning / health-checking OAuth-protected services (not
+    recorded)."""
     audience = normalize_audience(service.effective_audience)
     if not audience:
         return None

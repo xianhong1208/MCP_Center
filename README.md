@@ -217,6 +217,8 @@ Advanced: `SERVER_HOST` / `SERVER_PORT` override the bind address when it must d
 
 Sign in with email and password, or with GitHub / Google once configured. The console is single-tenant by design: whoever signs in is the administrator.
 
+The console is in English by default; the switcher in the top bar changes it to Traditional Chinese, and the choice is remembered per browser.
+
 ## API reference
 
 | Group | Endpoints |

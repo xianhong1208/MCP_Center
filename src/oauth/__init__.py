@@ -1,12 +1,13 @@
-"""MCP Center 作為 OAuth 2.1 Authorization Server。
+"""MCP Center acting as an OAuth 2.1 Authorization Server.
 
-- signing_keys   RS256 金鑰(私鑰 AES 加密入庫)+ JWKS
-- jwt_utils      RS256 簽 / 驗
-- service        client、授權碼 + PKCE、token 簽發 / 輪替 / 撤銷 / 內省、resource → aud 綁定
-- consent_policy 什麼情況可以略過同意頁
-- errors         RFC 6749 錯誤
+- signing_keys   RS256 keys (private key stored AES-encrypted in the DB) + JWKS
+- jwt_utils      RS256 sign / verify
+- service        clients, authorization code + PKCE, token issuance / rotation / revocation / introspection,
+                 resource -> aud binding
+- consent_policy when the consent page may be skipped
+- errors         RFC 6749 errors
 
-MCP server(FastMCP)只需:
+An MCP server (FastMCP) only needs:
     JWTVerifier(jwks_uri="<issuer>/.well-known/jwks.json", issuer="<issuer>", audience="<service audience>")
 """
 from src.oauth.errors import OAuthError

@@ -20,7 +20,7 @@ export default defineConfig({
     }
   },
   server: {
-    // 注意:/tokens、/clients、/consent 是 SPA 路由,不能 proxy
+    // Note: /tokens, /clients and /consent are SPA routes and must not be proxied
     proxy: {
       '/api': { target: BACKEND, changeOrigin: true },
       '/oauth': { target: BACKEND, changeOrigin: true },

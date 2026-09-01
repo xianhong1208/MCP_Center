@@ -1,4 +1,4 @@
-"""Service 領域 Adapter。"""
+"""Service domain adapter."""
 
 from db.crud import ServiceCRUD
 from src.adapters.exceptions import ConflictError, NotFoundError
@@ -8,7 +8,7 @@ class ServiceAdapter(ServiceCRUD):
 
     @classmethod
     def create_checked(cls, db, **kwargs):
-        """建立 service;同 name + host:port 已存在 → 409 service.duplicate。"""
+        """Create a service; same name + host:port already exists -> 409 service.duplicate."""
         name, host, port = kwargs.get("name"), kwargs.get("host"), kwargs.get("port")
         if name and host and port and cls.get_by_name_and_host_port(db, name, host, port):
             raise ConflictError(

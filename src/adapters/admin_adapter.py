@@ -1,4 +1,4 @@
-"""管理台使用者 Adapter。"""
+"""Admin console user adapter."""
 
 from db.crud import AdminUserCRUD
 from src.adapters.exceptions import ConflictError, NotFoundError

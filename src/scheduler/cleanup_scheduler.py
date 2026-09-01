@@ -1,4 +1,4 @@
-"""排程器:清理過期 OAuth 資料 / 事件與審計保留期 / MCP 服務健康檢查。"""
+"""Scheduler: purge expired OAuth data, enforce event/audit retention, and run MCP service health checks."""
 
 import logging
 from datetime import timedelta
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class CleanupScheduler:
-    """清理排程器與健康監控(單例)。"""
+    """Cleanup scheduler and health monitor (singleton)."""
 
     _instance: Optional["CleanupScheduler"] = None
 
@@ -157,7 +157,7 @@ class CleanupScheduler:
                                 new_desc += f" v{verify_result.server_version}"
                             if verify_result.server_description:
                                 new_desc += f"\n\n{verify_result.server_description}"
-                            # 只同步描述,不覆蓋使用者自己取的服務名稱
+                            # Sync only the description; never overwrite the name the user chose
                             ServiceAdapter.update(db=db, service_id=str(service.id), description=new_desc)
                             db.refresh(service)
                     else:

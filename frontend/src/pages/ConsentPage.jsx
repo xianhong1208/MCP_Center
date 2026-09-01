@@ -5,11 +5,14 @@ import { Bot, ArrowLeft } from 'lucide-react'
 import { oauthApi } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import AuthShell from '../components/AuthShell'
+import { formatTime } from '../utils/format'
+import { describeScope } from '../utils/scopes'
 import { Button, Badge, CheckRow, Alert, Spinner, SectionLabel } from '../components/ui'
 
 /**
- * OAuth 同意頁:/consent?rid=<authorization request id>
- * 後端 /oauth/authorize 把使用者導來這裡;決定後整頁跳回 client 的 redirect_uri。
+ * OAuth consent page: /consent?rid=<authorization request id>
+ * The backend /oauth/authorize redirects the user here; after the decision we do a full-page redirect
+ * to the client's redirect_uri.
  */
 export default function ConsentPage() {
   const { t } = useTranslation()
@@ -159,7 +162,7 @@ export default function ConsentPage() {
                 checked={selected.has(s.name)}
                 onChange={() => toggleScope(s.name)}
                 label={<span className="font-mono text-xs">{s.name}</span>}
-                description={s.description || t('consent.noDescription')}
+                description={describeScope(t, s.name, s.description) || t('consent.noDescription')}
               />
             ))}
           </div>
@@ -201,7 +204,7 @@ export default function ConsentPage() {
         <span className="min-w-0 truncate">{t('consent.redirectTo', { host: req.redirect_host })}</span>
         {req.expires_at && (
           <span className="shrink-0 tabular-nums">
-            {t('consent.expiresAt', { time: new Date(req.expires_at).toLocaleTimeString() })}
+            {t('consent.expiresAt', { time: formatTime(req.expires_at) })}
           </span>
         )}
       </div>

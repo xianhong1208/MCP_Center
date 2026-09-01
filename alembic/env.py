@@ -95,7 +95,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
-            # SQLite 不支援大部分 ALTER TABLE;batch 模式讓同一份 migration 兩種 DB 都能跑
+            # SQLite does not support most ALTER TABLE forms; batch mode lets the same migration run on both DBs
             render_as_batch=True,
         )
 

@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 
 /**
- * Tabs(受控):items = [{ key, label, count?, icon? }]
- * 底線式;選中用 foreground 底線 + foreground 文字(Swiss:高對比、不靠色彩)。
+ * Tabs (controlled): items = [{ key, label, count?, icon? }]
+ * Underline style; the selected tab uses a foreground underline + foreground text (Swiss: high contrast, not color).
  */
 export default function Tabs({ items, value, onChange, className, size = 'md' }) {
   return (
@@ -18,7 +18,7 @@ export default function Tabs({ items, value, onChange, className, size = 'md' })
             aria-selected={active}
             onClick={() => onChange(item.key)}
             className={clsx(
-              '-mb-px inline-flex cursor-pointer items-center gap-1.5 border-b-2 px-3 font-medium transition-colors duration-200',
+              '-mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-3 font-medium transition-colors duration-200',
               size === 'md' ? 'h-10 text-sm' : 'h-9 text-sm',
               active
                 ? 'border-foreground text-foreground'
@@ -44,7 +44,7 @@ export default function Tabs({ items, value, onChange, className, size = 'md' })
   )
 }
 
-/** 分段切換(小型):items = [{ key, label }];選中 = 海軍藍實心 */
+/** Segmented control (small): items = [{ key, label }]; selected = solid navy */
 export function SegmentedControl({ items, value, onChange, className, size = 'md' }) {
   return (
     <div className={clsx('inline-flex items-center rounded-md border border-border-strong bg-muted p-0.5', className)} role="tablist">
@@ -59,7 +59,7 @@ export function SegmentedControl({ items, value, onChange, className, size = 'md
             aria-selected={active}
             onClick={() => onChange(item.key)}
             className={clsx(
-              'inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 font-medium transition-colors duration-200',
+              'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded px-2.5 font-medium transition-colors duration-200',
               size === 'md' ? 'h-7 text-sm' : 'h-6 text-xs',
               active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
             )}

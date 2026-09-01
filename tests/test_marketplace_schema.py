@@ -1,12 +1,12 @@
-"""Marketplace catalog schema / loader 驗證測試
+"""Marketplace catalog schema / loader validation tests
 
-重點是 SAST「Stored Command Argument Injection」的回歸防護:
-catalog 的 docker.args 會被快照進 DB 再展開成 `docker run` 的 argv,所以
-schema 邊界必須讓 container 逃逸 flag 無法表達。
+The focus is regression protection for the SAST finding "Stored Command Argument Injection":
+the catalog's docker.args are snapshotted into the DB and later expanded into the argv of
+`docker run`, so the schema boundary must make container-escape flags inexpressible.
 
-注意:字元白名單擋不住這類攻擊(`-v /:/host` 全由安全字元組成),因此
-docker.args 用的是「預設拒絕 + 允許的 flag 清單」。下面的 escape vector
-測試就是在釘住這件事。
+Note: a character allowlist cannot stop this class of attack (`-v /:/host` consists entirely of
+safe characters), which is why docker.args uses "default-deny + a list of allowed flags". The
+escape-vector tests below pin exactly that.
 """
 from pathlib import Path
 
@@ -24,9 +24,9 @@ from src.marketplace.loader import CatalogLoader
 from src.marketplace.schema import DockerSpec
 
 
-# ---------------------------------------------------------------- args: 逃逸
+# ---------------------------------------------------------------- args: escapes
 
-# 每一個都曾經通過舊的字元白名單(且 shlex.quote 也放行)。
+# Every one of these passed the old character allowlist (and shlex.quote let them through too).
 ESCAPE_VECTORS = [
     pytest.param(["-v", "/:/host"], id="mount-host-root"),
     pytest.param(["--volume", "/:/host"], id="mount-host-root-long"),
@@ -46,7 +46,7 @@ ESCAPE_VECTORS = [
     pytest.param(["--network=host"], id="network-host-inline"),
     pytest.param(["-d"], id="detach-short"),
     pytest.param(["--detach"], id="detach-long"),
-    # 混在合法 flag 中間,確認 sequence parser 不會被前面的合法 token 帶過
+    # Mixed in among legitimate flags; make sure the sequence parser is not carried past by the earlier legit tokens
     pytest.param(["--rm", "--privileged"], id="escape-after-legit"),
     pytest.param(["--network", "bridge", "-v", "/:/host"], id="escape-after-value-flag"),
 ]
@@ -58,7 +58,7 @@ def test_escape_flags_rejected(args):
         DockerSpec(image="img", args=args)
 
 
-# ---------------------------------------------------------------- args: 合法
+# ---------------------------------------------------------------- args: legitimate
 
 LEGIT_ARGS = [
     pytest.param(["--rm"], id="rm"),
@@ -68,7 +68,7 @@ LEGIT_ARGS = [
     pytest.param(["--network=bridge"], id="network-bridge-inline"),
     pytest.param(["--network", "bridge"], id="network-bridge-separate"),
     pytest.param(["--network", "none"], id="network-none"),
-    # parser 走過 value flag 之後要能繼續認下一個 flag
+    # After consuming a value flag the parser must still recognise the next flag
     pytest.param(["--network", "bridge", "--rm"], id="value-flag-then-bare"),
     pytest.param(["--memory", "512m"], id="memory"),
     pytest.param(["--cpus", "1.5"], id="cpus"),
@@ -82,8 +82,8 @@ def test_legitimate_args_accepted(args):
 
 
 def test_value_flag_missing_value_rejected():
-    """`--network` 在序列尾端沒有值 → 明確報錯,不是靜默通過"""
-    with pytest.raises(ValidationError, match="缺少值"):
+    """`--network` at the end of the sequence without a value -> explicit error, not a silent pass"""
+    with pytest.raises(ValidationError, match="missing a value"):
         DockerSpec(image="img", args=["--network"])
 
 
@@ -92,10 +92,10 @@ def test_value_flag_bad_value_rejected():
         DockerSpec(image="img", args=["--pull", "sometimes"])
 
 
-# ------------------------------------------------------- 尾端換行 bypass
+# ------------------------------------------------------- trailing-newline bypass
 
-# `$` 會在字串結尾的換行之前成立,所以 re.match(r"^...$", "--rm\n") 是 True。
-# 全面改用 fullmatch 之後這些都必須被擋掉。
+# `$` matches before a trailing newline at the end of the string, so re.match(r"^...$", "--rm\n") is True.
+# After switching everything to fullmatch, all of these must be rejected.
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -135,7 +135,7 @@ def test_valid_tags_accepted(tag):
 
 @pytest.mark.parametrize("tag", ["latest; rm -rf /", "a b", "-lead", ""])
 def test_invalid_tags_rejected(tag):
-    """tag 先前完全沒驗,卻會被接成 image:tag 存進 DB"""
+    """The tag was never validated before, yet it is joined into image:tag and stored in the DB"""
     with pytest.raises(ValidationError):
         DockerSpec(image="img", tag=tag)
 
@@ -144,7 +144,7 @@ def test_invalid_tags_rejected(tag):
 
 
 def test_command_allows_entrypoint_args():
-    """text2image 實際用的 command,必須照常通過"""
+    """The command text2image actually uses; it must keep passing"""
     cmd = ["./MiT2I", "--config", "/app/config/config_google.yaml"]
     assert DockerSpec(image="mit2i", command=cmd).command == cmd
 
@@ -155,7 +155,7 @@ def test_command_rejects_shell_metachars(command):
         DockerSpec(image="img", command=command)
 
 
-# ------------------------------------------------------------ 真實 catalog
+# ------------------------------------------------------------ real catalog
 
 
 @pytest.fixture(scope="module")
@@ -166,7 +166,7 @@ def real_catalog():
 
 
 def test_real_catalog_loads_without_error(real_catalog):
-    """出貨中的 catalog 不能被新的驗證誤擋"""
+    """The shipped catalog must not be wrongly rejected by the new validation"""
     assert set(real_catalog) == {"perplexity-ask"}
 
 
@@ -174,7 +174,7 @@ def test_real_catalog_args_unchanged(real_catalog):
     assert real_catalog["perplexity-ask"].docker.args == ["--rm"]
 
 
-# --------------------------------------------------------- loader 韌性
+# --------------------------------------------------------- loader resilience
 
 
 def _write_entry(directory: Path, name: str, docker: dict):
@@ -190,7 +190,7 @@ def _write_entry(directory: Path, name: str, docker: dict):
 
 
 def test_invalid_entry_is_skipped_not_fatal(tmp_path):
-    """一個壞檔不該拖垮整個 marketplace listing(先前是 unhandled 500)"""
+    """One broken file must not take down the whole marketplace listing (previously an unhandled 500)"""
     _write_entry(tmp_path, "good", {"image": "img", "tag": "v1", "args": ["--rm"]})
     _write_entry(tmp_path, "evil", {"image": "img", "args": ["-v", "/:/host"]})
 
@@ -205,7 +205,7 @@ def test_invalid_entry_is_skipped_not_fatal(tmp_path):
 def test_duplicate_id_is_skipped(tmp_path):
     _write_entry(tmp_path, "dup_a", {"image": "img"})
     _write_entry(tmp_path, "dup_b", {"image": "img"})
-    # 兩個檔案給同一個 id
+    # Two files declare the same id
     (tmp_path / "dup_b.yaml").write_text(
         yaml.safe_dump({
             "id": "dup_a", "name": "dup_b", "description": "d",
@@ -238,12 +238,12 @@ def test_reload_clears_errors(tmp_path):
     assert loader.errors == {}
 
 
-# ------------------------------------------- 執行邊界(從 DB 讀出後再驗)
+# ------------------------------------------- execution boundary (re-validated after the DB read)
 
-# DockerSpec 只守 catalog 寫入端。Stored injection 的威脅模型包含「攻擊者
-# 已能寫 DB」,那條路徑繞過 catalog,所以 orchestrator 從 DB 讀出
-# image_args / image_command 之後必須再套同一份政策。
-# 這裡測政策函式本身(orchestrator._start_locked 直接呼叫它們)。
+# DockerSpec only guards the catalog write side. The stored-injection threat model includes
+# "the attacker can already write to the DB"; that path bypasses the catalog, so the orchestrator
+# must apply the very same policy again after reading image_args / image_command from the DB.
+# The policy functions themselves are tested here (orchestrator._start_locked calls them directly).
 
 
 TAMPERED_DB_ARGS = [
@@ -257,7 +257,7 @@ TAMPERED_DB_ARGS = [
 
 @pytest.mark.parametrize("image_args", TAMPERED_DB_ARGS)
 def test_tampered_db_image_args_refused(image_args):
-    """DB 被改寫後,執行邊界仍要拒絕"""
+    """After the DB has been tampered with, the execution boundary must still refuse"""
     with pytest.raises(ArgvPolicyError):
         validate_docker_args(image_args.split())
 
@@ -278,7 +278,7 @@ def test_tampered_db_image_command_refused(command):
 
 
 def test_legit_db_row_still_starts():
-    """出貨中的 text2image row 必須照常通過執行邊界"""
+    """The shipped text2image row must keep passing the execution boundary"""
     assert validate_docker_args("".split()) == []
     assert validate_command_tokens(
         ["./MiT2I", "--config", "/app/config/config_google.yaml"]
@@ -292,7 +292,7 @@ def test_legit_db_row_still_starts():
      "localhost:5000/img", "localhost:5000/img:v2", "alpine"],
 )
 def test_valid_image_refs_accepted(image_ref):
-    """registry 的 host:port 不能被誤認成 tag"""
+    """A registry host:port must not be mistaken for a tag"""
     assert validate_image_ref(image_ref) == image_ref
 
 
@@ -306,12 +306,12 @@ def test_invalid_image_refs_refused(image_ref):
 
 
 def test_policy_error_is_valueerror():
-    """ArgvPolicyError 必須是 ValueError,Pydantic 才能轉成 ValidationError"""
+    """ArgvPolicyError must be a ValueError so Pydantic can convert it into a ValidationError"""
     assert issubclass(ArgvPolicyError, ValueError)
 
 
 def test_schema_and_orchestrator_share_one_policy():
-    """DockerSpec 與執行邊界必須拒絕同一組東西(政策只有一份)"""
+    """DockerSpec and the execution boundary must reject the same set of things (there is only one policy)"""
     for args in (["-v", "/:/host"], ["--privileged"], ["--network", "host"]):
         with pytest.raises(ValidationError):
             DockerSpec(image="img", args=args)

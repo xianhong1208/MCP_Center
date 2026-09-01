@@ -1,14 +1,15 @@
-"""MCP Center 版本資訊
+"""MCP Center version information.
 
-版本號的唯一來源是 `pyproject.toml` 的 `[project].version`;本模組載入時讀取它,
-避免多處手動同步。解析順序:pyproject.toml → 已安裝套件 metadata → "0.0.0+unknown"。
+The single source of truth for the version is `[project].version` in `pyproject.toml`; this module reads it at
+import time so it never has to be synced by hand in several places. Resolution order: pyproject.toml -> installed
+package metadata -> "0.0.0+unknown".
 """
 
 from pathlib import Path
 
 
 def _read_version() -> str:
-    # 1) 直接讀 pyproject.toml(唯一來源,開發時永遠即時)
+    # 1) Read pyproject.toml directly (single source of truth, always current during development)
     try:
         import tomllib
         for parent in Path(__file__).resolve().parents:
@@ -21,7 +22,7 @@ def _read_version() -> str:
     except Exception:
         pass
 
-    # 2) 已安裝套件的 metadata(pip 由 pyproject 帶入)
+    # 2) Installed package metadata (pip populates it from pyproject)
     try:
         from importlib.metadata import PackageNotFoundError, version
         try:
@@ -31,13 +32,13 @@ def _read_version() -> str:
     except Exception:
         pass
 
-    # 3) 最後退回,避免 crash
+    # 3) Last-resort fallback so we never crash
     return "0.0.0+unknown"
 
 
-# 版本號 — 遵循 Semantic Versioning (MAJOR.MINOR.PATCH),來源 pyproject.toml
+# Version number -- follows Semantic Versioning (MAJOR.MINOR.PATCH), sourced from pyproject.toml
 __version__ = _read_version()
 
-# Build 資訊（由 CI/CD 或 Build Center 在編譯時寫入，預設為 dev）
+# Build information (written by CI/CD or the Build Center at build time; defaults to dev)
 __build_time__ = "dev"
 __build_commit__ = "dev"

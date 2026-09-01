@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatDateTime } from '../utils/format'
-import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   FileText,
@@ -124,7 +123,10 @@ export default function AuditLogPage() {
   // Selected log detail
   const [selectedLog, setSelectedLog] = useState(null)
 
+  // `requestId` guards against out-of-order responses when filters change quickly
+  const requestId = useRef(0)
   const loadLogs = async () => {
+    const id = ++requestId.current
     setIsLoading(true)
     setError(null)
     try {
@@ -136,13 +138,15 @@ export default function AuditLogPage() {
         page,
         pageSize,
       })
+      if (id !== requestId.current) return
       setLogs(res.logs || [])
       setTotalCount(res.total_count || 0)
     } catch (err) {
+      if (id !== requestId.current) return
       console.error('Failed to load audit logs:', err)
       setError(err.message || t('audit.toast.loadFailed'))
     } finally {
-      setIsLoading(false)
+      if (id === requestId.current) setIsLoading(false)
     }
   }
 
@@ -369,8 +373,8 @@ export default function AuditLogPage() {
                     {getActionLabel(log.action)}
                   </TD>
                   <TD muted className="whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <ResourceIcon className="h-4 w-4 text-subtle-foreground" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-2 align-middle">
+                      <ResourceIcon className="h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />
                       <span className="capitalize">{getResourceTypeLabel(log.resource_type)}</span>
                     </span>
                   </TD>
@@ -409,7 +413,7 @@ export default function AuditLogPage() {
               icon={ChevronLeft}
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              aria-label="Previous page"
+              aria-label={t('common.pagination.previous')}
             />
             <span className="px-1 text-xs text-muted-foreground tabular-nums">
               {t('audit.list.pageOf', { page, total: totalPages })}
@@ -420,7 +424,7 @@ export default function AuditLogPage() {
               icon={ChevronRight}
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              aria-label="Next page"
+              aria-label={t('common.pagination.next')}
             />
           </div>
         </div>

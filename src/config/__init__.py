@@ -1,4 +1,4 @@
-"""配置管理模組"""
+"""Configuration management module."""
 from src.config.manager import Config
 from src.config.model import (
     ConfigModel, DatabaseConfig, IdentityConfig, LoggingConfig, OAuthConfig, ServerConfig, SessionConfig,

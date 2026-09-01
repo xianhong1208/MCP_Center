@@ -1,4 +1,4 @@
-"""Google 登入(OIDC)。用 userinfo 端點取 sub / email。"""
+"""Google login (OIDC). sub / email come from the userinfo endpoint."""
 
 from src.identity.providers.base import ExternalIdentity, OAuthLoginProvider
 

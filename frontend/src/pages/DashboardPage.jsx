@@ -14,7 +14,8 @@ import {
   Table, THead, TBody, TR, TH, TD, SectionLabel, dotTones,
 } from '../components/ui'
 
-// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+// recharts stroke attrs cannot read CSS vars: give fallback colors; the real line color
+// follows the theme via index.css .chart-line-*
 const CHART = { success: '#22C55E', failed: '#F87171' }
 
 const ServiceHealthCard = memo(function ServiceHealthCard({ health, offlineServices, isLoading }) {
@@ -36,7 +37,7 @@ const ServiceHealthCard = memo(function ServiceHealthCard({ health, offlineServi
         <LoadingBlock className="py-6" size="sm" />
       ) : (
         <>
-          {/* 堆疊比例條 + 2x2 圖例:四種狀態一眼看出佔比,標籤不再被截斷 */}
+          {/* Stacked ratio bar + 2x2 legend: all four states are visible at a glance and labels are not truncated */}
           <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
             {health.total > 0 && healthItems.map(({ key, tone }) => (
               (health[key] || 0) > 0 && (
@@ -189,7 +190,7 @@ const ActivityRow = memo(function ActivityRow({ ev }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">{t(`dashboard.activity.events.${ev.event}`, ev.event)}</p>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {ev.grant_type && <span className="shrink-0 rounded bg-muted px-1 font-mono text-2xs">{ev.grant_type}</span>}
+            {ev.grant_type && <span className="shrink-0 rounded bg-muted px-1 text-2xs">{t(`dashboard.activity.grantTypes.${ev.grant_type}`, { defaultValue: ev.grant_type })}</span>}
             <span className="truncate">
               {ev.client_id || t('dashboard.activity.unknownClient')}{ev.audience ? ` → ${ev.audience}` : ''}{ev.ip ? ` · ${ev.ip}` : ''}
             </span>
@@ -240,7 +241,7 @@ export default function DashboardPage() {
   const [isLoadingChart, setIsLoadingChart] = useState(false)
   const [error, setError] = useState(null)
 
-  // WebSocket:即時更新服務健康
+  // WebSocket: real-time service health updates
   const handleHealthUpdate = useCallback((message) => {
     const svcName = message.service_name || message.service
     const svcStatus = message.data?.status || message.status
@@ -295,7 +296,7 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  // 服務篩選變更 → 重載圖表
+  // Service filter changed -> reload charts
   useEffect(() => {
     if (isLoading) return
     let cancelled = false
@@ -431,7 +432,7 @@ export default function DashboardPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-foreground">{a.title}</span>
-              <span className="block truncate text-xs text-muted-foreground">{a.hint}</span>
+              <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{a.hint}</span>
             </span>
             <ArrowUpRight className="h-4 w-4 shrink-0 text-subtle-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100" aria-hidden="true" />
           </Card>

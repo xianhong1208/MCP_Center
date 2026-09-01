@@ -1,23 +1,30 @@
 # Changelog
 
-## 1.0.0 — 2026-08-31
+All notable changes to MCP Center are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-個人專案第一版。從原本的企業內部「Token Server」重寫為 **MCP 生態系的 OAuth 2.1 Authorization Server + 管理台**。
+## [1.0.0] — 2026-09-01
 
-### 核心
-- MCP Center 自己當 Authorization Server:RS256 簽章、`/.well-known/oauth-authorization-server`(RFC 8414)、
-  `/.well-known/jwks.json`、動態註冊(RFC 7591)、authorization code + PKCE(S256)、refresh token 輪替與重放偵測、
-  撤銷(RFC 7009)、內省(RFC 7662)、resource → audience 綁定(RFC 8707)、同意頁。
-- FastMCP server 只需 `JWTVerifier(jwks_uri, issuer, audience)` 即可驗證,不再回呼任何自訂端點。
-- 管理台可直接簽發 Personal Access Token(貼到 `Authorization: Bearer` 即可用)。
-- 管理台登入:email + 密碼(bcrypt),另留 GitHub / Google 登入接口(填 client_id 即啟用)。
-- 首次啟動走 `/setup` 建立擁有者帳號;密鑰(session / 加密)未設定時自動產生並存到 `data/secrets.json`。
+First public release. MCP Center is an OAuth 2.1 authorization server and management console for Model Context Protocol servers.
 
-### 移除
-- 自家 opaque token、HS256 JWT、`/auth/verify` 回呼式驗證。
-- RBAC(角色 / 權限)、多使用者管理、Service 成員、安全問題、Email 驗證、註冊審核、License 授權檔。
+### Authorization server
+- RS256 signing keys with JWKS publishing and rotation; private keys encrypted at rest.
+- Authorization server metadata (RFC 8414), dynamic client registration (RFC 7591), authorization code + PKCE (S256), refresh-token rotation with replay detection, revocation (RFC 7009), introspection (RFC 7662), resource indicators (RFC 8707), `iss` in authorization responses (RFC 9207).
+- Consent screen with remembered decisions per client and server; trusted (manually registered) clients skip it.
+- Personal access tokens minted from the console.
+- Introspection is scoped: public clients may only introspect their own tokens; confidential clients (resource servers) may introspect any token.
 
-### 基礎
-- 預設 SQLite(零依賴),PostgreSQL 可選;主鍵改用 SQLAlchemy 通用 `Uuid`。
-- Alembic 從單一 `init` migration 重新開始。
-- 保留:服務登錄 / 掃描 / 健康監控 / tools 同步、Marketplace + Docker orchestrator、BYO MCP、審計日誌。
+### Console
+- Email/password sign-in with a first-run setup wizard; pluggable GitHub and Google sign-in (experimental).
+- Dashboard, MCP server registry with health monitoring and tool sync, token management, OAuth client management, scope registry, key rotation, audit log.
+- Marketplace and bring-your-own MCP server deployment through Docker.
+- Design system "Navy Trust" (dark-first, Fira Sans / Fira Code), app-shell layout with global search.
+
+### Platform
+- SQLite by default, PostgreSQL optional; UUID primary keys through SQLAlchemy's portable `Uuid` type.
+- Secrets generated on first start and stored in `data/secrets.json`.
+- Alembic migrations (`8813dec38e2b` initial schema, `1ee09c99d84d` keeps token history when a client is deleted).
+- Verified against FastMCP 3.4 with an end-to-end interop test suite.
+
+### Removed (relative to the internal predecessor)
+- Custom opaque tokens, HS256 JWTs and the `/auth/verify` callback.
+- Role-based access control, multi-user management, service membership, security questions, email verification, registration approval, license files.

@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import clsx from 'clsx'
 
-/** 表單標籤:text-sm medium,置於欄位上方 */
+/** Form label: text-sm medium, placed above the field */
 export function Label({ className, children, required, ...rest }) {
   return (
     <label className={clsx('mb-1.5 block text-sm font-medium text-foreground', className)} {...rest}>
@@ -11,19 +11,19 @@ export function Label({ className, children, required, ...rest }) {
   )
 }
 
-/** 欄位下方說明 */
+/** Help text below the field */
 export function Help({ className, children }) {
   if (!children) return null
   return <p className={clsx('mt-1.5 text-xs text-muted-foreground', className)}>{children}</p>
 }
 
-/** 欄位錯誤 */
+/** Field error */
 export function FieldError({ className, children }) {
   if (!children) return null
   return <p className={clsx('mt-1.5 text-xs text-danger', className)}>{children}</p>
 }
 
-/** Field = Label + control + Help/Error 的排版容器 */
+/** Field = layout container for Label + control + Help/Error */
 export function Field({ label, htmlFor, help, error, required, className, children }) {
   return (
     <div className={clsx('min-w-0', className)}>
@@ -74,7 +74,7 @@ export const Radio = forwardRef(function Radio({ className, ...rest }, ref) {
   return <input ref={ref} type="radio" className={clsx('ui-radio', className)} {...rest} />
 })
 
-/** 帶說明的勾選列(consent scope、表單 boolean 選項) */
+/** Checkbox row with description (consent scopes, boolean form options) */
 export function CheckRow({ label, description, className, disabled, ...inputProps }) {
   return (
     <label
@@ -93,7 +93,7 @@ export function CheckRow({ label, description, className, disabled, ...inputProp
   )
 }
 
-/** 搜尋框:左側 icon 的 Input */
+/** Search box: Input with a leading icon */
 export function SearchInput({ className, icon: Icon, size = 'md', ...rest }) {
   return (
     <div className={clsx('relative', className)}>

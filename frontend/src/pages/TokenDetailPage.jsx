@@ -13,7 +13,8 @@ import {
   PageHeader, Button, Badge, Card, CardHeader, Alert, EmptyState, LoadingBlock, StatusDot, DescriptionList,
 } from '../components/ui'
 
-// recharts 的 stroke 屬性吃不到 CSS 變數:給 fallback 色值,實際線色由 index.css 的 .chart-line-* 跟主題
+// recharts stroke attrs cannot read CSS vars: give fallback colors; the real line color
+// follows the theme via index.css .chart-line-*
 const CHART = { success: '#22C55E', failed: '#F87171' }
 
 function ChartTooltip({ active, payload, label }) {
@@ -56,7 +57,7 @@ export default function TokenDetailPage() {
     return () => { cancelled = true }
   }, [decodedJti, t])
 
-  // 統計以服務為單位(token 事件流不分 jti)
+  // Stats are per service (the token event stream does not distinguish jti)
   useEffect(() => {
     if (!token?.service_id) return
     let cancelled = false
@@ -178,11 +179,11 @@ export default function TokenDetailPage() {
       {/* Fields */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title={t('tokens.detail.client')} />
+          <CardHeader title={t('tokens.detail.identitySection')} />
           <DescriptionList items={identityItems} />
         </Card>
         <Card>
-          <CardHeader title={t('tokens.detail.issuedAt')} />
+          <CardHeader title={t('tokens.detail.lifecycleSection')} />
           <DescriptionList items={lifecycleItems} />
         </Card>
       </div>
@@ -194,9 +195,9 @@ export default function TokenDetailPage() {
           description={token.service_name ? t('tokens.detail.usageSubtitle', { service: token.service_name }) : t('tokens.detail.usageNoService')}
           action={
             <dl className="flex items-center divide-x divide-border text-xs">
-              <div className="pr-4 text-right"><dd className="text-lg font-semibold tabular-nums text-foreground">{totalUsage}</dd><dt className="text-muted-foreground">{t('tokens.detail.total')}</dt></div>
-              <div className="px-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-foreground"><StatusDot tone="success" />{totalSuccess}</dd><dt className="text-muted-foreground">{t('tokens.detail.success')}</dt></div>
-              <div className="pl-4 text-right"><dd className="flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums text-foreground"><StatusDot tone="danger" />{totalFailed}</dd><dt className="text-muted-foreground">{t('tokens.detail.failed')}</dt></div>
+              <div className="pr-4"><dt className="text-muted-foreground">{t('tokens.detail.total')}</dt><dd className="text-base font-semibold tabular-nums text-foreground">{totalUsage}</dd></div>
+              <div className="px-4"><dt className="text-muted-foreground">{t('tokens.detail.success')}</dt><dd className="flex items-center gap-1.5 text-base font-semibold tabular-nums text-foreground"><StatusDot tone="success" />{totalSuccess}</dd></div>
+              <div className="pl-4"><dt className="text-muted-foreground">{t('tokens.detail.failed')}</dt><dd className="flex items-center gap-1.5 text-base font-semibold tabular-nums text-foreground"><StatusDot tone="danger" />{totalFailed}</dd></div>
             </dl>
           }
         />

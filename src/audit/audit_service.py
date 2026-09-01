@@ -1,6 +1,6 @@
 """Audit Log Service
 
-提供審計日誌記錄和查詢功能。
+Provides audit log recording and querying.
 """
 
 import json
@@ -16,7 +16,7 @@ from db.models import AuditLog, local_now
 
 
 class AuditAction(str, Enum):
-    """審計操作類型"""
+    """Audit action types"""
     # OAuth token
     TOKEN_ISSUE = "token_issue"
     TOKEN_REVOKE = "token_revoke"
@@ -28,24 +28,24 @@ class AuditAction(str, Enum):
     OAUTH_CLIENT_DELETE = "oauth_client_delete"
     OAUTH_KEY_ROTATE = "oauth_key_rotate"
 
-    # Service 操作
+    # Service operations
     CREATE_SERVICE = "create_service"
     DELETE_SERVICE = "delete_service"
     UPDATE_SERVICE = "update_service"
 
-    # 管理台帳號
+    # Admin-console accounts
     ADMIN_SETUP = "admin_setup"
     ADMIN_LOGIN = "admin_login"
     ADMIN_LOGOUT = "admin_logout"
     ADMIN_UPDATE = "admin_update"
 
-    # 系統操作
+    # System operations
     CLEANUP_EXPIRED = "cleanup_expired"
     RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
 
 
 class ResourceType(str, Enum):
-    """資源類型"""
+    """Resource types"""
     TOKEN = "token"
     OAUTH_CLIENT = "oauth_client"
     SERVICE = "service"
@@ -54,21 +54,21 @@ class ResourceType(str, Enum):
 
 
 class ActorType(str, Enum):
-    """操作者類型"""
+    """Actor types"""
     ADMIN = "admin"
     API = "api"
     SYSTEM = "system"
 
 
 class AuditStatus(str, Enum):
-    """操作狀態"""
+    """Operation status"""
     SUCCESS = "success"
     FAILURE = "failure"
     ERROR = "error"
 
 
 class AuditService:
-    """審計日誌服務"""
+    """Audit log service"""
 
     @staticmethod
     def log(
@@ -88,7 +88,7 @@ class AuditService:
         error_message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> AuditLog:
-        """記錄審計日誌"""
+        """Record an audit log entry"""
         audit_log = AuditLog(
             action=action,
             resource_type=resource_type,
@@ -125,8 +125,8 @@ class AuditService:
         error_message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> AuditLog:
-        """從 Request 物件記錄審計日誌"""
-        # 獲取客戶端 IP
+        """Record an audit log entry from a Request object"""
+        # Get the client IP
         ip_address = None
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
@@ -168,7 +168,7 @@ class AuditService:
         limit: int = 100,
         offset: int = 0,
     ) -> List[AuditLog]:
-        """查詢審計日誌"""
+        """Query audit logs"""
         query = db.query(AuditLog)
 
         if action:
@@ -196,7 +196,7 @@ class AuditService:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> int:
-        """獲取審計日誌數量"""
+        """Get the audit log count"""
         query = db.query(AuditLog)
 
         if action:
@@ -219,10 +219,10 @@ class AuditService:
         db: Session,
         days: int = 7,
     ) -> Dict[str, Any]:
-        """獲取審計日誌統計"""
+        """Get audit log statistics"""
         start_date = local_now() - timedelta(days=days)
 
-        # 按 action 統計
+        # Count by action
         action_stats = {}
         logs = db.query(AuditLog).filter(AuditLog.created_at >= start_date).all()
 
@@ -235,7 +235,7 @@ class AuditService:
             else:
                 action_stats[log.action]["failure"] += 1
 
-        # 總計
+        # Total
         total = len(logs)
         success = sum(1 for log in logs if log.status == AuditStatus.SUCCESS)
         failure = total - success
@@ -251,7 +251,7 @@ class AuditService:
 
     @staticmethod
     def cleanup_old_logs(db: Session, days: int = 90) -> int:
-        """清理舊的審計日誌"""
+        """Clean up old audit logs"""
         cutoff_date = local_now() - timedelta(days=days)
         deleted = db.query(AuditLog).filter(AuditLog.created_at < cutoff_date).delete()
         db.commit()

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { sessionApi } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
+import { formatDateTime } from '../utils/format'
 import { X, Key, Eye, EyeOff, Check, Pencil } from 'lucide-react'
 import {
   Dialog, DialogBody, DialogFooter, Button, IconButton, Input, Field, Alert, Avatar, Badge, DescriptionList,
@@ -23,7 +24,7 @@ export default function ProfileModal({ isOpen, onClose }) {
 
   if (!isOpen) return null
 
-  // 第三方登入、尚未設密碼的帳號不需輸入目前密碼
+  // Third-party login accounts and accounts without a password do not need the current password
   const needsCurrent = !!user?.has_password
 
   const handlePasswordChange = async (e) => {
@@ -84,7 +85,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
   }
 
-  // 一般函式而非巢狀 component:巢狀 component 每次 render 都會重新掛載,輸入會失焦
+  // Plain function, not a nested component: a nested component remounts on every render and the input loses focus
   const renderPasswordInput = ({ field, key, label, autoComplete, minLength }) => (
     <Field label={label}>
       <div className="relative">
@@ -152,7 +153,7 @@ export default function ProfileModal({ isOpen, onClose }) {
                   </div>
                 )}
                 <Badge tone="neutral" className="mt-1">
-                  {t('components.profile.provider', { provider: user?.auth_provider || 'local' })}
+                  {t('components.profile.provider', { provider: t(`components.profile.providers.${user?.auth_provider || 'local'}`, { defaultValue: user?.auth_provider || 'local' }) })}
                 </Badge>
               </div>
             </div>
@@ -161,8 +162,8 @@ export default function ProfileModal({ isOpen, onClose }) {
               className="rounded-md border border-border px-4"
               items={[
                 { label: t('components.profile.email'), value: user?.email || t('components.profile.emailNotSet') },
-                { label: t('components.profile.memberSince'), value: user?.created_at || t('components.profile.memberSinceUnknown') },
-                { label: t('components.profile.lastLogin'), value: user?.last_login || t('components.profile.lastLoginCurrent') },
+                { label: t('components.profile.memberSince'), value: user?.created_at ? formatDateTime(user.created_at) : t('components.profile.memberSinceUnknown') },
+                { label: t('components.profile.lastLogin'), value: user?.last_login ? formatDateTime(user.last_login) : t('components.profile.lastLoginCurrent') },
               ]}
             />
 

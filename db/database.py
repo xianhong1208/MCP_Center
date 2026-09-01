@@ -1,11 +1,11 @@
-"""資料庫引擎與 session 工廠(全 lazy;SQLite / PostgreSQL 皆可)。
+"""Database engine and session factory (fully lazy; works with SQLite and PostgreSQL).
 
-對外 API:
-    Base            ORM 基底
+Public API:
+    Base            ORM declarative base
     get_engine()    singleton engine
-    make_session()  取得一個 Session(呼叫端負責 close)
+    make_session()  obtain a Session (caller is responsible for closing it)
     get_db()        FastAPI dependency
-    reset_engine()  測試用:換 URL 後重建
+    reset_engine()  for tests: rebuild after switching the URL
 """
 
 from pathlib import Path
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from src.config import Config
 
-# 命名慣例:SQLite 的 ALTER 走 alembic batch 模式,約束必須有名字才能 drop / 重建
+# Naming convention: SQLite ALTERs go through alembic batch mode, and constraints must be named to be dropped / rebuilt
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -55,7 +55,8 @@ def get_engine():
 
             @event.listens_for(_engine, "connect")
             def _sqlite_pragmas(dbapi_conn, _record):
-                # 外鍵約束(ON DELETE CASCADE)與 WAL(讀寫並行)在 SQLite 預設是關的
+                # Foreign-key enforcement (ON DELETE CASCADE) and WAL (concurrent reads/writes) are off by default
+                # in SQLite
                 cur = dbapi_conn.cursor()
                 cur.execute("PRAGMA foreign_keys=ON")
                 cur.execute("PRAGMA journal_mode=WAL")
@@ -91,7 +92,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def reset_engine() -> None:
-    """丟掉 singleton(測試切換 DB URL 時用)。"""
+    """Drop the singletons (used by tests when switching the DB URL)."""
     global _engine, _session_factory
     if _engine is not None:
         _engine.dispose()

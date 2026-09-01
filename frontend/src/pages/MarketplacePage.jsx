@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { copyToClipboard } from '../utils/clipboard'
 
 import { marketplaceApi, managedApi, byoApi } from '../services/api'
 import { BYO_COMMANDS, parseMcpConfigJson, buildAgentConfig } from '../utils/mcpConfig'
@@ -198,13 +199,14 @@ function ConnectionInfoModal({ process, onClose }) {
   const { t } = useTranslation()
   const toast = useToast()
   const url = process.connection_url || ''
-  // 與服務詳情頁同一個 builder → 兩處複製出來的格式一致(標準 mcpServers 包裝)。
-  // Managed service 預設 requires_auth=false;若之後改成需驗證,詳情頁複製的版本會帶 Bearer 佔位符。
+  // Same builder as the service detail page -> both copies share the same format (standard mcpServers wrapper).
+  // Managed services default to requires_auth=false; if auth is enabled later, the detail page copy carries
+  // a Bearer placeholder.
   const configJson = JSON.stringify(buildAgentConfig({ name: process.name, url }), null, 2)
 
   const copy = async (text) => {
     try {
-      await navigator.clipboard.writeText(text)
+      await copyToClipboard(text)
       toast.success(t('marketplace.connection.copied'))
     } catch {
       toast.error(t('marketplace.connection.copyFailed'))
@@ -270,9 +272,9 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
                       onInstall, onInstallImage, onDeployCustom, onShowLogs, onStart, onStop,
                       onUninstall, onShowInfo, actionLoading, stageText }) {
   const { t } = useTranslation()
-  const installed = !!process               // 已部署(process 存在)
-  const isCustom = !!entry.isCustom         // 自訂(BYO)定義
-  const imageInstalled = !!entry.image_installed  // 已安裝(image 已 load)
+  const installed = !!process               // deployed (a process exists)
+  const isCustom = !!entry.isCustom         // custom (BYO) definition
+  const imageInstalled = !!entry.image_installed  // installed (image already loaded)
   const running = process?.actual_state === 'running'
   const busy = actionLoading === process?.id || actionLoading === entry.id
 
@@ -317,8 +319,8 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
           ) : entry.image_tar_present ? (
             <span className="text-muted-foreground">{t('marketplace.card.stateNotInstalled')}</span>
           ) : (
-            // 「尚未安裝」是待設定的正常狀態,不是錯誤 —— 不用紅字嚇人;
-            // 技術細節(缺哪個檔、放哪裡)退到第二行,讓人知道下一步該做什麼。
+            // "Not installed" is a normal pending state, not an error -- no scary red text;
+            // technical details (which file is missing, where to put it) go on the second line as the next step.
             <span className="block text-muted-foreground">
               {t('marketplace.card.stateNotInstalled')}
               <span
@@ -334,14 +336,15 @@ function CatalogCard({ entry, process, canInstall, canControl, canDelete,
       {installed && <div className="mb-3" />}
 
       <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
-        {/* 自訂:未部署 → [部署](直接跑 BYO deploy) */}
+        {/* Custom: not deployed -> [Deploy] (runs the BYO deploy directly) */}
         {isCustom && !installed && !busy && (
           <Button variant="secondary" size="sm" icon={Play} onClick={() => onDeployCustom(entry)} disabled={!canInstall}>
             {t('marketplace.card.deploy')}
           </Button>
         )}
 
-        {/* catalog 三態:未安裝(image 不在)→[安裝];已安裝未部署 →[部署];已部署 → 啟停 */}
+        {/* Catalog has three states: no image -> [Install]; installed but not deployed -> [Deploy];
+            deployed -> start/stop */}
         {!isCustom && !installed && !imageInstalled && !busy && (
           <Button
             variant="secondary"
@@ -431,7 +434,7 @@ export default function MarketplacePage() {
 
   const [catalog, setCatalog] = useState([])
   const [processes, setProcesses] = useState([])
-  const [byoDefs, setByoDefs] = useState([])   // 自訂(BYO)定義
+  const [byoDefs, setByoDefs] = useState([])   // custom (BYO) definitions
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -439,26 +442,26 @@ export default function MarketplacePage() {
   const [installTarget, setInstallTarget] = useState(null)
   const [infoTarget, setInfoTarget] = useState(null)
   const [byoOpen, setByoOpen] = useState(false)
-  const [byoDeployTarget, setByoDeployTarget] = useState(null)  // 重新部署時索取 env
-  const [logsTarget, setLogsTarget] = useState(null)            // 檢視容器 log
-  const [actionLoading, setActionLoading] = useState(null) // process.id 正在操作中
-  const [progress, setProgress] = useState({})          // key → 進行中階段(輪詢 /api/managed/progress)
+  const [byoDeployTarget, setByoDeployTarget] = useState(null)  // ask for env values on redeploy
+  const [logsTarget, setLogsTarget] = useState(null)            // view container logs
+  const [actionLoading, setActionLoading] = useState(null) // process.id currently being acted on
+  const [progress, setProgress] = useState({})          // key -> current stage (polled from /api/managed/progress)
 
-  // 單租戶:登入即管理員,所有操作皆可用
+  // Single tenant: any logged-in user is the admin, so every action is available
   const canInstall = true
   const canControl = true
   const canDelete = true
   const canByo = true
 
   const loadData = useCallback(async ({ silent = false } = {}) => {
-    // silent:背景自動刷新,不顯示 loading 骨架、不清既有錯誤(避免畫面閃動)
+    // silent: background auto-refresh; no loading skeleton and existing errors are kept (avoids flicker)
     if (!silent) {
       setIsLoading(true)
       setLoadError('')
     }
     try {
-      // allSettled: 一個 API 失敗不影響另一個(例如 managed 權限不足但 catalog 能讀)
-      // BYO 定義載入失敗時靜默略過(市集本體仍可用)
+      // allSettled: one API failing does not affect the other (e.g. managed is forbidden but catalog is readable)
+      // Silently skip a failed BYO definitions load (the marketplace itself still works)
       const [catalogResult, managedResult, byoResult] = await Promise.allSettled([
         marketplaceApi.list(),
         managedApi.list(),
@@ -473,7 +476,7 @@ export default function MarketplacePage() {
         setProcesses(managedResult.value?.processes || [])
       }
       setByoDefs(byoResult.status === 'fulfilled' ? (byoResult.value?.definitions || []) : [])
-      // managed list 失敗不 block 頁面(catalog 仍可看)
+      // A failed managed list does not block the page (catalog is still visible)
     } catch (err) {
       setLoadError(err.message || t('marketplace.list.loadFailed'))
     } finally {
@@ -485,8 +488,8 @@ export default function MarketplacePage() {
     loadData()
   }, [loadData])
 
-  // 長操作進度:有操作進行中(或某個 process 正在 starting/stopping)時,每 1.5s 拉一次
-  // 目前階段,把「等待 port」「暖機下載套件」等翻成文字給使用者看,而不是一顆轉圈。
+  // Long-operation progress: while an action is running (or a process is starting/stopping), poll the
+  // current stage every 1.5s and show "waiting for port", "warming up", etc. as text instead of a spinner.
   const hasTransitional = processes.some(
     (p) => p.actual_state === 'starting' || p.actual_state === 'stopping'
   )
@@ -498,7 +501,7 @@ export default function MarketplacePage() {
       for (const item of res?.items || []) map[item.key] = item
       setProgress(map)
     } catch {
-      // 進度是輔助資訊;拉不到不打擾使用者,主要結果仍由操作本身的回應決定
+      // Progress is auxiliary; a failed poll does not bother the user and the action's own response decides the outcome
     }
   }, [])
   useVisiblePolling(pollProgress, 1500, progressActive)
@@ -506,8 +509,9 @@ export default function MarketplacePage() {
     if (!progressActive) setProgress({})
   }, [progressActive])
 
-  // 背景自動刷新(分頁可見時每 15s):別人部署、容器崩潰後自動重生等變化,
-  // 不必使用者手動按 refresh 才看得到。進度輪詢中暫停,避免兩路請求互相干擾。
+  // Background auto-refresh (every 15s while visible): changes such as someone else deploying or a crashed
+  // container restarting show up without a manual refresh. Paused while progress polling runs so the two
+  // request streams do not interfere.
   useVisiblePolling(() => loadData({ silent: true }), 15000, !progressActive)
 
   const stageLabel = (item) => {
@@ -519,7 +523,7 @@ export default function MarketplacePage() {
   }
   const stageTextFor = (entry, process) =>
     stageLabel((process && progress[`process:${process.id}`]) || progress[`catalog:${entry.id}`])
-  // 部署對話框內 process id 尚未產生,取任一進行中的啟動作為顯示(同時間只會有一個)
+  // Inside the deploy dialog no process id exists yet; show whichever start is in progress (only one at a time)
   const activeStartStage = stageLabel(Object.values(progress).find((i) => i.kind === 'start'))
 
   const processForCatalog = (catalogId) =>
@@ -536,9 +540,9 @@ export default function MarketplacePage() {
     }
   }
 
-  // 既有自訂定義的(重新)部署 —— 卡片上的「部署」按鈕。
-  // 定義只存 env 的「鍵」(值不落地),因此重新部署必須重新索取值,
-  // 否則會部署出一個沒有金鑰、看似 running 但不能用的服務。
+  // (Re)deploy an existing custom definition -- the "Deploy" button on the card.
+  // The definition stores only env keys (values are never persisted), so a redeploy must ask for the values again;
+  // otherwise we would deploy a service with no secrets that looks running but does not work.
   const handleDeployCustom = (entry) => {
     if ((entry.envSchema || []).length > 0) {
       setByoDeployTarget(entry)
@@ -568,7 +572,7 @@ export default function MarketplacePage() {
     }
   }
 
-  // BYO:建立定義 + 立即部署(容器化 supergateway → 127.0.0.1:port)
+  // BYO: create the definition and deploy immediately (containerized supergateway -> 127.0.0.1:port)
   const handleByoCreated = async (result) => {
     setByoOpen(false)
     await loadData()
@@ -580,7 +584,7 @@ export default function MarketplacePage() {
     }
   }
 
-  // 「安裝」= 後端 docker load image(離線兩階段第一步);以 entry.id 當 loading key
+  // "Install" = backend docker-loads the image (first of the two offline steps); entry.id is the loading key
   const handleInstallImage = async (entry) => {
     setActionLoading(entry.id)
     try {
@@ -635,8 +639,8 @@ export default function MarketplacePage() {
     }
   }
 
-  // 自訂(BYO)定義也要出現在市集清單 —— 否則部署完會「憑空消失」,
-  // 只能到 Services 頁才看得到。轉成與 catalog entry 相同形狀以共用卡片。
+  // Custom (BYO) definitions must also appear in the marketplace list, otherwise they vanish after deploying
+  // and only show up on the Services page. Convert them to the catalog entry shape to share the card.
   const customEntries = byoDefs.map((d) => ({
     id: `user:${d.id}`,
     name: d.name,
@@ -646,7 +650,7 @@ export default function MarketplacePage() {
     definitionId: d.id,
     envSchema: d.env_schema || [],
     docker: { image: d.command, tag: '' },
-    // 自訂項目不走「安裝 image」階段(基底 image 是平台前置)
+    // Custom entries skip the "install image" step (the base image is a platform prerequisite)
     image_installed: true,
     image_tar_present: true,
   }))
@@ -758,22 +762,23 @@ export default function MarketplacePage() {
 }
 
 
-// ---------- BYO(自帶啟動指令)Modal:貼 Claude 設定 JSON → 建立 + 部署 ----------
+// ---------- BYO (bring-your-own command) modal: paste Claude config JSON -> create + deploy ----------
 function ByoModal({ stageText, onClose, onDeployed }) {
   const { t } = useTranslation()
   const [pasteText, setPasteText] = useState('')
-  // port 不在標準 MCP 設定 JSON 內,是唯一需要獨立輸入的項目(留空 = 自動分配)
+  // port is not part of the standard MCP config JSON, so it is the only separate input (empty = auto-assign)
   const [port, setPort] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // JSON 本身即表單:command/args/env 都從貼上的內容解析,要改就直接改 JSON
+  // The JSON is the form: command/args/env are parsed from the pasted text; edit the JSON to change them
   const parsed = pasteText.trim() ? parseMcpConfigJson(pasteText) : null
   const portNum = port ? Number(port) : null
   const portValid = !portNum || (portNum >= 1024 && portNum <= 65535)
   const commandOk = parsed ? BYO_COMMANDS.includes(parsed.command) : false
   const envEntries = parsed ? Object.entries(parsed.env) : []
-  // 市集範例常留 "YOUR-KEY" 這類佔位值,原樣部署會起得來但不能用 → 事先提醒
+  // Marketplace samples often keep placeholders like "YOUR-KEY"; deployed as-is they start but do not work,
+  // so warn first
   const placeholderKeys = envEntries
     .filter(([, v]) => /^(your|<|xxx+|changeme|replace|api[-_]?key$|token$)/i.test(String(v).trim()))
     .map(([k]) => k)
@@ -789,12 +794,12 @@ function ByoModal({ stageText, onClose, onDeployed }) {
         command: parsed.command,
         args: parsed.args,
         container_port: 8000,
-        // env 的「鍵」進定義(schema);「值」於部署時傳入並加密儲存
+        // env keys go into the definition (schema); values are passed at deploy time and stored encrypted
         env_schema: envEntries.map(([k]) => ({ name: k, secret: true })),
       })
       const result = await byoApi.deploy(def.id, {
         env_vars: Object.fromEntries(envEntries.map(([k, v]) => [k, String(v)])),
-        port: portNum,          // null → 後端自動分配
+        port: portNum,          // null -> backend auto-assigns
         auto_start: true,
       })
       onDeployed(result)
@@ -817,7 +822,7 @@ function ByoModal({ stageText, onClose, onDeployed }) {
           placeholder={'{\n  "mcpServers": {\n    "firecrawl-mcp": {\n      "command": "npx",\n      "args": ["-y", "firecrawl-mcp"],\n      "env": { "FIRECRAWL_API_KEY": "fc-xxxx" }\n    }\n  }\n}'}
         />
 
-        {/* port:標準 MCP JSON 不含此項,故獨立輸入(留空自動分配) */}
+        {/* port: not part of the standard MCP JSON, hence a separate input (empty = auto-assign) */}
         <div className="flex items-center gap-3">
           <label className="shrink-0 text-sm font-medium text-foreground">{t('marketplace.byo.port')}</label>
           <Input
@@ -833,7 +838,7 @@ function ByoModal({ stageText, onClose, onDeployed }) {
           </span>
         </div>
 
-        {/* 解析結果:確認實際會部署什麼 */}
+        {/* Parsed result: confirm what will actually be deployed */}
         {pasteText.trim() && !parsed && (
           <p className="text-xs text-danger">{t('marketplace.byo.parseFailed')}</p>
         )}
@@ -897,9 +902,9 @@ function ByoModal({ stageText, onClose, onDeployed }) {
 }
 
 
-// ---------- 重新部署自訂 MCP:索取 env 值 ----------
-// 定義只保存 env 的「鍵」(schema),值不落地。重新部署時必須重新輸入,
-// 否則會部署出一個沒有金鑰、狀態看似 running 但實際不可用的服務。
+// ---------- Redeploy a custom MCP: ask for env values ----------
+// The definition keeps only env keys (schema); values are never persisted. A redeploy must ask for them again,
+// otherwise we would deploy a service with no secrets that looks running but is unusable.
 function ByoDeployModal({ stageText, entry, onClose, onSubmit }) {
   const { t } = useTranslation()
   const schema = entry.envSchema || []
@@ -954,9 +959,9 @@ function ByoDeployModal({ stageText, entry, onClose, onSubmit }) {
 }
 
 
-// ---------- 容器 Log 檢視 ----------
-// 容器崩潰或啟動失敗時,死因只在它自己的輸出裡。BYO 不用 --rm,
-// 因此即使已退出也還撈得到(見 Orchestrator.container_logs)。
+// ---------- Container log viewer ----------
+// When a container crashes or fails to start, the cause is only in its own output. BYO does not use --rm,
+// so logs are still retrievable after exit (see Orchestrator.container_logs).
 function LogsModal({ process, onClose }) {
   const { t } = useTranslation()
   const [logs, setLogs] = useState('')

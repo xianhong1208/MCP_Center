@@ -1,6 +1,6 @@
-"""管理台的 OAuth 管理 API(/api/oauth/*,需登入)。
+"""Admin-console OAuth management API (/api/oauth/*, login required).
 
-clients / scopes / tokens(含 Personal Access Token)/ consents / signing keys / activity / 接入範例。
+clients / scopes / tokens (incl. Personal Access Tokens) / consents / signing keys / activity / integration snippets.
 """
 
 from __future__ import annotations
@@ -67,7 +67,8 @@ async def list_clients(status: str = Query("all"), db: Session = Depends(get_db)
 @router.post("/clients", status_code=201)
 async def create_client(body: ClientCreateRequest, request: Request, db: Session = Depends(get_db),
                         user: AdminUser = Depends(get_current_user)):
-    """管理台手動登記受信任 client(直接核准、略過同意頁)。secret 只回一次。"""
+    """Manually register a trusted client from the admin console (auto-approved, consent page skipped). The secret is
+    returned only once."""
     try:
         client, secret = oauth.register_client(db, body.model_dump(), created_via="manual",
                                                is_approved=True, owner_id=user.id)
@@ -107,7 +108,7 @@ async def approve_client(client_id: str, request: Request, db: Session = Depends
 @router.post("/clients/{client_id}/revoke")
 async def revoke_client(client_id: str, request: Request, db: Session = Depends(get_db),
                         user: AdminUser = Depends(get_current_user)):
-    """停用 client 並撤銷其所有 token。"""
+    """Deactivate the client and revoke all of its tokens."""
     try:
         client = OAuthClientAdapter.get_existing(db, client_id)
     except AdapterError as e:
@@ -193,7 +194,8 @@ async def list_tokens(kind: Optional[str] = None, service_id: Optional[str] = No
 @router.post("/tokens/personal", status_code=201)
 async def create_personal_token(body: PersonalTokenRequest, request: Request, db: Session = Depends(get_db),
                                 user: AdminUser = Depends(get_current_user)):
-    """簽發 Personal Access Token:貼到 MCP client 設定的 Authorization: Bearer。明文只回一次。"""
+    """Issue a Personal Access Token: paste it into the MCP client's Authorization: Bearer setting. The plaintext is
+    returned only once."""
     try:
         service = ServiceAdapter.get_existing(db, body.service_id)
         jwt_value, rec = oauth.mint_personal_token(db, user=user, service=service, scopes=body.scopes,
@@ -300,7 +302,7 @@ async def overview(db: Session = Depends(get_db), _: AdminUser = Depends(get_cur
 
 
 # ---------------------------------------------------------------------------
-# 接入範例(FastMCP server / MCP client 設定)
+# Integration snippets (FastMCP server / MCP client configuration)
 # ---------------------------------------------------------------------------
 @router.get("/snippets/{service_id}")
 async def integration_snippets(service_id: str, db: Session = Depends(get_db),

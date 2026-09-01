@@ -5,12 +5,14 @@ import clsx from 'clsx'
 import { copyToClipboard } from '../utils/clipboard'
 import { useToast } from '../contexts/ToastContext'
 import IconButton from './ui/IconButton'
+import Button from './ui/Button'
 
 /**
- * 可複製的程式碼 / 指令區塊。
- * value 可為字串或物件(物件會 JSON.stringify(…, 2))。
+ * Copyable code / command block.
+ * `value` may be a string or an object (objects are JSON.stringify'd with 2-space indent).
+ * `copyLabel` renders a labelled primary button instead of the icon button — use it when copying is the page's main action.
  */
-export default function CodeBlock({ title, value, language, className, rows, sensitive = false }) {
+export default function CodeBlock({ title, value, language, className, rows, sensitive = false, copyLabel }) {
   const { t } = useTranslation()
   const toast = useToast()
   const [copied, setCopied] = useState(false)
@@ -27,7 +29,9 @@ export default function CodeBlock({ title, value, language, className, rows, sen
     }
   }
 
-  const copyButton = (
+  const copyButton = copyLabel ? (
+    <Button variant="primary" size="sm" icon={copied ? Check : Copy} onClick={handleCopy}>{copyLabel}</Button>
+  ) : (
     <IconButton
       size="sm"
       icon={copied ? Check : Copy}

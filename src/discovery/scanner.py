@@ -1,10 +1,10 @@
-"""MCP 服務發現掃描器
+"""MCP service discovery scanner
 
-功能：
-- 埠掃描 (Python async socket)
-- MCP 服務驗證 (JSON-RPC initialize)
-- Tool 列表獲取 (tools/list)
-- SSE 格式支援
+Features:
+- Port scanning (Python async socket)
+- MCP service verification (JSON-RPC initialize)
+- Tool list retrieval (tools/list)
+- SSE format support
 """
 
 import asyncio
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MCPToolInfo:
-    """MCP Tool 資訊"""
+    """MCP tool information"""
     name: str
     description: Optional[str] = None
     input_schema: Optional[Dict[str, Any]] = None
@@ -29,12 +29,12 @@ class MCPToolInfo:
 
 @dataclass
 class MCPVerifyResult:
-    """MCP 服務驗證結果"""
+    """MCP service verification result"""
     success: bool
     protocol_version: Optional[str] = None
     server_name: Optional[str] = None
     server_version: Optional[str] = None
-    server_description: Optional[str] = None  # 從 serverInfo.description 獲取（如果有）
+    server_description: Optional[str] = None  # Taken from serverInfo.description (if present)
     capabilities: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     response_time_ms: float = 0.0
@@ -42,7 +42,7 @@ class MCPVerifyResult:
 
 @dataclass
 class DiscoveredService:
-    """發現的服務"""
+    """A discovered service"""
     host: str
     port: int
     protocol: str = "http"
@@ -52,37 +52,39 @@ class DiscoveredService:
 
     @property
     def requires_auth(self) -> bool:
-        """判斷服務是否需要認證
+        """Determine whether the service requires authentication.
 
-        如果驗證結果顯示 "(requires auth)" 或有 401 錯誤，表示需要認證。
-        如果有成功獲取 tools（不需要 auth_token），表示不需要認證。
+        If the verification result shows "(requires auth)" or a 401 error, authentication is required.
+        If tools were fetched successfully (without an auth_token), authentication is not required.
         """
         if self.verify_result:
-            # 如果 server_name 是 "(requires auth)"，表示服務返回 401
+            # server_name == "(requires auth)" means the service returned 401
             if self.verify_result.server_name == "(requires auth)":
                 return True
-            # 如果有成功獲取 tools 且沒有提供 auth_token，表示不需要認證
+            # Tools were fetched successfully without an auth_token, so no authentication is needed
             if self.tools:
                 return False
-        # 預設需要認證（較安全的假設）
+        # Default to requiring authentication (the safer assumption)
         return True
 
 
 class ScannerSSRFError(Exception):
-    """連線目標位址被 SSRF 防護拒絕"""
+    """Connection target address rejected by SSRF protection"""
 
 
 def _resolve_validated_ip(host: str) -> Optional[str]:
-    """SSRF 防護:解析 host、驗證每個 IP,回傳可安全連線的單一 IP。
+    """SSRF protection: resolve the host, validate every IP, and return a single IP that is safe to connect to.
 
-    拒絕 link-local(含雲端 metadata 169.254.169.254)、multicast、reserved、
-    unspecified(0.0.0.0)位址;允許 loopback / private(掃描本機 managed 服務
-    與內網 MCP 服務是合法用途)。
+    Rejects link-local (including the cloud metadata address 169.254.169.254), multicast, reserved and
+    unspecified (0.0.0.0) addresses; allows loopback / private addresses (scanning local managed services
+    and intranet MCP services is a legitimate use case).
 
-    關鍵:回傳「已驗證的 IP」給呼叫端 pin 住連線,避免「驗證時解析→連線時再解析」
-    之間的 DNS rebinding(第一次回良性 IP 過檢查,第二次回 metadata IP)。host 本身
-    為 IP 字面值時直接驗證回傳。解析失敗回 None(交給連線階段的 timeout/error 處理,
-    不誤殺)。對應整體安全審查 AUDIT-1(SSRF)。
+    Key point: the *validated* IP is returned so the caller can pin the connection to it, avoiding DNS
+    rebinding between "resolve at validation time" and "resolve again at connect time" (first answer is a
+    benign IP that passes the check, second answer is the metadata IP). If the host is already an IP
+    literal it is validated and returned directly. Resolution failure returns None (left to the connection
+    phase's timeout/error handling rather than being rejected here). Addresses security audit item AUDIT-1
+    (SSRF).
     """
     import ipaddress as _ip
     import socket as _sock
@@ -92,14 +94,15 @@ def _resolve_validated_ip(host: str) -> Optional[str]:
         return None
     validated = None
     for info in infos:
-        addr = info[4][0].split('%')[0]  # 去除 IPv6 scope id
+        addr = info[4][0].split('%')[0]  # Strip the IPv6 scope id
         try:
             ip = _ip.ip_address(addr)
         except ValueError:
             continue
-        # loopback(127.0.0.1 / ::1)為合法的本機掃描目標,明確放行。
-        # 注意:IPv6 的 ::1 在 Python 中 is_reserved 為 True,若不先放行會被下方 block
-        # 誤殺——當 localhost 同時解析出 IPv4+IPv6 時(常見於容器/CI)即會踩到。
+        # Loopback (127.0.0.1 / ::1) is a legitimate local scan target; allow it explicitly.
+        # Note: for IPv6 ::1, Python reports is_reserved == True, so without this early allow it would be
+        # wrongly rejected by the block below -- which happens whenever localhost resolves to both IPv4 and
+        # IPv6 (common in containers/CI).
         if ip.is_loopback:
             if validated is None:
                 validated = addr
@@ -115,12 +118,12 @@ def _resolve_validated_ip(host: str) -> Optional[str]:
 
 
 def _url_host(host: str) -> str:
-    """組 URL 用的 host:IPv6 需加中括號。"""
+    """Host form for building URLs: IPv6 addresses need square brackets."""
     return f"[{host}]" if ":" in host else host
 
 
 class MCPScanner:
-    """MCP 服務掃描器"""
+    """MCP service scanner"""
 
     def __init__(
         self,
@@ -128,17 +131,18 @@ class MCPScanner:
         max_concurrent: int = 50,
         rpc_timeout: Optional[float] = None,
     ):
-        """初始化掃描器
+        """Initialize the scanner.
 
         Args:
-            timeout: **TCP 埠掃描**的連線超時(秒)。掃描動輒數百個埠且多數是
-                關閉的,這裡必須短。
-            max_concurrent: 最大同時連線數
-            rpc_timeout: **MCP JSON-RPC 呼叫**(initialize / tools/list)的超時
-                (秒)。與埠掃描是不同性質:對方可能正在冷啟動(容器內 npx/uvx
-                首次要線上安裝套件),沿用埠掃描的短 timeout 會在對方回應前就
-                中止連線 —— 實測會讓 supergateway 事後回寫時拋未捕捉例外而整個
-                崩潰。預設較寬鬆,可用 MCP_RPC_TIMEOUT 調整。
+            timeout: Connection timeout (seconds) for **TCP port scanning**. A scan often covers
+                hundreds of ports, most of them closed, so this must be short.
+            max_concurrent: Maximum number of concurrent connections.
+            rpc_timeout: Timeout (seconds) for **MCP JSON-RPC calls** (initialize / tools/list).
+                This is a different beast from port scanning: the peer may be cold-starting (npx/uvx
+                inside the container installing packages online for the first time). Reusing the short
+                port-scan timeout would abort the connection before the peer answers -- in practice this
+                made supergateway throw an uncaught exception when writing back later and crash
+                entirely. The default is generous; tune it with MCP_RPC_TIMEOUT.
         """
         self.timeout = timeout
         self.rpc_timeout = rpc_timeout if rpc_timeout is not None else _default_rpc_timeout()
@@ -150,16 +154,17 @@ class MCPScanner:
         host: str,
         ports: List[int]
     ) -> List[int]:
-        """掃描開放的埠
+        """Scan for open ports.
 
         Args:
-            host: 主機位址
-            ports: 要掃描的埠列表
+            host: Host address
+            ports: List of ports to scan
 
         Returns:
-            開放的埠列表
+            List of open ports
         """
-        # SSRF 防護(AUDIT-1):解析並驗證一次,pin 住 IP 連線(防 DNS rebinding)
+        # SSRF protection (AUDIT-1): resolve and validate once, then pin the connection to that IP
+        # (prevents DNS rebinding)
         connect_host = _resolve_validated_ip(host) or host
         tasks = [self._check_port(connect_host, port) for port in ports]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -172,10 +177,10 @@ class MCPScanner:
         return open_ports
 
     async def _check_port(self, host: str, port: int) -> bool:
-        """檢查單一埠是否開放"""
+        """Check whether a single port is open."""
         async with self._semaphore:
             try:
-                # 使用 asyncio 建立 TCP 連線
+                # Open a TCP connection with asyncio
                 _, writer = await asyncio.wait_for(
                     asyncio.open_connection(host, port),
                     timeout=self.timeout
@@ -190,13 +195,14 @@ class MCPScanner:
                 return False
 
     async def _read_sse_message(self, response) -> Optional[Dict[str, Any]]:
-        """從**仍開著的** SSE 串流增量讀出第一則 JSON-RPC 訊息就返回。
+        """Incrementally read the first JSON-RPC message from a **still-open** SSE stream and return it.
 
-        Streamable HTTP 的回應多為 `text/event-stream` + chunked,且連線會
-        保持開啟(伺服器之後可能繼續推送)。若用 `response.read()/text()`
-        等「整個 body 結束」,對 SSE 而言永遠不會結束 —— 會一路等到逾時、
-        連線被中斷,實測還會讓對端(supergateway)在回寫時因找不到連線而
-        拋未捕捉例外整個崩潰。因此這裡逐塊讀,湊到一則完整訊息就停。
+        Streamable HTTP responses are usually `text/event-stream` + chunked, and the connection stays
+        open (the server may keep pushing afterwards). Waiting for "the whole body to finish" with
+        `response.read()/text()` never completes for SSE -- it waits until the timeout fires and the
+        connection is torn down, and in practice the peer (supergateway) then throws an uncaught
+        exception when writing back to a connection it can no longer find, crashing entirely. So we read
+        chunk by chunk and stop as soon as one complete message has been assembled.
         """
         buf = ""
         try:
@@ -212,13 +218,13 @@ class MCPScanner:
                         try:
                             return json.loads(payload)
                         except json.JSONDecodeError:
-                            continue  # 事件可能跨多行,繼續收
+                            continue  # An event may span multiple lines; keep collecting
         except Exception as e:
             logger.debug(f"SSE incremental read ended: {e}")
         return None
 
     async def _read_jsonrpc(self, response) -> Optional[Dict[str, Any]]:
-        """依 Content-Type 取出 JSON-RPC 回應(SSE 走增量讀,JSON 直接解析)。"""
+        """Extract the JSON-RPC response based on Content-Type (SSE is read incrementally, JSON is parsed directly)."""
         content_type = response.headers.get("Content-Type", "")
         if "text/event-stream" in content_type:
             return await self._read_sse_message(response)
@@ -235,12 +241,12 @@ class MCPScanner:
         protocol: str = "http",
         auth_token: Optional[str] = None
     ) -> MCPVerifyResult:
-        """驗證 MCP 服務
+        """Verify an MCP service.
 
-        使用 JSON-RPC initialize 請求驗證服務是否為有效的 MCP 服務。
+        Uses a JSON-RPC initialize request to check whether the service is a valid MCP service.
         """
-        # SSRF 防護(AUDIT-1):解析並驗證一次,pin 住 IP 連線(防 DNS rebinding),
-        # 保留原始 Host header 讓 vhost 路由不受影響。
+        # SSRF protection (AUDIT-1): resolve and validate once, pin the connection to that IP (prevents
+        # DNS rebinding), and keep the original Host header so vhost routing is unaffected.
         connect_host = _resolve_validated_ip(host) or host
         url = f"{protocol}://{_url_host(connect_host)}:{port}{path}"
         start_time = time.time()
@@ -281,16 +287,16 @@ class MCPScanner:
                     elapsed_ms = (time.time() - start_time) * 1000
                     logger.info(f"MCP verify response: status={response.status}, content-type={response.headers.get('Content-Type', 'N/A')}")
 
-                    # 處理非 200 狀態碼
-                    # 注意：401 不能直接當作 MCP 服務，因為任何受保護的 HTTP 端點都可能返回 401
-                    # 只有收到有效的 JSON-RPC 回應才能確認是 MCP 服務
+                    # Handle non-200 status codes
+                    # Note: a 401 alone must not be taken as an MCP service, since any protected HTTP
+                    # endpoint may return 401. Only a valid JSON-RPC response confirms an MCP service.
                     if response.status == 401:
-                        # 嘗試解析回應，看是否為 JSON-RPC 格式
+                        # Try to parse the response to see whether it is JSON-RPC formatted
                         try:
                             content_type = response.headers.get("Content-Type", "")
                             if "application/json" in content_type or "text/event-stream" in content_type:
                                 body = await self._read_jsonrpc(response)
-                                # 檢查是否為 JSON-RPC 格式的錯誤回應
+                                # Check whether this is a JSON-RPC formatted error response
                                 if body and isinstance(body, dict) and ("jsonrpc" in body or "error" in body):
                                     return MCPVerifyResult(
                                         success=True,
@@ -300,7 +306,7 @@ class MCPScanner:
                                     )
                         except Exception:
                             pass
-                        # 非 JSON-RPC 格式的 401，不視為 MCP 服務
+                        # A 401 that is not JSON-RPC formatted is not treated as an MCP service
                         return MCPVerifyResult(
                             success=False,
                             error="HTTP 401 (not MCP - no JSON-RPC response)",
@@ -314,7 +320,7 @@ class MCPScanner:
                             response_time_ms=elapsed_ms
                         )
 
-                    # 處理 SSE 或 JSON 回應(SSE 必須增量讀 — 見 _read_sse_message)
+                    # Handle the SSE or JSON response (SSE must be read incrementally -- see _read_sse_message)
                     result = await self._read_jsonrpc(response)
 
                     if not result:
@@ -334,13 +340,13 @@ class MCPScanner:
                     if "result" in result:
                         init_result = result["result"]
 
-                        # 驗證這是有效的 MCP initialize 回應
-                        # MCP 回應必須包含 protocolVersion 和 serverInfo
+                        # Verify that this is a valid MCP initialize response
+                        # An MCP response must contain protocolVersion and serverInfo
                         protocol_version = init_result.get("protocolVersion")
                         server_info = init_result.get("serverInfo", {})
                         server_name = server_info.get("name")
 
-                        # 至少需要 protocolVersion 或 serverInfo.name 才能確認是 MCP
+                        # At least protocolVersion or serverInfo.name is needed to confirm MCP
                         if not protocol_version and not server_name:
                             return MCPVerifyResult(
                                 success=False,
@@ -395,9 +401,9 @@ class MCPScanner:
         protocol: str = "http",
         auth_token: Optional[str] = None
     ) -> List[MCPToolInfo]:
-        """取得 MCP 服務的 Tool 列表（三步流程：initialize → initialized → tools/list）"""
-        # SSRF 防護(AUDIT-1):解析並驗證一次,pin 住 IP 連線(防 DNS rebinding),
-        # 保留原始 Host header 讓 vhost 路由不受影響。
+        """Get the tool list of an MCP service (three-step flow: initialize -> initialized -> tools/list)."""
+        # SSRF protection (AUDIT-1): resolve and validate once, pin the connection to that IP (prevents
+        # DNS rebinding), and keep the original Host header so vhost routing is unaffected.
         connect_host = _resolve_validated_ip(host) or host
         url = f"{protocol}://{_url_host(connect_host)}:{port}{path}"
 
@@ -413,7 +419,7 @@ class MCPScanner:
         try:
             timeout = aiohttp.ClientTimeout(total=self.rpc_timeout)
             async with aiohttp.ClientSession() as session:
-                # 步驟 1: Initialize
+                # Step 1: Initialize
                 init_request = {
                     "jsonrpc": "2.0",
                     "id": 1,
@@ -433,14 +439,14 @@ class MCPScanner:
                     if init_response.status != 200:
                         return []
 
-                    # 獲取 session ID(Streamable HTTP 的 session 由此 header 帶出)
+                    # Get the session ID (Streamable HTTP carries the session in this header)
                     session_id = init_response.headers.get("mcp-session-id")
 
-                    # 讀出 initialize 回應。SSE 需增量讀:直接 read() 會等
-                    # 串流結束而永遠卡住(見 _read_sse_message 的說明)。
+                    # Read the initialize response. SSE must be read incrementally: a plain read() waits
+                    # for the stream to end and hangs forever (see the notes on _read_sse_message).
                     await self._read_jsonrpc(init_response)
 
-                # 步驟 2: 發送 initialized 通知
+                # Step 2: Send the initialized notification
                 initialized_notification = {
                     "jsonrpc": "2.0",
                     "method": "notifications/initialized",
@@ -454,10 +460,10 @@ class MCPScanner:
                 async with session.post(
                     url, json=initialized_notification, headers=notify_headers, timeout=timeout, ssl=False
                 ) as notify_response:
-                    # 消耗 response body（即使不需要處理，也要讀取以避免連線問題）
+                    # Consume the response body (even though it is not needed, read it to avoid connection issues)
                     await notify_response.read()
 
-                # 步驟 3: 獲取工具列表
+                # Step 3: Fetch the tool list
                 tools_request = {
                     "jsonrpc": "2.0",
                     "id": 2,
@@ -503,26 +509,26 @@ class MCPScanner:
         get_tools: bool = True,
         auth_token: Optional[str] = None
     ) -> List[DiscoveredService]:
-        """發現 MCP 服務
+        """Discover MCP services.
 
         Args:
-            hosts: 主機列表
-            ports: 埠列表
-            verify: 是否驗證 MCP 服務
-            get_tools: 是否取得 Tool 列表
-            auth_token: Bearer token (可選，用於需要認證的 MCP 服務)
+            hosts: List of hosts
+            ports: List of ports
+            verify: Whether to verify MCP services
+            get_tools: Whether to fetch the tool list
+            auth_token: Bearer token (optional, for MCP services that require authentication)
 
         Returns:
-            DiscoveredService 列表
+            List of DiscoveredService
         """
         discovered = []
 
         for host in hosts:
-            # 掃描開放的埠
+            # Scan for open ports
             open_ports = await self.scan_ports(host, ports)
             logger.info(f"Found {len(open_ports)} open ports on {host}: {open_ports}")
 
-            # 驗證每個開放的埠
+            # Verify each open port
             for port in open_ports:
                 service = DiscoveredService(
                     host=host,
@@ -531,17 +537,17 @@ class MCPScanner:
                 )
 
                 if verify:
-                    # 嘗試 HTTP
+                    # Try HTTP
                     result = await self.verify_mcp_service(host, port, "/mcp", "http", auth_token)
                     if not result.success:
-                        # 嘗試 HTTPS
+                        # Try HTTPS
                         result = await self.verify_mcp_service(host, port, "/mcp", "https", auth_token)
                         if result.success:
                             service.protocol = "https"
 
                     service.verify_result = result
 
-                    # 只有在驗證成功且不需要認證時才獲取 tools
+                    # Only fetch tools when verification succeeded and no authentication is required
                     requires_auth = result.server_name == "(requires auth)"
                     if result.success and get_tools and not requires_auth:
                         try:
@@ -550,25 +556,26 @@ class MCPScanner:
                             )
                             service.tools = tools
                         except PermissionError:
-                            # 服務需要認證，跳過 tools 獲取
+                            # Service requires authentication; skip fetching tools
                             pass
 
-                # 只添加驗證成功的服務，或不驗證時添加所有服務
+                # Only add services that verified successfully, or all services when not verifying
                 if not verify or (service.verify_result and service.verify_result.success):
                     discovered.append(service)
 
         return discovered
 
 
-# 全域 scanner instance
+# Global scanner instance
 _scanner_instance: Optional[MCPScanner] = None
 
 
 def _default_rpc_timeout() -> float:
-    """MCP JSON-RPC 呼叫的預設 timeout(秒)。
+    """Default timeout (seconds) for MCP JSON-RPC calls.
 
-    對方可能正在冷啟動(容器內 npx/uvx 首次需線上安裝),5 秒遠遠不夠。
-    BYO 的冷啟動已由 orchestrator 暖機吸收,此處仍保留較寬鬆的預設作為防線。
+    The peer may be cold-starting (npx/uvx inside the container installing online for the first time),
+    so 5 seconds is nowhere near enough. BYO cold starts are already absorbed by the orchestrator's
+    warm-up; a generous default is kept here as a safety net.
     """
     import os as _os
     try:
@@ -578,11 +585,11 @@ def _default_rpc_timeout() -> float:
 
 
 def _default_scan_timeout() -> float:
-    """掃描/驗證的預設 timeout(秒)。
+    """Default timeout (seconds) for scanning/verification.
 
-    5s 對「已就緒」的服務綽綽有餘,但對冷啟動中的服務會太短。BYO 的冷啟動
-    已由 orchestrator 的暖機吸收(見 Orchestrator._warmup_bridge),此處保留
-    環境變數以便部署現場微調。
+    5s is more than enough for a service that is already ready, but too short for one that is still
+    cold-starting. BYO cold starts are already absorbed by the orchestrator's warm-up (see
+    Orchestrator._warmup_bridge); the environment variable is kept so deployments can fine-tune it.
     """
     import os as _os
     try:
@@ -592,7 +599,7 @@ def _default_scan_timeout() -> float:
 
 
 def get_scanner() -> MCPScanner:
-    """取得 MCPScanner singleton instance"""
+    """Get the MCPScanner singleton instance."""
     global _scanner_instance
     if _scanner_instance is None:
         _scanner_instance = MCPScanner(timeout=_default_scan_timeout())

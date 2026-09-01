@@ -1,87 +1,87 @@
-"""Docker argv 安全政策(單一來源)
+"""Docker argv security policy (single source of truth)
 
-這個模組定義「什麼樣的 token 可以進到 `docker run` 的 argv」,並被**兩個
-邊界**共用:
+This module defines which tokens may enter the argv of `docker run`, and it is shared
+by **two boundaries**:
 
-  1. 寫入邊界 — src/marketplace/schema.py 的 DockerSpec:
-     catalog YAML 載入時驗證,壞掉的 entry 直接不會被 install。
-  2. 執行邊界 — src/orchestrator/manager.py 的 _start_locked:
-     從 DB 讀出 image_args / image_command 之後、組 argv 之前再驗一次。
+  1. Write boundary -- DockerSpec in src/marketplace/schema.py:
+     validated when the catalog YAML is loaded; a broken entry simply cannot be installed.
+  2. Execution boundary -- _start_locked in src/orchestrator/manager.py:
+     validated again after image_args / image_command are read from the DB and before argv is built.
 
-為什麼兩邊都要驗(不是多餘):
+Why both boundaries must validate (this is not redundant):
 
-  * 這是 **Stored** command/argument injection。威脅模型包含「攻擊者已經有
-    辦法寫 DB」(SQL injection、洩漏的 DB 憑證、內部誤用 CRUD)。那條路徑
-    完全繞過 catalog,所以只在寫入時驗等於沒防。
-  * 靜態掃描(SAST 工具)無法把「寫進 DB 前驗過」和「從 DB 讀出來用」
-    連起來 — 這是 stored flow 的本質限制。sanitizer 必須出現在 DB 讀取與
-    subprocess 之間,才是真的在那條路徑上。
+  * This is a **stored** command/argument injection. The threat model includes "the attacker
+    can already write to the DB" (SQL injection, leaked DB credentials, internal CRUD misuse).
+    That path bypasses the catalog entirely, so validating only at write time is no defence at all.
+  * Static analysis (SAST tools) cannot connect "validated before being written to the DB" with
+    "read from the DB and used" -- that is an inherent limitation of stored flows. The sanitizer
+    must sit between the DB read and the subprocess to actually be on that path.
 
-政策的核心取捨:`args` 用 **flag 層級**白名單,不是字元層級。
-`-v /:/host`、`--privileged`、`--pid=host` 全由「安全字元」組成,任何字元
-白名單都放行,shlex.quote 也一樣(quote 管 shell 安全,不管 argv 語意)。
-只有列舉允許的 flag 才能讓逃逸 flag「無法表達」。
+The core trade-off of the policy: `args` uses a **flag-level** allowlist, not a character-level one.
+`-v /:/host`, `--privileged` and `--pid=host` consist entirely of "safe characters", so any character
+allowlist lets them through, and so does shlex.quote (quoting handles shell safety, not argv semantics).
+Only enumerating the permitted flags makes escape flags "inexpressible".
 """
 import re
 from typing import Iterable, List
 
-# 不帶值的 flag。刻意不收錄(= 一律拒絕)的逃逸向量:
-#   -v/--volume/--mount  → 掛載 host 檔案系統
-#   --privileged, --cap-add, --device, --security-opt, --userns → 提權
-#   --pid/--ipc/--uts    → 共用 host namespace
-#   --entrypoint         → 取代 image 進入點
-#   -d/--detach          → orchestrator 自己決定 -i / -d,catalog 不得覆寫
+# Flags that take no value. Escape vectors deliberately left out (= always rejected):
+#   -v/--volume/--mount  -> mounts the host filesystem
+#   --privileged, --cap-add, --device, --security-opt, --userns -> privilege escalation
+#   --pid/--ipc/--uts    -> shares host namespaces
+#   --entrypoint         -> replaces the image entrypoint
+#   -d/--detach          -> the orchestrator decides -i / -d itself; the catalog must not override it
 _ALLOWED_BARE_FLAGS = frozenset({"--rm", "-i", "-t", "-it", "--init"})
 
-# BYO(自帶啟動指令)允許的內層 command。刻意 default-deny:
-# 只允許在受控基底 image 內存在、且由 supergateway spawn 的 runtime launcher。
-# 不允許任意路徑/二進位(避免 `bash`、`sh -c`、絕對路徑執行檔等)。
+# Inner commands allowed for BYO (bring-your-own launch command). Deliberately default-deny:
+# only runtime launchers that exist in the controlled base image and are spawned by supergateway.
+# Arbitrary paths/binaries are not allowed (avoids `bash`, `sh -c`, absolute-path executables, etc.).
 _ALLOWED_BYO_COMMANDS = frozenset({"npx", "node", "uvx", "python", "python3"})
 
-# 剛好帶一個值的 flag → 每個 flag 各自的值格式。
+# Flags that take exactly one value -> the value format for each flag.
 _ALLOWED_VALUE_FLAGS = {
-    # host 刻意不放行:會拿掉網路隔離,讓 container 直接打到 host 上的
-    # MCP Center admin API(127.0.0.1)。
+    # host is deliberately not allowed: it removes network isolation and lets the container
+    # reach the MCP Center admin API on the host (127.0.0.1) directly.
     "--network": re.compile(r"(bridge|none)"),
     "--pull": re.compile(r"(always|missing|never)"),
     "--memory": re.compile(r"\d+[bkmg]?"),
     "--cpus": re.compile(r"\d+(\.\d+)?"),
 }
 
-# docker image name(不含 tag);可選的 registry host[:port] 前綴。
+# docker image name (without tag); optional registry host[:port] prefix.
 _IMAGE_RE = re.compile(
     r"(?:[a-z0-9]+(?:[._-][a-z0-9]+)*(?::[0-9]+)?/)?"
     r"[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*"
 )
 
-# docker 自己的 tag 規則。
+# docker's own tag rules.
 _TAG_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,127}")
 
-# entrypoint args(docker.command)是傳給 *image* 的參數,不是 `docker run`
-# 的 flag,因此造不成 container 逃逸 — 字元白名單在這裡是合適的強度。
+# entrypoint args (docker.command) are arguments passed to the *image*, not `docker run` flags,
+# so they cannot cause a container escape -- a character allowlist is the appropriate strength here.
 _SAFE_TOKEN_RE = re.compile(r"[A-Za-z0-9_.:=/@,+-]+")
 
-# 注意:以下所有比對都用 `fullmatch`,不用 `match`。`$` 會在字串結尾的換行
-# 之前就成立,所以 `match` 加 `^...$` 仍會放行 "--rm\n" 這種尾端換行的 token。
+# Note: every match below uses `fullmatch`, never `match`. `$` matches before a trailing newline
+# at the end of the string, so `match` with `^...$` would still accept a token like "--rm\n".
 
 
 class ArgvPolicyError(ValueError):
-    """token 不符合 docker argv 政策。
+    """A token does not satisfy the docker argv policy.
 
-    繼承 ValueError,所以在 Pydantic field_validator 裡 raise 會被正常轉成
-    ValidationError;在 orchestrator 裡則由呼叫端轉成 OrchestratorError。
+    Inherits from ValueError so that raising it inside a Pydantic field_validator is converted
+    into a ValidationError as usual; in the orchestrator the caller converts it into an OrchestratorError.
     """
 
 
 def validate_docker_args(tokens: Iterable[str]) -> List[str]:
-    """驗證 `docker run` 的 flag 序列,回傳原序列(方便串接使用)。
+    """Validate a sequence of `docker run` flags and return the original sequence (for easy chaining).
 
-    必須把 args 當**序列**走訪,不能逐 token 獨立檢查:docker flag 有
-    `--network=bridge`(單 token)和 `--network bridge`(雙 token)兩種寫法,
-    要判斷 `/:/host` 合不合法,得知道前一個 token 是不是 `-v`。
+    The args must be walked as a **sequence**, not checked token by token: docker flags come in
+    both `--network=bridge` (single token) and `--network bridge` (two tokens) forms, so deciding
+    whether `/:/host` is legitimate requires knowing whether the previous token was `-v`.
 
-    不在白名單的 flag 一律拒絕(default-deny),所以 `-v`、`--privileged`
-    這類逃逸 flag 是「無法表達」而非「被過濾掉」。
+    Any flag not on the allowlist is rejected (default-deny), so escape flags such as `-v` and
+    `--privileged` are "inexpressible" rather than "filtered out".
     """
     args = list(tokens)
     i = 0
@@ -96,61 +96,61 @@ def validate_docker_args(tokens: Iterable[str]) -> List[str]:
         value_re = _ALLOWED_VALUE_FLAGS.get(flag)
         if value_re is None:
             raise ArgvPolicyError(
-                f"不允許的 docker flag: {token!r}。"
-                f"允許的 flag:{sorted(_ALLOWED_BARE_FLAGS)} "
+                f"docker flag not allowed: {token!r}. "
+                f"Allowed flags: {sorted(_ALLOWED_BARE_FLAGS)} "
                 f"+ {sorted(_ALLOWED_VALUE_FLAGS)}"
             )
 
         if sep:
-            # --flag=value 形式
+            # --flag=value form
             value = inline_value
             i += 1
         else:
-            # --flag value 形式
+            # --flag value form
             if i + 1 >= len(args):
-                raise ArgvPolicyError(f"docker flag {flag!r} 缺少值")
+                raise ArgvPolicyError(f"docker flag {flag!r} is missing a value")
             value = args[i + 1]
             i += 2
 
         if not value_re.fullmatch(value):
             raise ArgvPolicyError(
-                f"docker flag {flag!r} 不允許此值: {value!r}"
+                f"docker flag {flag!r} does not allow this value: {value!r}"
             )
 
     return args
 
 
 def validate_command_tokens(tokens: Iterable[str]) -> List[str]:
-    """驗證 entrypoint args(docker.command),回傳原序列。
+    """Validate entrypoint args (docker.command) and return the original sequence.
 
-    這些 token 不會成為 `docker run` 的 flag,所以無法造成 container 逃逸;
-    只需擋掉 shell metachar 與空白(空白還會破壞 image_args 的 join/split
-    往返,見 orchestrator.manager)。
+    These tokens never become `docker run` flags, so they cannot cause a container escape;
+    we only need to block shell metacharacters and whitespace (whitespace would also break the
+    join/split round-trip of image_args, see orchestrator.manager).
     """
     command = list(tokens)
     for token in command:
         if not isinstance(token, str) or not _SAFE_TOKEN_RE.fullmatch(token):
-            raise ArgvPolicyError(f"entrypoint arg 含不安全字元: {token!r}")
+            raise ArgvPolicyError(f"entrypoint arg contains unsafe characters: {token!r}")
     return command
 
 
 def validate_byo_command(command: str) -> str:
-    """驗證 BYO 內層 command(白名單 default-deny)。"""
+    """Validate the BYO inner command (allowlist, default-deny)."""
     if command not in _ALLOWED_BYO_COMMANDS:
         raise ArgvPolicyError(
-            f"不允許的 BYO command: {command!r}"
-            f"(僅允許 {sorted(_ALLOWED_BYO_COMMANDS)})"
+            f"BYO command not allowed: {command!r} "
+            f"(only {sorted(_ALLOWED_BYO_COMMANDS)} are allowed)"
         )
     return command
 
 
 def validate_byo_launch(command: str, args: Iterable[str]) -> tuple:
-    """驗證 BYO 內層啟動指令:command 白名單 + args 字元白名單。
+    """Validate a BYO inner launch command: command allowlist + args character allowlist.
 
-    args 沿用 `validate_command_tokens` 的字元白名單(`_SAFE_TOKEN_RE`),
-    可擋 shell metachar(`; | & $ () 反引號`)與空白 —— 即使容器內 supergateway
-    以 shell 解析內層指令,也無法被注入。args 最終以 **list** 傳給 docker SDK
-    (無 shell),字元白名單是額外的縱深防禦。
+    args reuse the character allowlist of `validate_command_tokens` (`_SAFE_TOKEN_RE`), which blocks
+    shell metacharacters (`; | & $ ()` and backticks) and whitespace -- even if supergateway inside the
+    container parses the inner command with a shell, nothing can be injected. The args are ultimately
+    passed to the docker SDK as a **list** (no shell); the character allowlist is extra defence in depth.
 
     Returns:
         (command, validated_args_list)
@@ -161,24 +161,24 @@ def validate_byo_launch(command: str, args: Iterable[str]) -> tuple:
 
 
 def validate_image_name(image: str) -> str:
-    """驗證 image name(不含 tag)。"""
+    """Validate an image name (without tag)."""
     if not _IMAGE_RE.fullmatch(image):
-        raise ArgvPolicyError(f"不是合法的 docker image name: {image!r}")
+        raise ArgvPolicyError(f"not a valid docker image name: {image!r}")
     return image
 
 
 def validate_tag(tag: str) -> str:
-    """驗證 image tag。"""
+    """Validate an image tag."""
     if not _TAG_RE.fullmatch(tag):
-        raise ArgvPolicyError(f"不是合法的 docker image tag: {tag!r}")
+        raise ArgvPolicyError(f"not a valid docker image tag: {tag!r}")
     return tag
 
 
 def validate_image_ref(image_ref: str) -> str:
-    """驗證從 DB 讀回來的完整 `image[:tag]`。
+    """Validate a full `image[:tag]` reference read back from the DB.
 
-    切在最後一個 ':',但只有當該 ':' 在最後一個 '/' 之後才算 tag 分隔 —
-    否則 `localhost:5000/img` 的 port 會被誤認成 tag。
+    Split at the last ':', but treat it as the tag separator only when that ':' comes after the
+    last '/' -- otherwise the port in `localhost:5000/img` would be mistaken for a tag.
     """
     head, sep, tail = image_ref.rpartition(":")
     if sep and "/" not in tail:

@@ -7,12 +7,12 @@ import {
 } from './ui'
 
 /**
- * 註冊 / 編輯 MCP 服務共用表單。
+ * Shared form for registering / editing an MCP service.
  *
- * onSubmit(fields) 收到 servicesApi.create / update 的 camelCase 欄位:
+ * onSubmit(fields) receives the camelCase fields of servicesApi.create / update:
  *   { name?, description, host, port, protocol, mcpPath, tags, requiresAuth, oauthAudience, oauthScopes, authToken? }
- *   - oauthAudience '' = 清除(改用 MCP URL);oauthScopes [] = 不限制
- *   - authToken 只在使用者有輸入或勾「清除」時帶(edit),避免覆蓋既有值
+ *   - oauthAudience '' = clear (fall back to the MCP URL); oauthScopes [] = unrestricted
+ *   - authToken is only sent when the user typed one or ticked "clear" (edit), to avoid overwriting the existing value
  */
 export default function ServiceFormModal({ mode = 'create', service = null, scopes = [], onClose, onSubmit }) {
   const { t } = useTranslation()
@@ -42,7 +42,7 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
     set({ oauthScopes: next })
   }
 
-  // 顯示給使用者看的「目前實際 audience」:自訂 → 否則 MCP URL
+  // The effective audience shown to the user: custom value, otherwise the MCP URL
   const previewUrl = form.host && form.port
     ? `${form.protocol}://${form.host}:${form.port}${form.mcpPath || '/mcp'}`
     : ''
@@ -94,7 +94,7 @@ export default function ServiceFormModal({ mode = 'create', service = null, scop
 
           <div className="grid gap-5">
             {!isEdit && (
-              <Field label={t('services.create.name')}>
+              <Field label={t('services.create.name')} required>
                 <Input
                   type="text"
                   value={form.name}

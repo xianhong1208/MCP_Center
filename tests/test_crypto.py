@@ -1,8 +1,8 @@
-"""加密工具測試
+"""Crypto utility tests.
 
-測試涵蓋：
-1. Token 加密/解密
-2. 密鑰處理
+Coverage:
+1. Token encryption/decryption
+2. Key handling
 """
 
 import pytest
@@ -10,28 +10,28 @@ import os
 
 
 class TestTokenEncryption:
-    """Token 加密解密測試"""
+    """Token encryption/decryption tests."""
 
     def test_encrypt_decrypt_token(self):
-        """測試加密和解密 Token"""
-        # 設定測試用密鑰
+        """Encrypt and decrypt a token."""
+        # Set the test key
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token, decrypt_token
 
         original_token = "my-secret-mcp-token-12345"
 
-        # 加密
+        # Encrypt
         encrypted = encrypt_token(original_token)
         assert encrypted != original_token
         assert len(encrypted) > 0
 
-        # 解密
+        # Decrypt
         decrypted = decrypt_token(encrypted)
         assert decrypted == original_token
 
     def test_encrypt_empty_token(self):
-        """測試加密空 Token"""
+        """Encrypt an empty token."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token
@@ -40,7 +40,7 @@ class TestTokenEncryption:
         assert encrypted == ""
 
     def test_decrypt_empty_token(self):
-        """測試解密空 Token"""
+        """Decrypt an empty token."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import decrypt_token
@@ -49,7 +49,7 @@ class TestTokenEncryption:
         assert decrypted == ""
 
     def test_encrypt_special_characters(self):
-        """測試加密含特殊字元的 Token"""
+        """Encrypt a token containing special characters."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token, decrypt_token
@@ -62,7 +62,7 @@ class TestTokenEncryption:
         assert decrypted == special_token
 
     def test_different_tokens_different_ciphertext(self):
-        """測試不同 Token 產生不同密文"""
+        """Different tokens produce different ciphertexts."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token
@@ -76,7 +76,7 @@ class TestTokenEncryption:
         assert encrypted1 != encrypted2
 
     def test_same_token_different_ciphertext_each_time(self):
-        """測試相同 Token 每次加密產生不同密文（因為 IV 不同）"""
+        """The same token yields a different ciphertext on every encryption (because the IV differs)."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token
@@ -86,16 +86,16 @@ class TestTokenEncryption:
         encrypted1 = encrypt_token(token)
         encrypted2 = encrypt_token(token)
 
-        # 由於使用隨機 IV，相同明文每次加密結果應該不同
+        # A random IV is used, so the same plaintext should encrypt differently each time
         assert encrypted1 != encrypted2
 
     def test_long_token_encryption(self):
-        """測試長 Token 加密"""
+        """Encrypt a long token."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token, decrypt_token
 
-        long_token = "x" * 1000  # 1000 字元的 Token
+        long_token = "x" * 1000  # 1000-character token
 
         encrypted = encrypt_token(long_token)
         decrypted = decrypt_token(encrypted)
@@ -103,7 +103,7 @@ class TestTokenEncryption:
         assert decrypted == long_token
 
     def test_unicode_token_encryption(self):
-        """測試 Unicode Token 加密"""
+        """Encrypt a Unicode token."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from src.utils.crypto import encrypt_token, decrypt_token
@@ -117,10 +117,10 @@ class TestTokenEncryption:
 
 
 class TestKeyDerivation:
-    """密鑰派生測試"""
+    """Key derivation tests."""
 
     def test_key_derivation_consistency(self):
-        """測試密鑰派生一致性"""
+        """Key derivation is consistent."""
         os.environ["SERVICE_TOKEN_SECRET"] = "consistent-secret-key!!"
 
         from src.utils.crypto import encrypt_token, decrypt_token
@@ -128,12 +128,12 @@ class TestKeyDerivation:
         token = "test-token"
         encrypted = encrypt_token(token)
 
-        # 使用相同密鑰應該能解密
+        # The same key should be able to decrypt
         decrypted = decrypt_token(encrypted)
         assert decrypted == token
 
     def test_different_keys_cannot_decrypt(self):
-        """測試不同密鑰無法解密"""
+        """A different key cannot decrypt."""
         os.environ["SERVICE_TOKEN_SECRET"] = "original-secret-key-32!!"
 
         from src.utils.crypto import encrypt_token
@@ -141,48 +141,49 @@ class TestKeyDerivation:
         token = "secret-data"
         encrypted = encrypt_token(token)
 
-        # 改變密鑰
+        # Change the key
         os.environ["SERVICE_TOKEN_SECRET"] = "different-secret-key-32!"
 
-        # 重新載入模組以使用新密鑰
+        # Reload the module so it picks up the new key
         import importlib
         import src.utils.crypto as crypto_module
         importlib.reload(crypto_module)
 
         from src.utils.crypto import decrypt_token
 
-        # 應該無法解密或返回錯誤結果
+        # Should fail to decrypt or return a wrong result
         try:
             decrypted = decrypt_token(encrypted)
-            # 如果沒有拋出異常，檢查結果是否正確
+            # If no exception was raised, check that the result is wrong
             assert decrypted != token or decrypted is None
         except Exception:
-            # 預期會失敗
+            # Failure is expected
             pass
 
 
 class TestCryptoSpecCoverage:
-    """補齊 SPEC-CRYPTO 需求缺口:竄改偵測、金鑰缺失、hash、前綴。
+    """Fill the SPEC-CRYPTO coverage gaps: tamper detection, missing key, hash, prefix.
 
-    以 TokenCrypto(secret_key=...) 直接建構,不走 singleton / 環境變數,
-    達到測試隔離(對應 SPEC-CRYPTO 第 5 節)。
+    Constructs TokenCrypto(secret_key=...) directly, bypassing the singleton / environment variables,
+    to keep the tests isolated (see SPEC-CRYPTO section 5).
     """
 
     def test_tampered_ciphertext_rejected(self):
-        """TC-CRYPTO-03 / REQ-CRYPTO-03:竄改密文須被拒,不得回錯誤明文"""
+        """TC-CRYPTO-03 / REQ-CRYPTO-03: tampered ciphertext must be rejected, never return wrong plaintext."""
         from src.utils.crypto import TokenCrypto
 
         crypto = TokenCrypto(secret_key="unit-test-secret-A")
         cipher = crypto.encrypt("my-secret-token-123")
 
-        # 竄改末位字元(base64),破壞 GCM tag / 內容
+        # Tamper with the trailing characters (base64) to corrupt the GCM tag / content
         tampered = cipher[:-2] + ("AA" if cipher[-2:] != "AA" else "BB")
 
         with pytest.raises(Exception):
             crypto.decrypt(tampered)
 
     def test_missing_secret_is_generated_and_persisted(self, monkeypatch, tmp_path):
-        """無 ENCRYPTION_KEY 時由 secrets store 自動產生並持久化,之後每次都拿同一把"""
+        """Without ENCRYPTION_KEY the secrets store generates and persists one, and returns the same key every
+        time afterwards."""
         from src.utils import secrets_store
         from src.utils.crypto import TokenCrypto
 
@@ -197,7 +198,8 @@ class TestCryptoSpecCoverage:
         assert second.decrypt(first.encrypt("hello")) == "hello"
 
     def test_wrong_key_cannot_decrypt(self):
-        """TC-CRYPTO-05 / REQ-CRYPTO-05:不同金鑰不可互解(強化既有測試)"""
+        """TC-CRYPTO-05 / REQ-CRYPTO-05: different keys cannot decrypt each other's output (strengthens the
+        existing test)."""
         from src.utils.crypto import TokenCrypto
 
         a = TokenCrypto(secret_key="key-A-unit-test")
@@ -208,32 +210,32 @@ class TestCryptoSpecCoverage:
             b.decrypt(cipher)
 
     def test_hash_token_stable_and_unique(self):
-        """TC-CRYPTO-06 / REQ-CRYPTO-06:hash_token 穩定、64 位十六進位、唯一"""
+        """TC-CRYPTO-06 / REQ-CRYPTO-06: hash_token is stable, 64 hex digits, and unique."""
         from src.utils.crypto import hash_token
 
         h1 = hash_token("token-a")
         h1_again = hash_token("token-a")
         h2 = hash_token("token-b")
 
-        assert h1 == h1_again                      # 穩定
-        assert len(h1) == 64                        # SHA-256 十六進位
+        assert h1 == h1_again                      # stable
+        assert len(h1) == 64                        # SHA-256 hex
         assert all(c in "0123456789abcdef" for c in h1)
-        assert h1 != h2                             # 唯一
+        assert h1 != h2                             # unique
 
     def test_get_token_prefix(self):
-        """TC-CRYPTO-07 / REQ-CRYPTO-07:取前綴;不足長度回原字串"""
+        """TC-CRYPTO-07 / REQ-CRYPTO-07: take the prefix; return the original string when it is shorter."""
         from src.utils.crypto import get_token_prefix
 
-        assert get_token_prefix("abcdef12345") == "abcdef12"   # 前 8 字元
-        assert get_token_prefix("abc") == "abc"                 # 長度不足回原字串
+        assert get_token_prefix("abcdef12345") == "abcdef12"   # first 8 characters
+        assert get_token_prefix("abc") == "abc"                 # too short: original string returned
         assert get_token_prefix("abcdef12345", length=4) == "abcd"
 
 
 class TestServiceTokenInDatabase:
-    """服務 Token 在資料庫中的加密測試"""
+    """Service token encryption in the database."""
 
     def test_service_auth_token_stored_encrypted(self, db_session):
-        """測試服務 Auth Token 以加密形式儲存"""
+        """The service auth token is stored encrypted."""
         os.environ["SERVICE_TOKEN_SECRET"] = "test-secret-key-32-chars-long!!"
 
         from db.crud import ServiceCRUD
@@ -250,13 +252,13 @@ class TestServiceTokenInDatabase:
             auth_token_encrypted=encrypted_token,
         )
 
-        # 從資料庫取得
+        # Fetch from the database
         fetched = ServiceCRUD.get_by_id(db_session, str(service.id))
 
-        # 儲存的應該是加密後的值
+        # The stored value should be the encrypted one
         assert fetched.auth_token_encrypted == encrypted_token
         assert fetched.auth_token_encrypted != original_token
 
-        # 解密應該得到原始值
+        # Decrypting should yield the original value
         decrypted = decrypt_token(fetched.auth_token_encrypted)
         assert decrypted == original_token

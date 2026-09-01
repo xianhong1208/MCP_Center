@@ -1,20 +1,20 @@
 """Runtime path resolution for dev / Nuitka / Docker deployments.
 
-為什麼這個檔案存在
-----------------
-`Path(__file__).parent / "xxx"` 在 dev 模式正確,但在 Nuitka onefile 模式下會壞:
-- Nuitka onefile 啟動會把整個壓縮包解到 `/tmp/onefile_<pid>_<rnd>/` 臨時目錄
-- `__file__` 指向 `/tmp/onefile_xxx/...`,不是真正 binary 旁邊
-- 結果讀到的是「打包當下的舊 snapshot」而非使用者真正部署的檔案
+Why this file exists
+--------------------
+`Path(__file__).parent / "xxx"` is correct in dev mode but breaks under Nuitka onefile:
+- A Nuitka onefile binary extracts the whole archive into a temporary `/tmp/onefile_<pid>_<rnd>/` directory
+- `__file__` then points at `/tmp/onefile_xxx/...`, not next to the real binary
+- So what gets read is the "stale snapshot from packaging time" rather than the files the user actually deployed
 
-提供 `resolve_external_dir(name, dev_root)` 統一處理:
-  1. Nuitka onefile:用 `NUITKA_ONEFILE_PARENT` env var + `/proc/<pid>/exe` 找真實位置
-  2. Nuitka standalone:用 `sys.executable` 或 `/proc/self/exe`
-  3. Docker container:`/app/{name}` 慣例
-  4. Dev 模式:呼叫端傳進來的 `dev_root`
-  5. Fallback 到 onefile 解壓目錄的 bundled copy
+`resolve_external_dir(name, dev_root)` handles this uniformly:
+  1. Nuitka onefile: find the real location via the `NUITKA_ONEFILE_PARENT` env var + `/proc/<pid>/exe`
+  2. Nuitka standalone: use `sys.executable` or `/proc/self/exe`
+  3. Docker container: the `/app/{name}` convention
+  4. Dev mode: the `dev_root` passed in by the caller
+  5. Fall back to the bundled copy in the onefile extraction directory
 
-`/app/{name}` 排在 dev_root 前面,讓 Docker volume mount 的真實內容贏過 bundled snapshot。
+`/app/{name}` comes before dev_root so that the real contents of a Docker volume mount win over the bundled snapshot.
 """
 from __future__ import annotations
 
@@ -25,18 +25,18 @@ from typing import List, Optional
 
 
 def resolve_external_dir(name: str, dev_root: Path) -> Optional[Path]:
-    """跨部署模式定位外部資源目錄
+    """Locate an external resource directory across deployment modes
 
     Args:
-        name: 目錄名稱(例如 "alembic"、"config"、"catalog")
-        dev_root: dev 模式下的專案根目錄
+        name: directory name (e.g. "alembic", "config", "catalog")
+        dev_root: project root in dev mode
 
     Returns:
-        第一個存在的候選目錄,全部找不到回 None
+        The first candidate directory that exists, or None if none is found
     """
     candidates: List[Path] = []
 
-    # ① Nuitka onefile:NUITKA_ONEFILE_PARENT 指向啟動 binary 的父 process
+    # (1) Nuitka onefile: NUITKA_ONEFILE_PARENT points at the parent process that launched the binary
     nuitka_parent = os.environ.get("NUITKA_ONEFILE_PARENT")
     if nuitka_parent:
         try:
@@ -46,8 +46,8 @@ def resolve_external_dir(name: str, dev_root: Path) -> Optional[Path]:
         except (OSError, ValueError):
             pass
 
-    # ② Linux 通用:/proc/self/exe 永遠指向當前 process 真正執行的 binary
-    # 拒絕 /tmp/onefile_* 假路徑(onefile 解壓目錄裡的 binary)
+    # (2) Generic Linux: /proc/self/exe always points at the binary the current process is really executing
+    # Reject the bogus /tmp/onefile_* path (the binary inside the onefile extraction directory)
     if sys.platform.startswith("linux"):
         try:
             proc_exe = Path("/proc/self/exe").resolve()
@@ -56,7 +56,7 @@ def resolve_external_dir(name: str, dev_root: Path) -> Optional[Path]:
         except (OSError, ValueError):
             pass
 
-    # ③ Nuitka standalone(非 onefile):sys.executable 就是真實 binary
+    # (3) Nuitka standalone (not onefile): sys.executable is the real binary
     try:
         exe_path = Path(sys.executable).resolve()
         if not str(exe_path).startswith("/tmp/onefile_"):
@@ -64,11 +64,11 @@ def resolve_external_dir(name: str, dev_root: Path) -> Optional[Path]:
     except (OSError, ValueError):
         pass
 
-    # ④ Docker container 慣例(刻意排在 dev_root 之前,
-    # 讓 volume mount 贏過 onefile bundled copy)
+    # (4) Docker container convention (deliberately placed before dev_root
+    # so a volume mount wins over the onefile bundled copy)
     candidates.append(Path(f"/app/{name}"))
 
-    # ⑤ Dev mode / onefile bundled fallback
+    # (5) Dev mode / onefile bundled fallback
     candidates.append(dev_root / name)
 
     for p in candidates:
@@ -78,10 +78,10 @@ def resolve_external_dir(name: str, dev_root: Path) -> Optional[Path]:
 
 
 def get_runtime_project_root() -> Path:
-    """取得 runtime 的「外部資源根目錄」— 跟 main.py 那行邏輯一致
+    """Get the runtime "external resource root" -- same logic as the corresponding line in main.py
 
-    用於需要相對路徑但不必通過 `resolve_external_dir()` 多目錄搜尋的場景。
-    Dev / Nuitka 都正確;但無法處理「binary 在 A、resource 在 B」的部署模式,
-    那種情況請改用 `resolve_external_dir()`。
+    For cases that need a relative path but do not need the multi-directory search of `resolve_external_dir()`.
+    Correct for both dev and Nuitka; but it cannot handle a "binary in A, resources in B" deployment layout --
+    use `resolve_external_dir()` for that.
     """
     return Path(os.path.abspath(sys.argv[0])).parent

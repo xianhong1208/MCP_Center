@@ -11,8 +11,9 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }) {
-  // Dark 是預設與設計基準;只有使用者明確選過 light 才用淺色。
-  // 用新的 key(mcp-theme):舊版會把自動算出的預設值也寫進 'theme',不能當成使用者的選擇。
+  // Dark is the default and the design baseline; light is used only if the user explicitly chose it.
+  // New key (mcp-theme): older builds also wrote the computed default into 'theme', so that key cannot be
+  // trusted as a user choice.
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('mcp-theme')
     return saved === 'light' ? 'light' : 'dark'
@@ -32,11 +33,11 @@ export function ThemeProvider({ children }) {
 
   }, [theme])
 
-  // 只有使用者親手切換才持久化
+  // Persist only when the user toggles manually
   const toggleTheme = () => {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark'
-      try { localStorage.setItem('mcp-theme', next) } catch { /* storage 不可用時靜默 */ }
+      try { localStorage.setItem('mcp-theme', next) } catch { /* ignore when storage is unavailable */ }
       return next
     })
   }

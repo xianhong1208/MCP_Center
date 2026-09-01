@@ -1,4 +1,4 @@
-"""MCP 服務發現(/api/discovery/*)與服務狀態 WebSocket。"""
+"""MCP service discovery (/api/discovery/*) and the service status WebSocket."""
 
 import logging
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/discovery", tags=["Discovery"])
 @router.post("/scan", response_model=ScanResponse)
 async def scan_services(request: ScanRequest, http_request: Request, db: Session = Depends(get_db),
                         current_user: AdminUser = Depends(get_current_user)):
-    """掃描主機 / 埠,找出 MCP server,可自動登錄。"""
+    """Scan hosts / ports to find MCP servers, optionally registering them automatically."""
     try:
         scanner = get_scanner()
         ports = list(request.ports)
@@ -128,7 +128,7 @@ ws_router = APIRouter(tags=["WebSocket"])
 
 @ws_router.websocket("/ws/services")
 async def websocket_services(websocket: WebSocket):
-    """服務狀態即時推播。認證:session cookie(SPA)或 ?token=(session JWT)。"""
+    """Real-time service status push. Auth: session cookie (SPA) or ?token= (session JWT)."""
     from db.database import make_session
 
     token = websocket.cookies.get(SESSION_COOKIE) or websocket.query_params.get("token")

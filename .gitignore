@@ -79,3 +79,10 @@ config/test_config.yaml
 
 # MCP Center 執行期資料(SQLite、自動產生的密鑰)
 data/
+
+# Local screenshots / Playwright MCP artifacts
+/*.png
+.playwright-mcp/
+
+# Claude Code local config and skills
+.claude/

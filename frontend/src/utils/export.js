@@ -45,7 +45,7 @@ export function downloadCSV(csvContent, filename) {
 }
 
 /**
- * Export OAuth tokens(/api/oauth/tokens 的 token dict 陣列)to CSV
+ * Export OAuth tokens (the token dict array from /api/oauth/tokens) to CSV
  */
 export function exportTokensToCSV(tokens) {
   const columns = [

@@ -1,8 +1,9 @@
 import clsx from 'clsx'
 
 /**
- * 語意色都是「淡底 /10 + 語意色字 + inset ring /20」,兩個主題共用同一組 class(token 自己換值)。
- * tone: neutral | accent(海軍藍,kind / 標籤)| success | warning | danger | info
+ * Every semantic tone is "tinted bg /10 + tone text + inset ring /20"; both themes share the same classes
+ * (tokens swap values).
+ * tone: neutral | accent (navy, for kind / tags) | success | warning | danger | info
  */
 export const badgeTones = {
   neutral: 'bg-muted text-muted-foreground ring-border',
@@ -22,7 +23,7 @@ export const dotTones = {
   info: 'bg-info',
 }
 
-/** 小標籤(kind / tag / scope) */
+/** Small label (kind / tag / scope) */
 export default function Badge({ tone = 'neutral', mono = false, size = 'sm', className, children, ...rest }) {
   return (
     <span
@@ -40,7 +41,7 @@ export default function Badge({ tone = 'neutral', mono = false, size = 'sm', cla
   )
 }
 
-/** 狀態:圓點 + 文字。`pulse` 用在進行中狀態。 */
+/** Status: dot + text. Use `pulse` for in-progress states. */
 export function StatusPill({ tone = 'neutral', pulse = false, className, children, ...rest }) {
   return (
     <span
@@ -56,7 +57,7 @@ export function StatusPill({ tone = 'neutral', pulse = false, className, childre
   )
 }
 
-/** 單純的顏色圓點(表格首欄用) */
+/** Plain colored dot (for the first table column) */
 export function StatusDot({ tone = 'neutral', pulse = false, className }) {
   return (
     <span

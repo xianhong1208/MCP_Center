@@ -1,9 +1,10 @@
-"""後端審查後補的守門測試:introspect 範圍、授權碼重放、刪 client 保留歷史、session 失效、第三方登入 state。"""
+"""Guard tests added after the backend review: introspect scope, authorization code replay, client deletion keeping
+history, session invalidation, third-party login state."""
 
 from urllib.parse import parse_qs, urlparse
 
-from tests.conftest import OWNER_EMAIL, OWNER_PASSWORD, make_pkce
-from tests.test_oauth_flow import REDIRECT_URI, RESOURCE, _authorize_and_consent, _exchange, _register
+from tests.conftest import OWNER_PASSWORD
+from tests.test_oauth_flow import _authorize_and_consent, _exchange, _register
 
 
 def test_public_client_cannot_introspect_others_tokens(owner_client, service):
@@ -11,16 +12,16 @@ def test_public_client_cannot_introspect_others_tokens(owner_client, service):
     code, verifier = _authorize_and_consent(owner_client, reg["client_id"])
     tokens = _exchange(owner_client, reg["client_id"], code, verifier).json()
 
-    # 自己的 token → active
+    # Own token -> active
     own = owner_client.post("/oauth/introspect", data={"token": tokens["access_token"], "client_id": reg["client_id"]}).json()
     assert own["active"] is True
 
-    # 另一個 public client(DCR 隨手註冊)→ 看不到
+    # Another public client (casually registered via DCR) -> cannot see it
     other = _register(owner_client, client_name="Nosy public client")
     peek = owner_client.post("/oauth/introspect", data={"token": tokens["access_token"], "client_id": other["client_id"]}).json()
     assert peek == {"active": False}
 
-    # confidential client(= resource server,如 FastMCP IntrospectionTokenVerifier)→ 可以
+    # Confidential client (= resource server, e.g. FastMCP IntrospectionTokenVerifier) -> allowed
     rs = _register(owner_client, client_name="Resource server", token_endpoint_auth_method="client_secret_basic",
                    grant_types=["client_credentials"], redirect_uris=[])
     seen = owner_client.post("/oauth/introspect", data={"token": tokens["access_token"]},
@@ -33,7 +34,7 @@ def test_authorization_code_replay_revokes_family(owner_client, service):
     code, verifier = _authorize_and_consent(owner_client, reg["client_id"])
     first = _exchange(owner_client, reg["client_id"], code, verifier).json()
     assert _exchange(owner_client, reg["client_id"], code, verifier).status_code == 400
-    # access 與 refresh 都被撤銷
+    # Both access and refresh tokens are revoked
     intro = owner_client.post("/oauth/introspect", data={"token": first["access_token"], "client_id": reg["client_id"]}).json()
     assert intro["active"] is False
     r = owner_client.post("/oauth/token", data={"grant_type": "refresh_token", "client_id": reg["client_id"],
@@ -63,7 +64,7 @@ def test_deleting_client_keeps_token_history(owner_client, service):
     assert after["total"] == before
     orphan = [t for t in after["tokens"] if t["client_deleted"]]
     assert orphan and orphan[0]["client_name"] == "Test MCP Client" and orphan[0]["client_id"] is None
-    # 同意紀錄隨 client 一起消失(沒有東西可再授權)
+    # Consent records disappear with the client (nothing left to authorize)
     assert owner_client.get("/api/oauth/consents").json()["total"] == 0
 
 
@@ -110,7 +111,7 @@ def test_services_list_loads_tools_without_n_plus_one(owner_client, service, db_
         counter["n"] = 0
         r = owner_client.get("/api/services")
         assert r.status_code == 200 and r.json()["total_count"] == 4
-        # session 驗證 + services + 一次 selectinload tools;不會隨服務數線性成長
+        # session validation + services + one selectinload of tools; must not grow linearly with the service count
         assert counter["n"] <= 4, counter["n"]
     finally:
         event.remove(engine, "before_cursor_execute", _count)

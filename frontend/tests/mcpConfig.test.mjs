@@ -1,8 +1,8 @@
 /**
- * MCP 設定 JSON 解析器測試(零依賴,`npm test` 執行)
+ * MCP config JSON parser tests (zero dependencies, run via `npm test`)
  *
- * 涵蓋使用者實際會從 MCP 市集複製的格式:Claude Desktop 的 mcpServers 包裝、
- * 多路徑 args、多 server、單一 server 物件、非法輸入,以及不支援的 command。
+ * Covers the shapes users actually copy from MCP marketplaces: the Claude Desktop mcpServers wrapper,
+ * multi-path args, multiple servers, a single server object, invalid input, and unsupported commands.
  */
 import { parseMcpConfigJson, BYO_COMMANDS } from '../src/utils/mcpConfig.js'
 let fail = 0
@@ -12,7 +12,7 @@ const eq = (label, got, want) => {
   else console.log(`ok   ${label}`)
 }
 
-// 1. mcpmarket / Claude Desktop 格式(firecrawl 實例)
+// 1. mcpmarket / Claude Desktop format (firecrawl example)
 const firecrawl = `{
   "mcpServers": {
     "firecrawl-mcp": {
@@ -29,31 +29,31 @@ eq('firecrawl args', a.args, ['-y', 'firecrawl-mcp'])
 eq('firecrawl env', a.env, { FIRECRAWL_API_KEY: 'fc-YOUR-KEY' })
 eq('firecrawl extra', a.extraCount, 0)
 
-// 2. filesystem(多路徑 args,無 env)
+// 2. filesystem (multi-path args, no env)
 const fs = `{"mcpServers":{"filesystem":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","/Users/u/Desktop","/other"]}}}`
 const b = parseMcpConfigJson(fs)
 eq('fs args', b.args, ['-y', '@modelcontextprotocol/server-filesystem', '/Users/u/Desktop', '/other'])
 eq('fs env empty', b.env, {})
 
-// 3. 多個 server → 取第一個並回報其餘
+// 3. multiple servers -> take the first and report the rest
 const multi = `{"mcpServers":{"one":{"command":"npx","args":[]},"two":{"command":"uvx","args":[]}}}`
 const c = parseMcpConfigJson(multi)
 eq('multi name', c.name, 'one')
 eq('multi extraCount', c.extraCount, 1)
 
-// 4. 單一 server 物件(無 mcpServers 包裝)
+// 4. single server object (no mcpServers wrapper)
 const bare = `{"command":"uvx","args":["some-mcp"],"env":{"K":"V"}}`
 const d = parseMcpConfigJson(bare)
 eq('bare command', d.command, 'uvx')
 eq('bare name empty', d.name, '')
 
-// 5. 非法輸入
+// 5. invalid input
 eq('invalid json', parseMcpConfigJson('not json'), null)
 eq('empty mcpServers', parseMcpConfigJson('{"mcpServers":{}}'), null)
 eq('no command', parseMcpConfigJson('{"foo":1}'), null)
 eq('null', parseMcpConfigJson('null'), null)
 
-// 6. docker 型(不支援,但仍要解析出來讓 UI 給明確訊息)
+// 6. docker-based (unsupported, but still parsed so the UI can give a clear message)
 const dk = parseMcpConfigJson('{"mcpServers":{"x":{"command":"docker","args":["run","-i","img"]}}}')
 eq('docker parsed', dk.command, 'docker')
 eq('docker not allowed', BYO_COMMANDS.includes(dk.command), false)

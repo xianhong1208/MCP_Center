@@ -1,21 +1,21 @@
 """Marketplace + Managed MCP API routes
 
 Endpoints:
-  GET  /api/marketplace                   列出所有 catalog 項目(含已安裝狀態)
-  GET  /api/marketplace/{catalog_id}      catalog 詳情(用於前端 install 表單)
-  POST /api/managed                       從 catalog 安裝 + (可選)立即啟動
-  GET  /api/managed                       列出已安裝的 Managed MCP
-  GET  /api/managed/progress              進行中長操作的目前階段(前端輪詢用)
-  GET  /api/managed/{id}                  單一 Managed MCP 詳情
-  PUT  /api/managed/{id}/env-vars         更新 env vars(running 中會自動重啟)
-  POST /api/managed/{id}/start            啟動
-  POST /api/managed/{id}/stop             停止
-  DELETE /api/managed/{id}                uninstall(stop + 刪 row + 刪 Service)
+  GET  /api/marketplace                   List all catalog entries (with installed status)
+  GET  /api/marketplace/{catalog_id}      Catalog details (used by the frontend install form)
+  POST /api/managed                       Install from the catalog + (optionally) start immediately
+  GET  /api/managed                       List installed Managed MCPs
+  GET  /api/managed/progress              Current stage of in-flight long operations (for frontend polling)
+  GET  /api/managed/{id}                  Details of a single Managed MCP
+  PUT  /api/managed/{id}/env-vars         Update env vars (auto-restarts while running)
+  POST /api/managed/{id}/start            Start
+  POST /api/managed/{id}/stop             Stop
+  DELETE /api/managed/{id}                Uninstall (stop + delete row + delete Service)
 
-所有端點需登入(session)。
+All endpoints require login (session).
 
-Single instance 規則:目前一個 catalog_id 只允許一個 process(install 時檢查)。
-若要改成多實例,移除 install 內的 409 檢查即可。
+Single-instance rule: currently only one process is allowed per catalog_id (checked at install time).
+To allow multiple instances, simply remove the 409 check inside install.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ router = APIRouter()
 
 
 def _adapter_http_exc(e: AdapterError) -> HTTPException:
-    """AdapterError → HTTPException(managed 路由的 detail 格式:params 永遠存在)。"""
+    """AdapterError -> HTTPException (detail format of the managed routes: params is always present)."""
     return HTTPException(
         status_code=e.status_code,
         detail={"error": e.code, "params": e.params, "fallback": e.fallback},
@@ -81,17 +81,17 @@ def _adapter_http_exc(e: AdapterError) -> HTTPException:
 def _catalog_to_info(
     db: Session, entry: CatalogEntry
 ) -> MarketplaceCatalogInfo:
-    """把 CatalogEntry 轉成 API response 物件,並標註 installed / image 狀態"""
+    """Convert a CatalogEntry into an API response object, annotated with installed / image status"""
     installed_processes = ManagedMcpProcessAdapter.list_all(db, catalog_id=entry.id)
     installed = bool(installed_processes)
     installed_id = str(installed_processes[0].id) if installed_processes else None
 
-    # 離線安裝三態:image 是否已 load(docker SDK)、tar 是否就位
+    # Three offline-install states: whether the image is loaded (docker SDK), whether the tar is in place
     image_ref = f"{entry.docker.image}:{entry.docker.tag}"
     try:
         image_installed = get_orchestrator().image_exists(image_ref)
     except Exception:
-        # docker daemon 不可達時不擋列表,狀態顯示未安裝
+        # When the docker daemon is unreachable, do not block the listing; show the status as not installed
         image_installed = False
     tar_path = get_catalog_loader().image_tar_path(entry)
 
@@ -124,11 +124,11 @@ def _catalog_to_info(
 
 
 def _process_to_info(db: Session, p) -> ManagedProcessInfo:
-    """把 ORM ManagedMcpProcess 轉成 API response,順便算 connection_url"""
+    """Convert an ORM ManagedMcpProcess into an API response, computing connection_url along the way"""
     catalog = get_catalog_loader().get(p.catalog_id)
     catalog_name = catalog.name if catalog else None
 
-    # 給廠商 agent 用的連線 URL(MCP Center 跑在 host network,127.0.0.1 = host)
+    # Connection URL for the vendor agent (MCP Center runs on the host network, so 127.0.0.1 = host)
     connection_url = (
         f"http://127.0.0.1:{p.port}/mcp" if p.port and p.actual_state == "running"
         else None
@@ -158,11 +158,11 @@ def _process_to_info(db: Session, p) -> ManagedProcessInfo:
 
 
 def _validate_env_vars(catalog: CatalogEntry, env_vars: dict) -> None:
-    """根據 catalog schema 驗 env vars。失敗就 raise HTTPException(400)。"""
+    """Validate env vars against the catalog schema. Raises HTTPException(400) on failure."""
     provided_keys = set(env_vars.keys())
     expected = {ev.name: ev for ev in catalog.env_vars}
 
-    # 1. 不認得的 key
+    # 1. Unknown keys
     extra = provided_keys - set(expected.keys())
     if extra:
         extras_list = sorted(extra)
@@ -175,7 +175,7 @@ def _validate_env_vars(catalog: CatalogEntry, env_vars: dict) -> None:
             },
         )
 
-    # 2. required 缺失
+    # 2. Missing required vars
     for name, ev in expected.items():
         if ev.required and (name not in env_vars or env_vars[name] in (None, "")):
             raise HTTPException(
@@ -187,7 +187,7 @@ def _validate_env_vars(catalog: CatalogEntry, env_vars: dict) -> None:
                 },
             )
 
-    # 3. pattern 驗證
+    # 3. Pattern validation
     for name, value in env_vars.items():
         if value in (None, ""):
             continue
@@ -213,12 +213,13 @@ def _validate_env_vars(catalog: CatalogEntry, env_vars: dict) -> None:
 async def list_managed_progress(
     _: AdminUser = Depends(get_current_user),
 ):
-    """列出進行中的長操作與其目前階段(供前端輪詢顯示「正在做什麼」)。
+    """List in-flight long operations and their current stage (polled by the frontend to show "what is happening").
 
-    部署 / 啟停 / 載入 image 的 HTTP 回應要等整件事做完;這個端點讓前端在等待
-    期間能把「等 port 開」「暖機下載套件中」等階段呈現給使用者,而不是一顆轉圈。
-    純記憶體、無 DB 存取,輪詢成本極低。
-    註:必須宣告在 /api/managed/{process_id} 之前,否則 "progress" 會被當成 id。
+    The HTTP responses for deploy / start / stop / image load only return once the whole thing is done;
+    this endpoint lets the frontend show the user stages such as "waiting for the port" or "warming up,
+    downloading packages" while it waits, instead of a bare spinner.
+    Purely in-memory, no DB access, so polling is extremely cheap.
+    Note: must be declared before /api/managed/{process_id}, otherwise "progress" is treated as an id.
     """
     import time as _time
     now = _time.time()
@@ -238,11 +239,11 @@ async def list_marketplace(
     db: Session = Depends(get_db),
     _: AdminUser = Depends(get_current_user),
 ):
-    """列出所有 marketplace catalog 項目,標註已安裝狀態"""
+    """List all marketplace catalog entries, annotated with installed status"""
     loader = get_catalog_loader()
     entries = loader.load_all()
-    # docker 查詢為同步 I/O:整批丟到 worker thread(共用 db Session,故單一 thread 依序跑),
-    # 避免卡住 event loop。
+    # The docker queries are synchronous I/O: run the whole batch in a worker thread (they share the db
+    # Session, hence a single thread running them sequentially) to avoid blocking the event loop.
     items = await asyncio.to_thread(lambda: [_catalog_to_info(db, e) for e in entries.values()])
     return MarketplaceListResponse(catalog=items, total_count=len(items))
 
@@ -281,10 +282,11 @@ async def install_marketplace_image(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """「安裝」:從 catalog/images/<tar> 載入 docker image(離線,docker SDK)。
+    """"Install": load the docker image from catalog/images/<tar> (offline, via the docker SDK).
 
-    三態流程的第一步:安裝(docker load)→ 部署(POST /api/managed)。
-    tar 不存在時回 404,錯誤訊息附手動 `docker load -i` 指令供備援。
+    First step of the three-state flow: install (docker load) -> deploy (POST /api/managed).
+    Returns 404 when the tar does not exist; the error message includes the manual `docker load -i` command
+    as a fallback.
     """
     entry = get_catalog_loader().get(catalog_id)
     if not entry:
@@ -300,7 +302,7 @@ async def install_marketplace_image(
     image_ref = f"{entry.docker.image}:{entry.docker.tag}"
     orchestrator = get_orchestrator()
 
-    # 已安裝 → 冪等回應
+    # Already installed -> idempotent response
     if await asyncio.to_thread(orchestrator.image_exists, image_ref):
         return MarketplaceImageInstallResponse(
             success=True,
@@ -316,8 +318,8 @@ async def install_marketplace_image(
                 "error": "managed.image_tar_not_found",
                 "params": {"path": str(tar_path)},
                 "fallback": (
-                    f"Image tar not found: {tar_path}。請將 image tar 放至該路徑後重試,"
-                    f"或於主機手動執行:docker load -i {tar_path}"
+                    f"Image tar not found: {tar_path}. Place the image tar at that path and retry, "
+                    f"or run manually on the host: docker load -i {tar_path}"
                 ),
             },
         )
@@ -327,10 +329,11 @@ async def install_marketplace_image(
     pkey = catalog_key(catalog_id)
     progress.begin(pkey, "install_image", "loading_image")
     try:
-        # docker load 讀整個 tar(可達數 GB、數分鐘):必須離開 event loop
+        # docker load reads the whole tar (can be several GB and minutes): must leave the event loop
         loaded_tags = await asyncio.to_thread(orchestrator.load_image, str(tar_path))
         progress.stage(pkey, "verifying_image", image_ref)
-        # 驗證 load 出來的確實含預期 image(tar 放錯內容時明確報錯)
+        # Verify that what was loaded actually contains the expected image (explicit error when the tar holds
+        # the wrong content)
         image_installed = await asyncio.to_thread(orchestrator.image_exists, image_ref)
     except OrchestratorError as e:
         raise HTTPException(
@@ -350,8 +353,8 @@ async def install_marketplace_image(
                 "error": "managed.image_tar_mismatch",
                 "params": {"expected": image_ref, "loaded": loaded_tags},
                 "fallback": (
-                    f"Tar loaded (tags={loaded_tags}) 但不含 catalog 期望的 image "
-                    f"'{image_ref}',請確認 tar 內容或 catalog 的 image/tag 設定"
+                    f"Tar loaded (tags={loaded_tags}) but it does not contain the image the catalog expects "
+                    f"'{image_ref}'; check the tar content or the catalog's image/tag settings"
                 ),
             },
         )
@@ -382,9 +385,10 @@ async def get_managed_logs(
     db: Session = Depends(get_db),
     _: AdminUser = Depends(get_current_user),
 ):
-    """取得該 managed process 容器的輸出(含已退出的容器)。
+    """Get the container output of this managed process (including exited containers).
 
-    容器崩潰時,死因只在它自己的 log 裡;沒有這支端點就得手動下 docker 指令。
+    When a container crashes, the cause of death only exists in its own log; without this endpoint
+    you would have to run docker commands by hand.
     """
     try:
         ManagedMcpProcessAdapter.get_existing(db, process_id)
@@ -394,8 +398,9 @@ async def get_managed_logs(
     return {"process_id": process_id, "logs": logs}
 
 
-# ---------- BYO(自帶啟動指令)MCP 定義 ----------
-# 等同授權任意 container 執行 —— 只有登入的擁有者能用(見 docs/design/byo-mcp-launch.md)。
+# ---------- BYO (bring-your-own launch command) MCP definitions ----------
+# Equivalent to authorising arbitrary container execution -- only the logged-in owner may use it
+# (see docs/design/byo-mcp-launch.md).
 
 @router.post("/api/byo-mcp", response_model=ByoDefinitionInfo, tags=["Managed MCP"])
 async def create_byo_definition(
@@ -404,9 +409,9 @@ async def create_byo_definition(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """建立 BYO MCP 定義(貼標準 {command, args, env})。
+    """Create a BYO MCP definition (paste the standard {command, args, env}).
 
-    command/args 經 argv 政策驗證(command 白名單 + args 字元白名單)。
+    command/args are validated by the argv policy (command allowlist + args character allowlist).
     """
     try:
         d = BYODefinitionAdapter.create_definition(
@@ -442,7 +447,7 @@ async def list_byo_definitions(
     db: Session = Depends(get_db),
     _: AdminUser = Depends(get_current_user),
 ):
-    """列出所有 BYO 定義。"""
+    """List all BYO definitions."""
     defs = BYODefinitionAdapter.list_all(db)
     return ByoListResponse(
         definitions=[ByoDefinitionInfo(**d.to_dict()) for d in defs],
@@ -457,7 +462,7 @@ async def delete_byo_definition(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """刪除 BYO 定義(已部署則擋,需先 uninstall)。"""
+    """Delete a BYO definition (refused while deployed; uninstall first)."""
     try:
         BYODefinitionAdapter.delete_guarded(db, definition_id)
     except AdapterError as e:
@@ -489,15 +494,15 @@ async def deploy_byo_definition(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """部署 BYO 定義:在受控 container 內以 supergateway 橋接,導出 127.0.0.1:port。"""
+    """Deploy a BYO definition: bridge via supergateway inside the controlled container and expose 127.0.0.1:port."""
     try:
         definition = BYODefinitionAdapter.get_existing(db, definition_id)
-        # single-instance:同定義已部署 → 409
+        # single-instance: the same definition is already deployed -> 409
         ManagedMcpProcessAdapter.assert_not_installed(db, user_source_id(str(definition.id)))
     except AdapterError as e:
         raise _adapter_http_exc(e)
 
-    # env vars 驗證:只允許定義 schema 內宣告的 key(擋未知 key)
+    # env vars validation: only keys declared in the definition schema are allowed (reject unknown keys)
     declared = {e["name"] for e in definition.get_env_schema()}
     extras = set(request.env_vars) - declared
     if extras:
@@ -511,15 +516,16 @@ async def deploy_byo_definition(
         )
 
     name = request.name or definition.name
-    # 建立 managed process:image=受控基底,catalog_id=user:<id>(orchestrator 由此解析內層指令)
+    # Create the managed process: image=controlled base, catalog_id=user:<id> (the orchestrator resolves the
+    # inner command from it)
     process = ManagedMcpProcessAdapter.create(
         db=db,
         name=name,
         catalog_id=user_source_id(str(definition.id)),
         docker_image=MCP_RUNTIME_IMAGE,
-        # 刻意不用 --rm:auto_remove 會在容器退出時連同 log 一併刪除,導致
-        # 崩潰後完全查不出死因(stop/uninstall 本來就會明確 force remove)。
-        # --init 提供 PID 1 收屍,避免 supergateway spawn 的子行程變殭屍。
+        # Deliberately no --rm: auto_remove deletes the log together with the container on exit,
+        # leaving no way to find the cause of a crash (stop/uninstall already force-remove explicitly).
+        # --init provides a PID 1 that reaps children, so processes spawned by supergateway do not become zombies.
         image_args="--init",
         image_command=None,
         env_vars=request.env_vars,
@@ -610,7 +616,7 @@ async def install_managed(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """從 catalog 安裝 + (預設)立即啟動"""
+    """Install from the catalog + (by default) start immediately"""
     logger.info(f"Install request: catalog={request.catalog_id}, name={request.name}, port={request.port}, user={current_user.username}")
     catalog = get_catalog_loader().get(request.catalog_id)
     if not catalog:
@@ -623,13 +629,14 @@ async def install_managed(
             },
         )
 
-    # Single instance check(邏輯在 adapter)
+    # Single instance check (logic lives in the adapter)
     try:
         ManagedMcpProcessAdapter.assert_not_installed(db, request.catalog_id)
     except AdapterError as e:
         raise _adapter_http_exc(e)
 
-    # 部署前置:image 必須已「安裝」(離線兩階段流程;不自動 load,明確引導)
+    # Deploy precondition: the image must already be "installed" (offline two-phase flow; no automatic load,
+    # guide the user explicitly)
     image_ref = f"{catalog.docker.image}:{catalog.docker.tag}"
     if not await asyncio.to_thread(get_orchestrator().image_exists, image_ref):
         tar_path = get_catalog_loader().image_tar_path(catalog)
@@ -639,17 +646,17 @@ async def install_managed(
                 "error": "managed.image_not_installed",
                 "params": {"image": image_ref, "catalog_id": catalog.id},
                 "fallback": (
-                    f"Image '{image_ref}' 尚未安裝。請先執行「安裝」"
-                    f"(POST /api/marketplace/{catalog.id}/install),"
-                    f"或於主機手動執行:docker load -i {tar_path}"
+                    f"Image '{image_ref}' is not installed yet. Run \"Install\" first "
+                    f"(POST /api/marketplace/{catalog.id}/install), "
+                    f"or run manually on the host: docker load -i {tar_path}"
                 ),
             },
         )
 
-    # Env vars 驗證(會 raise 400)
+    # Env vars validation (raises 400)
     _validate_env_vars(catalog, request.env_vars)
 
-    # 建立 DB row (port=None → auto_port=True, port=int → auto_port=False)
+    # Create the DB row (port=None -> auto_port=True, port=int -> auto_port=False)
     name = request.name or catalog.id
     process = ManagedMcpProcessAdapter.create(
         db=db,
@@ -663,7 +670,7 @@ async def install_managed(
         created_by=str(current_user.id),
     )
 
-    # 預設 auto_start
+    # auto_start by default
     started_ok = True
     err_msg = None
     if request.auto_start:
@@ -684,7 +691,7 @@ async def install_managed(
     # Audit
     AuditService.log_from_request(
         db=db, request=http_request,
-        action=AuditAction.CREATE_SERVICE,  # 沿用既有 enum,日後可加 INSTALL_MANAGED
+        action=AuditAction.CREATE_SERVICE,  # Reuses the existing enum; INSTALL_MANAGED could be added later
         resource_type=ResourceType.SERVICE,
         status=AuditStatus.SUCCESS if started_ok else AuditStatus.FAILURE,
         resource_id=str(process.id),
@@ -815,7 +822,7 @@ async def update_env_vars(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """覆寫 env vars(明文進、加密存)。若正在 running 會自動重啟以套用。"""
+    """Overwrite env vars (plaintext in, stored encrypted). Auto-restarts to apply them if currently running."""
     logger.info(f"Update env vars: process_id={process_id}, keys={list(request.env_vars.keys())}, user={current_user.username}")
     try:
         p = ManagedMcpProcessAdapter.get_existing(db, process_id)
@@ -829,7 +836,7 @@ async def update_env_vars(
             detail={
                 "error": "managed.catalog_removed_from_image",
                 "params": {"catalog_id": p.catalog_id},
-                "fallback": f"Catalog '{p.catalog_id}' not found(已從 image 中移除?)",
+                "fallback": f"Catalog '{p.catalog_id}' not found (removed from the image?)",
             },
         )
     _validate_env_vars(catalog, request.env_vars)
@@ -885,7 +892,7 @@ async def uninstall_managed(
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(get_current_user),
 ):
-    """uninstall:停止 → 刪 Service row → 刪 token + usage → 刪 process row"""
+    """Uninstall: stop -> delete Service row -> delete tokens + usage -> delete process row"""
     logger.info(f"Uninstall request: process_id={process_id}, user={current_user.username}")
     try:
         p = ManagedMcpProcessAdapter.get_existing(db, process_id)
@@ -895,13 +902,13 @@ async def uninstall_managed(
     name = p.name
     catalog_id = p.catalog_id
 
-    # 1. Stop(忽略已停的錯;orchestrator 為外部程序,由 route 協調)
+    # 1. Stop (ignore already-stopped errors; the orchestrator is an external process, coordinated by the route)
     try:
         await asyncio.to_thread(get_orchestrator().stop, db, process_id)
     except Exception as e:
         logger.warning(f"Stop during uninstall failed (continuing): {e}")
 
-    # 2+3. 清 Service 相關資料 + 刪 process row(邏輯在 adapter)
+    # 2+3. Clean up Service-related data + delete the process row (logic lives in the adapter)
     ManagedMcpProcessAdapter.purge_with_service(db, p, logger)
 
     AuditService.log_from_request(

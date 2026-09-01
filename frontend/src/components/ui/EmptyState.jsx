@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-/** 空狀態:方形 icon 框 + 一行標題 + 可選說明 + 可選動作 */
+/** Empty state: square icon box + one-line title + optional description + optional action */
 export default function EmptyState({ icon: Icon, title, description, action, className, compact = false }) {
   return (
     <div className={clsx('flex flex-col items-center justify-center text-center', compact ? 'py-8' : 'py-14', className)}>

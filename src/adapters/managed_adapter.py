@@ -1,7 +1,8 @@
-"""Managed MCP / Tool 領域 Adapter
+"""Managed MCP / Tool domain adapter
 
-三層架構的中間層:API 只呼叫這裡的方法;adapter 負責「呼叫 db.crud + 業務邏輯」。
-涵蓋 Managed MCP 程序與探索到的 MCP Tools。
+Middle layer of the three-tier architecture: the API only calls methods here; the adapter is
+responsible for "calling db.crud + business logic". Covers Managed MCP processes and
+discovered MCP Tools.
 """
 
 from db.crud import ManagedMcpProcessCRUD, MCPToolCRUD, UserMcpDefinitionCRUD
@@ -9,15 +10,15 @@ from src.adapters.exceptions import ConflictError, NotFoundError, ValidationFail
 
 
 class MCPToolAdapter(MCPToolCRUD):
-    """MCP Tool adapter。"""
+    """MCP Tool adapter."""
 
 
 class ManagedMcpProcessAdapter(ManagedMcpProcessCRUD):
-    """Managed MCP process adapter。"""
+    """Managed MCP process adapter."""
 
     @classmethod
     def get_existing(cls, db, process_id):
-        """取得既存 process;不存在 → NotFoundError(managed.process_not_found)。"""
+        """Get an existing process; missing -> NotFoundError (managed.process_not_found)."""
         p = cls.get_by_id(db, process_id)
         if not p:
             raise NotFoundError(
@@ -27,7 +28,7 @@ class ManagedMcpProcessAdapter(ManagedMcpProcessCRUD):
 
     @classmethod
     def assert_not_installed(cls, db, catalog_id):
-        """single-instance 檢查:同 catalog 已安裝 → ConflictError(409)。"""
+        """Single-instance check: same catalog already installed -> ConflictError (409)."""
         existing = cls.list_all(db, catalog_id=catalog_id)
         if existing:
             existing_id = str(existing[0].id)
@@ -42,9 +43,9 @@ class ManagedMcpProcessAdapter(ManagedMcpProcessCRUD):
 
     @classmethod
     def purge_with_service(cls, db, process, logger) -> None:
-        """uninstall 的資料清理:刪關聯 Service(含事件紀錄)+ process row。
+        """Data cleanup for uninstall: delete the associated Service (including event records) + process row.
 
-        (orchestrator stop 由呼叫端先行;此處只負責 DB 資料鏈。)
+        (The caller performs the orchestrator stop first; this only handles the DB data chain.)
         """
         from src.adapters.service_adapter import ServiceAdapter
 
@@ -58,9 +59,10 @@ class ManagedMcpProcessAdapter(ManagedMcpProcessCRUD):
 
 
 class BYODefinitionAdapter(UserMcpDefinitionCRUD):
-    """使用者自帶(BYO)MCP 定義 adapter。
+    """Bring-your-own (BYO) MCP definition adapter.
 
-    建立時套 argv 政策(command 白名單 + args 字元白名單);刪除前擋「已部署」。
+    Applies the argv policy on create (command whitelist + args character whitelist);
+    blocks deletion while "deployed".
     """
 
     @classmethod
@@ -68,10 +70,10 @@ class BYODefinitionAdapter(UserMcpDefinitionCRUD):
         cls, db, *, name, command, args=None, container_port=8000,
         env_schema=None, description=None, created_by_id=None,
     ):
-        """驗證 + 建立 BYO 定義。
+        """Validate + create a BYO definition.
 
-        - command/args 不合政策 → ValidationFailedError(400)
-        - name 重複 → ConflictError(409)
+        - command/args violate the policy -> ValidationFailedError (400)
+        - duplicate name -> ConflictError (409)
         """
         from src.marketplace.argv_policy import ArgvPolicyError, validate_byo_launch
 
@@ -98,7 +100,7 @@ class BYODefinitionAdapter(UserMcpDefinitionCRUD):
 
     @classmethod
     def get_existing(cls, db, definition_id):
-        """取得既存定義;不存在 → NotFoundError(404)。"""
+        """Get an existing definition; missing -> NotFoundError (404)."""
         d = cls.get_by_id(db, definition_id)
         if not d:
             raise NotFoundError(
@@ -108,7 +110,7 @@ class BYODefinitionAdapter(UserMcpDefinitionCRUD):
 
     @classmethod
     def delete_guarded(cls, db, definition_id):
-        """刪除定義;已部署(存在對應 managed process)→ ConflictError(409)。"""
+        """Delete a definition; already deployed (a matching managed process exists) -> ConflictError (409)."""
         from src.orchestrator.launch_spec import user_source_id
 
         d = cls.get_existing(db, definition_id)

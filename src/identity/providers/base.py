@@ -1,7 +1,7 @@
-"""第三方登入 provider 基底(authorization code flow 的 RP 端)。
+"""Base class for third-party login providers (the RP side of the authorization code flow).
 
-要接新的 provider 只需子類化並實作三個端點 + `parse_identity`;其餘流程
-(state 防 CSRF、code 換 token、取 userinfo)由基底統一處理。
+To add a new provider, subclass and implement the three endpoints + `parse_identity`; the rest of the flow
+(state for CSRF protection, exchanging the code for a token, fetching userinfo) is handled here.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class OAuthLoginProvider:
     token_endpoint: str = ""
     userinfo_endpoint: str = ""
     scopes: list[str] = []
-    # 部分 provider(GitHub)token 端點要 Accept: application/json 才回 JSON
+    # Some providers (GitHub) only return JSON from the token endpoint when Accept: application/json is sent
     token_headers: dict = {"Accept": "application/json"}
 
     def __init__(self, client_id: str, client_secret: str):

@@ -1,4 +1,4 @@
-"""RS256 JWT 簽 / 驗原語。"""
+"""RS256 JWT sign / verify primitives."""
 
 import json
 from typing import Optional
@@ -11,7 +11,8 @@ class JWTVerifyError(Exception):
 
 
 def sign_rs256(payload: dict, private_pem: str, kid: str, typ: str = "at+jwt") -> str:
-    """簽發 JWT;header 帶 kid(讓驗證端從 JWKS 挑對應公鑰)與 typ(RFC 9068)。"""
+    """Issue a JWT; the header carries kid (so verifiers can pick the matching public key from the JWKS) and typ
+    (RFC 9068)."""
     return jwt.encode(payload, private_pem, algorithm="RS256", headers={"kid": kid, "typ": typ})
 
 
@@ -24,7 +25,7 @@ def unverified_header(token: str) -> dict:
 
 def decode_rs256(token: str, public_jwk: dict, *, issuer: Optional[str] = None,
                  audience: Optional[str] = None, leeway: int = 10) -> dict:
-    """用公鑰 JWK 驗簽 + exp(+ iss / aud 若指定)。"""
+    """Verify signature + exp with the public JWK (+ iss / aud when specified)."""
     try:
         public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(public_jwk))
         options = {}

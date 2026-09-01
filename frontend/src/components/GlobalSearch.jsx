@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect, useId } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Search, Key, Server, Bot, X } from 'lucide-react'
@@ -13,9 +13,10 @@ const PANEL_WIDTH = 480
 const PANEL_GAP = 6
 
 /**
- * 全站搜尋框(放在每頁標題列右側、主要按鈕左邊):直接打字,結果以下拉清單貼在輸入框正下方
- * (不是置中彈窗、沒有全螢幕遮罩)。Ctrl/⌘+K 聚焦,Esc 清空,換頁自動清空。
- * 下拉清單用 portal 掛到 body 並依輸入框的 bounding rect 定位。
+ * Global search box (right of the page title, left of the primary action): type directly and results
+ * appear in a dropdown right under the input (no centered modal, no full-screen overlay).
+ * Ctrl/Cmd+K focuses, Esc clears, navigation clears automatically.
+ * The dropdown is portaled to body and positioned from the input's bounding rect.
  */
 export default function GlobalSearch({ className }) {
   const { t } = useTranslation()
@@ -27,12 +28,13 @@ export default function GlobalSearch({ className }) {
   const [rect, setRect] = useState(null)
   const inputRef = useRef(null)
   const panelRef = useRef(null)
+  const listboxId = useId()
   const navigate = useNavigate()
   const location = useLocation()
 
   const isOpen = isFocused && query.trim().length > 0
 
-  // ⌘K / Ctrl+K:聚焦輸入框;Esc:清空並失焦
+  // Cmd+K / Ctrl+K: focus the input; Esc: clear and blur
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -50,13 +52,13 @@ export default function GlobalSearch({ className }) {
     setIsFocused(false)
   }
 
-  // 換頁時清空
+  // Clear on navigation
   useEffect(() => {
     setQuery('')
     setIsFocused(false)
   }, [location.pathname])
 
-  // 點到輸入框與清單以外的地方 → 收合
+  // Click outside the input and the list -> collapse
   useEffect(() => {
     if (!isOpen) return
     const onPointerDown = (e) => {
@@ -68,7 +70,7 @@ export default function GlobalSearch({ className }) {
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [isOpen])
 
-  // 依輸入框位置放清單;視窗縮放 / 捲動時跟著更新
+  // Position the list under the input; follow window resize / scroll
   useLayoutEffect(() => {
     if (!isOpen) return
     const update = () => {
@@ -162,19 +164,26 @@ export default function GlobalSearch({ className }) {
     }
   }
 
+  // Keep the keyboard-selected option visible while arrowing through a long list
+  useEffect(() => {
+    if (!isOpen) return
+    const el = document.getElementById(`${listboxId}-opt-${selectedIndex}`)
+    el?.scrollIntoView?.({ block: 'nearest' })
+  }, [selectedIndex, isOpen, listboxId])
+
   const groups = [
     { key: 'tokens', label: t('components.search.tokens'), icon: Key,
       items: results.tokens, offset: 0,
-      render: (tk) => [tk.label || tk.jti, `${tk.kind} · ${tk.service_name || tk.audience || ''} · ${tk.status}`] },
+      render: (tk) => [tk.label || tk.jti, [t(`tokens.kind.${tk.kind}`, { defaultValue: tk.kind }), tk.service_name || tk.audience || '', t(`tokens.status.${tk.status}`, { defaultValue: tk.status })].filter(Boolean).join(' · ')] },
     { key: 'services', label: t('components.search.services'), icon: Server,
       items: results.services, offset: results.tokens.length,
       render: (s) => [s.name, s.description || s.effective_audience || t('components.search.noDescription')] },
     { key: 'clients', label: t('components.search.clients'), icon: Bot,
       items: results.clients, offset: results.tokens.length + results.services.length,
-      render: (c) => [c.client_name, `${c.client_id} · ${c.created_via}`] },
+      render: (c) => [c.client_name, `${c.client_id} · ${t(`clients.via.${c.created_via}`, { defaultValue: c.created_via })}`] },
   ]
 
-  // 清單位置:貼在輸入框下方、左緣對齊;寬度固定但不超出視窗
+  // Panel position: directly under the input, left edges aligned; fixed width but never past the viewport
   const panelStyle = rect
     ? {
         position: 'fixed',
@@ -189,6 +198,7 @@ export default function GlobalSearch({ className }) {
     <div
       ref={panelRef}
       role="listbox"
+      id={listboxId}
       style={panelStyle}
       className="z-50 flex flex-col overflow-hidden rounded-lg border border-border bg-popover shadow-overlay animate-fade-in"
     >
@@ -209,6 +219,7 @@ export default function GlobalSearch({ className }) {
                   return (
                     <button
                       key={allResults[idx].key}
+                      id={`${listboxId}-opt-${idx}`}
                       type="button"
                       role="option"
                       aria-selected={active}
@@ -264,6 +275,8 @@ export default function GlobalSearch({ className }) {
           role="combobox"
           aria-expanded={isOpen}
           aria-autocomplete="list"
+          aria-controls={isOpen ? listboxId : undefined}
+          aria-activedescendant={isOpen && allResults[selectedIndex] ? `${listboxId}-opt-${selectedIndex}` : undefined}
           aria-label={t('components.search.placeholderInput')}
           className="h-full min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle-foreground"
           placeholder={t('components.search.placeholderInput')}
@@ -274,7 +287,7 @@ export default function GlobalSearch({ className }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => { setQuery(''); inputRef.current?.focus() }}
             className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-subtle-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-            aria-label="Clear"
+            aria-label={t('components.search.clear')}
           >
             <X className="h-3.5 w-3.5" />
           </button>

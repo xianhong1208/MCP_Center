@@ -1,4 +1,4 @@
-"""設定載入:環境變數展開、預設值、型別轉換。"""
+"""Config loading: environment variable expansion, defaults, type coercion."""
 
 import os
 
@@ -29,7 +29,7 @@ def test_defaults_are_sqlite_and_localhost_issuer():
 
 
 def test_yaml_env_values_are_coerced(tmp_path, monkeypatch):
-    """`${PORT:-4568}` 展開後是字串,pydantic 需轉成 int / bool。"""
+    """`${PORT:-4568}` expands to a string; pydantic must coerce it to int / bool."""
     monkeypatch.setenv("MCP_TEST_PORT", "5555")
     monkeypatch.setenv("MCP_TEST_DCR", "false")
     cfg = {
@@ -50,14 +50,14 @@ def test_yaml_env_values_are_coerced(tmp_path, monkeypatch):
 
 
 def test_shipped_config_yaml_loads(monkeypatch):
-    """repo 內的 config/config.yaml 在完全沒有環境變數時也要能載入。"""
+    """The repo's config/config.yaml must load with no environment variables set at all."""
     for key in ("DATABASE_URL", "SERVER_PORT", "OAUTH_ISSUER", "SESSION_SECRET_KEY"):
         monkeypatch.delenv(key, raising=False)
     previous = Config.get_config_model()
     try:
         Config.set_config(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
         m = Config.get_config_model()
-        assert m.server.port == 0            # 0 = 從 issuer 推
+        assert m.server.port == 0            # 0 = derive from issuer
         assert m.effective_port == 4568
         assert m.oauth.issuer == "http://localhost:4568"
         assert m.session.secret_key == ""

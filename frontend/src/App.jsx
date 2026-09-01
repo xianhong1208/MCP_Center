@@ -25,9 +25,9 @@ function FullScreenSpinner() {
 }
 
 /**
- * 未登入 → 記住目前位置再去 /login。
- * 這對 OAuth 流程至關重要:後端把未登入的瀏覽器導到 /consent?rid=...,
- * 登入(含 GitHub / Google)之後必須回到同一個同意頁,授權請求才接得上。
+ * Not logged in -> remember the current location, then go to /login.
+ * This is critical for the OAuth flow: the backend sends an unauthenticated browser to /consent?rid=...,
+ * and after login (including GitHub / Google) we must return to that same consent page to resume the request.
  */
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()

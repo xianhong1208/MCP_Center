@@ -217,7 +217,7 @@ export default function TokensPage() {
                     <Link to={`/tokens/${encodeURIComponent(tk.jti)}`} className="block min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-medium text-foreground transition-colors duration-200 hover:text-link">
-                          {tk.label || <span className="italic text-subtle-foreground">{t('tokens.list.noLabel')}</span>}
+                          {tk.label || <span className="text-subtle-foreground">{t('tokens.list.noLabel')}</span>}
                         </span>
                         <KindBadge kind={tk.kind} />
                       </div>
@@ -275,9 +275,9 @@ export default function TokensPage() {
               })}
             </span>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" icon={ChevronLeft} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page" />
+              <Button variant="secondary" size="sm" icon={ChevronLeft} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label={t('common.pagination.previous')} />
               <span className="tabular-nums">{t('tokens.list.pageOf', { page, total: totalPages })}</span>
-              <Button variant="secondary" size="sm" icon={ChevronRight} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page" />
+              <Button variant="secondary" size="sm" icon={ChevronRight} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label={t('common.pagination.next')} />
             </div>
           </div>
         </div>

@@ -6,12 +6,12 @@ import { rememberRedirect } from '../utils/redirect'
 
 const AuthContext = createContext(null)
 
-const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000  // 30 分鐘
-const CHECK_INTERVAL_MS = 30 * 1000              // 每 30 秒檢查一次
+const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000  // 30 minutes
+const CHECK_INTERVAL_MS = 30 * 1000              // check every 30 seconds
 
 /**
- * 單租戶:登入即管理員,沒有角色 / 權限。
- * user 形狀:{ id, email, username, auth_provider, has_password, is_active, created_at, last_login }
+ * Single tenant: any logged-in user is the admin; there are no roles / permissions.
+ * user shape: { id, email, username, auth_provider, has_password, is_active, created_at, last_login }
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     if (minutes) idleTimeoutMsRef.current = minutes * 60 * 1000
   }
 
-  // 強制登出
+  // Force logout
   const forceLogout = useCallback(async () => {
     if (isLoggingOutRef.current) return
     isLoggingOutRef.current = true
@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
     setTimeout(() => { isLoggingOutRef.current = false }, 0)
   }, [])
 
-  // 啟動時檢查 session(cookie 自動攜帶)
+  // Check the session on startup (cookie is sent automatically)
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [])
 
-  // 監聽使用者活動(用於閒置超時)
+  // Track user activity (for the idle timeout)
   useEffect(() => {
     const updateActivity = () => { lastActivityRef.current = Date.now() }
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
@@ -62,13 +62,13 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // 定期檢查閒置超時
+  // Periodically check the idle timeout
   useEffect(() => {
     if (!user) return
     const interval = setInterval(() => {
       const idleMs = Date.now() - lastActivityRef.current
       if (idleTimeoutMsRef.current > 0 && idleMs >= idleTimeoutMsRef.current) {
-        // 記住所在頁面,重新登入後送回去;並明確告知原因
+        // Remember the current page to return to after re-login, and state the reason explicitly
         rememberRedirect(window.location.pathname + window.location.search)
         toast.info(t('auth.notices.idleLogout'), 8000)
         forceLogout()
@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
     return () => clearInterval(interval)
   }, [user, forceLogout, toast, t])
 
-  // 監聽 API 401 回應(session 被後端拒絕)
+  // Listen for API 401 responses (session rejected by the backend)
   useEffect(() => {
     const handleAuthExpired = () => {
       if (!user) return
@@ -103,7 +103,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  /** 首次啟動建立擁有者帳號,成功即登入 */
+  /** First-run: create the owner account and log in on success */
   const setup = useCallback(async (email, password, username) => {
     setError(null)
     try {
@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  // 重新載入目前使用者(例如改名後)
+  // Reload the current user (e.g. after a rename)
   const refreshUser = useCallback(async () => {
     try {
       const userData = await sessionApi.me()

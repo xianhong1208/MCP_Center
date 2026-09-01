@@ -4,10 +4,10 @@ import clsx from 'clsx'
 import GlobalSearch from '../GlobalSearch'
 
 /**
- * 每頁頂部:標題(text-xl semibold)+ 一行說明 + 右側動作(最多一顆 primary)。
- * backTo / backLabel:顯示上一層連結(detail 頁)。
- * meta:標題右側的小元素(StatusPill / Badge)。
- * search:是否在標題左邊放全站搜尋框(預設關;全站搜尋在 Layout 的搜尋欄)。
+ * Top of every page: title (text-xl semibold) + one-line description + actions on the right (at most one primary).
+ * backTo / backLabel: show a link to the parent page (detail pages).
+ * meta: small element next to the title (StatusPill / Badge).
+ * search: whether to place the global search box left of the title (off by default; global search lives in Layout).
  */
 export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = false }) {
   return (
@@ -36,7 +36,7 @@ export default function PageHeader({ title, description, actions, backTo, backLa
   )
 }
 
-/** 頁面容器:max-w-7xl,區段間 space-y-8 */
+/** Page container: max-w-7xl, space-y-8 between sections */
 export function Page({ className, children, narrow = false }) {
   return (
     <div className={clsx('mx-auto w-full space-y-8', narrow ? 'max-w-3xl' : 'max-w-7xl', className)}>

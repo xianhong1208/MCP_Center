@@ -1,12 +1,12 @@
 import clsx from 'clsx'
 
 /**
- * Table primitives。用法:
+ * Table primitives. Usage:
  *   <Table>
  *     <THead><TR><TH>Name</TH><TH align="right">…</TH></TR></THead>
  *     <TBody><TR hover><TD focal>…</TD></TR></TBody>
  *   </Table>
- * 外層自帶 border 邊框 + overflow-x-auto。表頭 muted 底;列 h-12、border-b 分隔、hover 3% 前景。
+ * The wrapper has a border + overflow-x-auto. Muted header; rows are h-12, border-b separated, hover = 3% foreground.
  */
 export default function Table({ className, wrapperClassName, children, bordered = true, ...rest }) {
   return (
@@ -47,7 +47,7 @@ export function TH({ className, align = 'left', children, ...rest }) {
     <th
       scope="col"
       className={clsx(
-        'h-10 whitespace-nowrap px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground',
+        'relative h-10 whitespace-nowrap px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         align === 'left' && 'text-left',
@@ -78,7 +78,7 @@ export function TD({ className, align = 'left', focal = false, mono = false, mut
   )
 }
 
-/** 首欄:主文字 + 次行 */
+/** First column: primary text + secondary line */
 export function CellPrimary({ title, subtitle, mono = false, className, titleClassName, children }) {
   return (
     <div className={clsx('min-w-0', className)}>
@@ -88,7 +88,7 @@ export function CellPrimary({ title, subtitle, mono = false, className, titleCla
   )
 }
 
-/** 列的動作群:預設 hover 才出現,但仍可鍵盤 focus 到 */
+/** Row actions: shown on hover by default, but still keyboard-focusable */
 export function RowActions({ className, children, always = false }) {
   return (
     <div

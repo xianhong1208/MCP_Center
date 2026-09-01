@@ -1,13 +1,13 @@
 /**
  * MCP Center API client.
  *
- * 登入狀態是 httpOnly cookie(mcp_session),前端不碰任何 session token。
+ * Login state is an httpOnly cookie (mcp_session); the frontend never touches a session token.
  *
- * Error envelope(後端 i18n 化):
- *   1. HTTPException: detail 為 dict {error: "code", params: {...}, fallback: "english"}
+ * Error envelope (backend is i18n-aware):
+ *   1. HTTPException: detail is a dict {error: "code", params: {...}, fallback: "english"}
  *   2. session routes / OAuth endpoints: top-level {error: "code", message?, params?, error_description?}
- *   3. 純字串 detail / message
- * handler 自動偵測,優先用 code 查 i18n(errors.<code>),沒對應就 fallback。
+ *   3. plain string detail / message
+ * The handler auto-detects the shape, prefers the i18n lookup by code (errors.<code>), else uses the fallback.
  */
 import i18n from '../i18n'
 
@@ -18,13 +18,13 @@ class ApiError extends Error {
     super(message)
     this.status = status
     this.data = data
-    this.code = code  // 後端 error code(若有),供 caller 做 case-by-case 判斷
+    this.code = code  // backend error code (if any), for callers to branch on
   }
 }
 
 /**
- * 從 response body 抽出「使用者該看到的訊息」
- * 優先序: i18n(errors.<code>) → fallback string → 預設訊息
+ * Extract the message the user should see from the response body.
+ * Priority: i18n (errors.<code>) -> fallback string -> default message
  */
 function extractErrorMessage(data) {
   let code = null
@@ -46,7 +46,7 @@ function extractErrorMessage(data) {
   if (code && i18n.exists && i18n.exists(`errors.${code}`)) {
     return { code, message: i18n.t(`errors.${code}`, params) }
   }
-  return { code, message: fallback || code || 'Request failed' }
+  return { code, message: fallback || code || i18n.t('errors.generic.requestFailed') }
 }
 
 async function request(endpoint, options = {}) {
@@ -74,7 +74,7 @@ async function request(endpoint, options = {}) {
     return data
   } catch (error) {
     if (error instanceof ApiError) throw error
-    throw new ApiError(error.message || 'Network error', 0, null, null)
+    throw new ApiError(i18n.t('errors.generic.networkError'), 0, null, null)
   }
 }
 
@@ -87,15 +87,15 @@ const qs = (params) => {
   return s ? `?${s}` : ''
 }
 
-// ==================== Session(管理台登入)====================
+// ==================== Session (admin console login) ====================
 
 export const sessionApi = {
-  /** 登入頁資訊:是否需首次設定、可用登入方式、閒置逾時 */
+  /** Login page info: whether first-run setup is needed, available login methods, idle timeout */
   async status() {
     return request('/api/session/status')
   },
 
-  /** 首次啟動:建立擁有者帳號並直接登入 */
+  /** First run: create the owner account and log in directly */
   async setup(email, password, username) {
     return request('/api/session/setup', {
       method: 'POST',
@@ -114,7 +114,7 @@ export const sessionApi = {
     return request('/api/session/logout', { method: 'POST' })
   },
 
-  /** 目前登入者(cookie 自動攜帶) */
+  /** Current user (cookie is sent automatically) */
   async me() {
     return request('/api/session/me')
   },
@@ -126,7 +126,7 @@ export const sessionApi = {
     })
   },
 
-  /** currentPassword 可為 null(第三方登入、尚未設密碼的帳號) */
+  /** currentPassword may be null (third-party login, accounts without a password) */
   async changePassword(currentPassword, newPassword) {
     return request('/api/session/me/password', {
       method: 'PUT',
@@ -134,7 +134,7 @@ export const sessionApi = {
     })
   },
 
-  /** 第三方登入起點(整頁跳轉,非 XHR) */
+  /** Third-party login entry point (full-page redirect, not XHR) */
   oauthStartUrl(provider, next) {
     const base = `/api/session/oauth/${encodeURIComponent(provider)}/start`
     return next ? `${base}?next=${encodeURIComponent(next)}` : base
@@ -155,9 +155,9 @@ function serviceBody({
   if (mcpPath !== undefined) body.mcp_path = mcpPath
   if (tags !== undefined) body.tags = tags
   if (requiresAuth !== undefined) body.requires_auth = requiresAuth
-  if (authToken !== undefined) body.auth_token = authToken   // '' = 清除(update)
-  if (oauthAudience !== undefined) body.oauth_audience = oauthAudience   // '' = 清除,改用 MCP URL
-  if (oauthScopes !== undefined) body.oauth_scopes = oauthScopes         // [] = 不限制
+  if (authToken !== undefined) body.auth_token = authToken   // '' = clear (update)
+  if (oauthAudience !== undefined) body.oauth_audience = oauthAudience   // '' = clear, use the MCP URL
+  if (oauthScopes !== undefined) body.oauth_scopes = oauthScopes         // [] = unrestricted
   if (isActive !== undefined) body.is_active = isActive
   return body
 }
@@ -193,7 +193,7 @@ export const servicesApi = {
     return request(`/api/services/${encodeURIComponent(id)}/tools`)
   },
 
-  /** 連到服務抓 tools;受 MCP Center 保護的服務由後端自簽短命 token,不需再挑 token */
+  /** Connect to the service and fetch tools; for MCP Center protected services the backend self-signs a token */
   async refreshTools(id) {
     return request(`/api/services/${encodeURIComponent(id)}/refresh-tools`, { method: 'POST' })
   },
@@ -206,7 +206,7 @@ export const servicesApi = {
     return request(`/api/services/${encodeURIComponent(id)}/health-check`, { method: 'POST' })
   },
 
-  /** 一鍵檢查全部服務(走排程器同一條路徑) */
+  /** Check all services at once (same path as the scheduler) */
   async checkAllHealth() {
     return request('/api/services/health-check-all', { method: 'POST' })
   },
@@ -240,7 +240,7 @@ export const discoveryApi = {
 // ==================== Stats ====================
 
 export const statsApi = {
-  /** 每日 token 事件統計;回 {stats: [{date,total,success,failed}], total, days} */
+  /** Daily token event stats; returns {stats: [{date,total,success,failed}], total, days} */
   async daily(days = 7, serviceId = null, event = null) {
     return request(`/api/stats/daily${qs({ days, service_id: serviceId, event })}`)
   },
@@ -296,7 +296,7 @@ export const systemApi = {
   },
 }
 
-// ==================== OAuth 2.1 管理 ====================
+// ==================== OAuth 2.1 management ====================
 
 export const oauthApi = {
   clients: {
@@ -304,7 +304,7 @@ export const oauthApi = {
     async list(status = 'all') {
       return request(`/api/oauth/clients${qs({ status })}`)
     },
-    /** 管理台手動登記受信任 client(直接核准);secret 只回一次 */
+    /** Manually register a trusted client from the admin console (approved directly); secret is returned once */
     async create({ clientName, redirectUris, grantTypes, tokenEndpointAuthMethod, scope, clientUri }) {
       return request('/api/oauth/clients', {
         method: 'POST',
@@ -348,14 +348,14 @@ export const oauthApi = {
   },
 
   tokens: {
-    /** kind: pat | access | refresh;預設只列有效的 */
+    /** kind: pat | access | refresh; lists only active ones by default */
     async list({ kind, serviceId, clientId, includeInactive, limit } = {}) {
       return request(`/api/oauth/tokens${qs({
         kind, service_id: serviceId, client_id: clientId,
         include_inactive: includeInactive ? 'true' : undefined, limit,
       })}`)
     },
-    /** 簽發 Personal Access Token;明文 access_token 只回一次 */
+    /** Issue a Personal Access Token; the plaintext access_token is returned once */
     async createPersonal({ serviceId, scopes, expiresDays, label }) {
       return request('/api/oauth/tokens/personal', {
         method: 'POST',
@@ -393,7 +393,7 @@ export const oauthApi = {
     },
   },
 
-  /** 最近 token 事件(issued / introspect / revoked) */
+  /** Recent token events (issued / introspect / revoked) */
   async activity(limit = 50) {
     return request(`/api/oauth/activity?limit=${limit}`)
   },
@@ -402,12 +402,12 @@ export const oauthApi = {
     return request('/api/oauth/overview')
   },
 
-  /** 接入範例(FastMCP server / Claude Code / mcp.json) */
+  /** Integration examples (FastMCP server / Claude Code / mcp.json) */
   async snippets(serviceId) {
     return request(`/api/oauth/snippets/${encodeURIComponent(serviceId)}`)
   },
 
-  /** 同意頁:/oauth/authorize 導過來的授權請求 */
+  /** Consent page: the authorization request redirected from /oauth/authorize */
   authorizeRequest: {
     async get(rid) {
       return request(`/oauth/authorize/requests/${encodeURIComponent(rid)}`)
@@ -432,13 +432,13 @@ export const marketplaceApi = {
     return request(`/api/marketplace/${encodeURIComponent(catalogId)}`)
   },
 
-  /** 「安裝」:後端從 catalog/images/<tar> 載入 docker image(離線兩階段的第一步) */
+  /** "Install": backend loads the docker image from catalog/images/<tar> (first of the two offline steps) */
   async installImage(catalogId) {
     return request(`/api/marketplace/${encodeURIComponent(catalogId)}/install`, { method: 'POST' })
   },
 }
 
-// BYO(自帶啟動指令)MCP:貼標準 {command, args, env} → 容器化執行 → 導出 127.0.0.1:port
+// BYO (bring-your-own command) MCP: paste standard {command, args, env} -> run in a container -> expose 127.0.0.1:port
 export const byoApi = {
   async list() {
     return request('/api/byo-mcp')
@@ -463,7 +463,7 @@ export const byoApi = {
 }
 
 export const managedApi = {
-  /** 進行中的長操作(部署 / 啟停 / 載入 image)目前階段;純記憶體,可高頻輪詢 */
+  /** Current stage of in-flight long operations (deploy / start-stop / image load); in-memory, safe to poll often */
   async progress() {
     return request('/api/managed/progress')
   },
@@ -489,7 +489,7 @@ export const managedApi = {
     return request(`/api/managed/${encodeURIComponent(processId)}/start`, { method: 'POST' })
   },
 
-  /** 取容器輸出(含已退出的容器) */
+  /** Fetch container output (including exited containers) */
   async logs(processId, tail = 200) {
     return request(`/api/managed/${encodeURIComponent(processId)}/logs?tail=${tail}`)
   },

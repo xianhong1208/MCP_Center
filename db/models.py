@@ -1,7 +1,7 @@
-"""資料庫模型定義
+"""Database model definitions
 
-主鍵一律用 SQLAlchemy 2.0 通用 `Uuid` 型別:PostgreSQL 存原生 uuid,SQLite 存 CHAR(32),
-兩邊程式碼零差異。
+Primary keys always use the SQLAlchemy 2.0 generic `Uuid` type: PostgreSQL stores a native uuid, SQLite stores
+CHAR(32), and the code is identical on both.
 """
 
 import json
@@ -17,18 +17,18 @@ from db.database import Base
 
 
 def local_now() -> datetime:
-    """當前本地時間(naive)。"""
+    """Current local time (naive)."""
     return datetime.now()
 
 
 def format_datetime(dt: datetime) -> str | None:
-    """datetime → ISO 8601(含時區)。"""
+    """datetime -> ISO 8601 (with timezone)."""
     if dt is None:
         return None
     return dt.astimezone().isoformat()
 
 
-# 舊名稱相容
+# Backward-compatible alias for the old name
 format_utc_datetime = format_datetime
 
 
@@ -42,12 +42,13 @@ def _json_list(raw: str | None) -> list:
         return []
 
 
-# ==================== 管理台使用者 ====================
+# ==================== Console users ====================
 
 class AdminUser(Base):
-    """管理台使用者(單一租戶:所有登入者皆為管理員,沒有 RBAC)。
+    """Console user (single tenant: every login is an admin, there is no RBAC).
 
-    auth_provider = local(帳密)/ github / google;第三方登入的帳號 password_hash 可為空。
+    auth_provider = local (email + password) / github / google; accounts from third-party login may have an empty
+    password_hash.
     """
     __tablename__ = "admin_users"
 
@@ -60,7 +61,7 @@ class AdminUser(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=local_now, nullable=False)
     last_login = Column(DateTime, nullable=True)
-    # 改密後 iat 早於此時間的 session 視同撤銷
+    # After a password change, sessions whose iat is earlier than this time are treated as revoked
     password_changed_at = Column(DateTime, nullable=True)
 
     def __repr__(self):
@@ -83,15 +84,16 @@ class AdminUser(Base):
         }
 
 
-# ==================== MCP 服務 ====================
+# ==================== MCP services ====================
 
 class Service(Base):
-    """已註冊的 MCP server(Resource Server)。
+    """A registered MCP server (Resource Server).
 
-    oauth_audience = 這台 server 的 canonical resource URI(RFC 8707),也是簽給它的
-    token 的 aud。FastMCP 端 JWTVerifier(audience=...) 要填同一個值。
-    oauth_scopes = 允許簽發給此服務的 scope(空白分隔;空 = 註冊表內全部)。
-    auth_token_encrypted = 外部服務若用自己的靜態 Bearer,存這裡供健康檢查 / 抓 tools 用。
+    oauth_audience = this server's canonical resource URI (RFC 8707), which is also the aud of tokens
+    issued for it. The FastMCP-side JWTVerifier(audience=...) must be given the same value.
+    oauth_scopes = scopes allowed to be issued for this service (space-separated; empty = every scope in the registry).
+    auth_token_encrypted = if an external service uses its own static Bearer token, it is stored here for health
+    checks / fetching tools.
     """
     __tablename__ = "services"
 
@@ -132,7 +134,7 @@ class Service(Base):
 
     @property
     def effective_audience(self) -> str | None:
-        """aud:優先用明確設定的 oauth_audience,否則用 MCP URL。"""
+        """aud: prefer the explicitly configured oauth_audience, otherwise fall back to the MCP URL."""
         return self.oauth_audience or self.get_mcp_url()
 
     def to_dict(self, include_tools: bool = False, include_health: bool = True) -> dict:
@@ -195,7 +197,7 @@ class MCPTool(Base):
 # ==================== OAuth 2.1 Authorization Server ====================
 
 class OAuthSigningKey(Base):
-    """JWT 簽章金鑰(RS256)。私鑰 AES 加密入庫;kid 讓多把金鑰並存以支援輪替。"""
+    """JWT signing key (RS256). The private key is AES-encrypted at rest; kid lets several keys coexist for rotation."""
     __tablename__ = "oauth_signing_keys"
 
     kid = Column(String(64), primary_key=True)
@@ -218,10 +220,11 @@ class OAuthSigningKey(Base):
 
 
 class OAuthClient(Base):
-    """OAuth client(Claude / Cursor / 自寫 agent …)。
+    """OAuth client (Claude / Cursor / a hand-written agent ...).
 
-    public client(token_endpoint_auth_method=none)靠 PKCE;confidential client 有 secret
-    (只存 hash)。created_via = dcr(動態註冊)/ manual(管理台建立)/ system(內建)。
+    A public client (token_endpoint_auth_method=none) relies on PKCE; a confidential client has a secret
+    (only its hash is stored). created_via = dcr (dynamic registration) / manual (created in the console) /
+    system (built-in).
     """
     __tablename__ = "oauth_clients"
 
@@ -274,10 +277,10 @@ class OAuthClient(Base):
 
 
 class OAuthAuthorizationRequest(Base):
-    """/authorize 進來、等使用者登入 + 同意的授權請求(短命)。
+    """An authorization request that arrived at /authorize and is waiting for user login + consent (short-lived).
 
-    使用者可能還沒登入,要先被導去登入頁再回來,所以請求參數得先落地;
-    同意後才轉成 OAuthAuthorizationCode。
+    The user may not be logged in yet and has to be redirected to the login page and back, so the request
+    parameters must be persisted first; only after consent is it turned into an OAuthAuthorizationCode.
     """
     __tablename__ = "oauth_authorization_requests"
 
@@ -297,7 +300,7 @@ class OAuthAuthorizationRequest(Base):
 
 
 class OAuthAuthorizationCode(Base):
-    """授權碼:只存 hash、一次性、短 TTL、綁 client + redirect_uri + PKCE。"""
+    """Authorization code: only the hash is stored, single-use, short TTL, bound to client + redirect_uri + PKCE."""
     __tablename__ = "oauth_authorization_codes"
 
     code_hash = Column(String(64), primary_key=True)
@@ -316,7 +319,7 @@ class OAuthAuthorizationCode(Base):
 
 
 class OAuthScope(Base):
-    """scope 註冊表(metadata 的 scopes_supported 來源)。"""
+    """Scope registry (the source of scopes_supported in the metadata)."""
     __tablename__ = "oauth_scopes"
 
     name = Column(String(128), primary_key=True)
@@ -329,17 +332,18 @@ class OAuthScope(Base):
 
 
 class OAuthToken(Base):
-    """已簽發的 token 紀錄(access / refresh)。
+    """Record of an issued token (access / refresh).
 
-    JWT 本身是自包含的,MCP server 用 JWKS 離線驗;這張表讓管理台能列出「誰對哪個
-    服務有存取權」、撤銷(introspect 會查 revoked_at)、以及 refresh token 輪替追蹤。
-    kind = access | refresh | pat(管理台簽的 personal access token,本質也是 access)。
+    The JWT itself is self-contained and MCP servers verify it offline via JWKS; this table lets the console list
+    "who has access to which service", revoke tokens (introspect checks revoked_at), and track refresh token
+    rotation. kind = access | refresh | pat (a personal access token signed by the console; essentially an access
+    token).
     """
     __tablename__ = "oauth_tokens"
 
     jti = Column(String(64), primary_key=True)
     kind = Column(String(16), nullable=False, index=True)
-    # 刪除 client 時保留 token 歷史(client_id 變 NULL、client_name_snapshot 留名字)
+    # Keep token history when a client is deleted (client_id becomes NULL, client_name_snapshot keeps the name)
     client_id = Column(String(64), ForeignKey("oauth_clients.client_id", ondelete="SET NULL"), nullable=True, index=True)
     client_name_snapshot = Column(String(128), nullable=True)
     user_id = Column(Uuid, ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -397,12 +401,13 @@ class OAuthToken(Base):
 
 
 class OAuthConsent(Base):
-    """使用者對某 client + audience 已授予的 scope(同意頁「記住」的依據)。"""
+    """Scopes a user has already granted to a client + audience (the basis for "remember" on the consent page)."""
     __tablename__ = "oauth_consents"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id = Column(Uuid, ForeignKey("admin_users.id", ondelete="CASCADE"), nullable=False, index=True)
-    # client 被刪就沒有東西可以再被授權,同意紀錄一起刪(token 歷史另在 oauth_tokens 保留)
+    # Once the client is deleted there is nothing left to authorize, so consents go with it
+    # (token history is kept separately in oauth_tokens)
     client_id = Column(String(64), ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), nullable=False, index=True)
     audience = Column(String(256), nullable=True)
     scope = Column(String(512), nullable=True)
@@ -425,7 +430,7 @@ class OAuthConsent(Base):
 
 
 class TokenUsage(Base):
-    """token 事件流(發證 / 內省 / 撤銷),供 dashboard 統計。"""
+    """Token event stream (issue / introspect / revoke) for dashboard statistics."""
     __tablename__ = "token_usage"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -443,7 +448,7 @@ class TokenUsage(Base):
     service = relationship("Service")
 
 
-# ==================== 審計 ====================
+# ==================== Audit ====================
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -489,7 +494,7 @@ class AuditLog(Base):
 # ==================== Managed / BYO MCP ====================
 
 class ManagedMcpProcess(Base):
-    """由 MCP Center 用 Docker 啟動的 MCP(來自 marketplace catalog 或 BYO 定義)。"""
+    """An MCP launched by MCP Center via Docker (from a marketplace catalog entry or a BYO definition)."""
     __tablename__ = "managed_mcp_processes"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -528,7 +533,7 @@ class ManagedMcpProcess(Base):
             return []
 
     def get_env_vars(self) -> dict:
-        """解密成明文 dict —— 僅供 orchestrator 啟動容器用,絕不可回傳到 API / log。"""
+        """Decrypt into a plaintext dict -- only for the orchestrator to start containers; never expose via API/log."""
         if not self.env_vars_encrypted:
             return {}
         from src.utils.crypto import decrypt_token
@@ -559,7 +564,7 @@ class ManagedMcpProcess(Base):
 
 
 class UserMcpDefinition(Base):
-    """使用者自帶(BYO)的 stdio MCP 啟動定義({command, args, env schema})。"""
+    """User-supplied (BYO) stdio MCP launch definition ({command, args, env schema})."""
     __tablename__ = "user_mcp_definitions"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)

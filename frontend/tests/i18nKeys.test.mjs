@@ -1,8 +1,8 @@
 /**
- * 前端 i18n key 覆蓋:所有以字面字串呼叫的 t('a.b.c') 都必須同時存在於 zh-TW 與 en。
- * 漏 key 時 i18next 會把 key 原文顯示在畫面上(例如 "services.common.refresh"),
- * 這種錯誤 build 不會攔、只有使用者會看到 —— 所以在這裡攔。
- * 動態組出的 key(t(`x.${y}`))不在此檢查範圍。
+ * Frontend i18n key coverage: every t('a.b.c') called with a literal key must exist in both zh-TW and en.
+ * A missing key makes i18next render the raw key on screen (e.g. "services.common.refresh");
+ * the build does not catch that, only users would -- so we catch it here.
+ * Dynamically built keys (t(`x.${y}`)) are out of scope.
  */
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -22,7 +22,7 @@ function lookup(dict, key) {
   return node
 }
 
-// i18next 複數:t('x.count', { count }) 會解析成 x.count_one / x.count_other
+// i18next plurals: t('x.count', { count }) resolves to x.count_one / x.count_other
 function has(dict, key) {
   if (lookup(dict, key) !== undefined) return true
   return lookup(dict, `${key}_one`) !== undefined || lookup(dict, `${key}_other`) !== undefined

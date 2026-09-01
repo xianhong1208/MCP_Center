@@ -1,4 +1,4 @@
-"""測試基礎:每個測試用獨立的 SQLite 暫存檔,零外部依賴。"""
+"""Test foundation: each test gets its own temporary SQLite file; zero external dependencies."""
 
 import base64
 import hashlib
@@ -13,7 +13,7 @@ import pytest
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# 測試不讀 .env / data/secrets.json:固定密鑰、獨立 secrets 檔
+# Tests do not read .env / data/secrets.json: fixed keys and a separate secrets file
 os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key-not-for-production")
 os.environ.setdefault("SESSION_SECRET_KEY", "test-session-secret-key-not-for-production")
 os.environ["MCP_CENTER_SECRETS_FILE"] = os.path.join(tempfile.gettempdir(), "mcp-center-test-secrets.json")
@@ -44,7 +44,8 @@ def db_url(tmp_path):
 
 @pytest.fixture
 def engine(db_url):
-    """每個測試獨立的 SQLite 檔;schema 直接 create_all(migration 另有專門測試)。"""
+    """A separate SQLite file per test; the schema comes straight from create_all (migrations have their own
+    tests)."""
     from db.database import reset_engine, get_engine, Base
     from src.config import Config
     from src.utils.crypto import reset_crypto
@@ -91,7 +92,7 @@ def app(seeded):
 
 @pytest.fixture
 def client(app):
-    """未登入的 TestClient(不觸發 lifespan,避免排程器 / docker)。"""
+    """Unauthenticated TestClient (does not trigger lifespan, avoiding the scheduler / docker)."""
     from fastapi.testclient import TestClient
 
     with TestClient(app, base_url="http://testserver") as c:
@@ -100,7 +101,7 @@ def client(app):
 
 @pytest.fixture
 def owner_client(client):
-    """已完成 /setup 並登入的 client(cookie 自動保存)。"""
+    """Client that has completed /setup and logged in (cookies are kept automatically)."""
     r = client.post("/api/session/setup", json={"email": OWNER_EMAIL, "password": OWNER_PASSWORD, "username": "owner"})
     assert r.status_code == 200, r.text
     return client

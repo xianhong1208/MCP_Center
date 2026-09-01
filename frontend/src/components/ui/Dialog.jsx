@@ -1,4 +1,5 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useId, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import clsx from 'clsx'
 import IconButton from './IconButton'
@@ -11,11 +12,14 @@ const sizes = {
   '2xl': 'max-w-2xl',
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 /**
- * Dialog — 全站唯一的浮層容器。
- * 結構:overlay(black/60,不模糊)+ panel(rounded-lg border popover 底 + 銳利小陰影,200ms fade+slide)。
- * 內容用 DialogHeader / DialogBody / DialogFooter 以 border 分隔。
- * 傳 title 會自動 render DialogHeader(含右上 X)。
+ * Dialog — the only overlay container in the app.
+ * Structure: overlay (black/60, no blur) + panel (rounded-lg, popover background, crisp shadow, 200 ms fade+slide).
+ * Compose the content with DialogHeader / DialogBody / DialogFooter, separated by borders.
+ * Passing `title` renders DialogHeader automatically (with the top-right X).
+ * Focus is trapped inside the panel while open and restored to the opener on close.
  */
 export default function Dialog({
   open = true,
@@ -30,26 +34,57 @@ export default function Dialog({
   zIndex = 'z-[60]',
   scrollable = true,
 }) {
-  const handleEscape = useCallback((e) => {
-    if (e.key === 'Escape') onClose?.()
+  const titleId = useId()
+  const panelRef = useRef(null)
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') {
+      onClose?.()
+      return
+    }
+    if (e.key !== 'Tab' || !panelRef.current) return
+    const focusable = Array.from(panelRef.current.querySelectorAll(FOCUSABLE))
+    if (focusable.length === 0) {
+      e.preventDefault()
+      return
+    }
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
   }, [onClose])
 
   useEffect(() => {
     if (!open) return undefined
-    document.addEventListener('keydown', handleEscape)
+    const opener = document.activeElement
+    document.addEventListener('keydown', handleKeyDown)
     document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = ''
+    // Move focus inside unless a child already asked for it (autoFocus)
+    const panel = panelRef.current
+    if (panel && !panel.contains(document.activeElement)) {
+      const target = panel.querySelector('[autofocus]') || panel.querySelector(FOCUSABLE) || panel
+      target.focus?.()
     }
-  }, [open, handleEscape])
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = ''
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus()
+    }
+  }, [open, handleKeyDown])
 
   if (!open) return null
 
   return (
-    <div className={clsx('fixed inset-0 flex items-center justify-center p-4', zIndex, className)} role="dialog" aria-modal="true">
+    <div className={clsx('fixed inset-0 flex items-center justify-center p-4', zIndex, className)} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined}>
       <div className="absolute inset-0 bg-black/60 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={clsx(
           'relative flex w-full flex-col rounded-lg border border-border-strong bg-popover shadow-overlay animate-dialog-in',
           scrollable && 'max-h-[90vh]',
@@ -58,7 +93,7 @@ export default function Dialog({
         )}
       >
         {(title || showClose) && (
-          <DialogHeader title={title} description={description} onClose={showClose ? onClose : undefined} />
+          <DialogHeader id={titleId} title={title} description={description} onClose={showClose ? onClose : undefined} />
         )}
         {children}
       </div>
@@ -66,15 +101,16 @@ export default function Dialog({
   )
 }
 
-export function DialogHeader({ title, description, onClose, className, children }) {
+export function DialogHeader({ id, title, description, onClose, className, children }) {
+  const { t } = useTranslation()
   return (
     <div className={clsx('flex items-start justify-between gap-4 border-b border-border px-5 py-4', className)}>
       <div className="min-w-0">
-        {title && <h2 className="text-base font-semibold text-foreground">{title}</h2>}
+        {title && <h2 id={id} className="text-base font-semibold text-foreground">{title}</h2>}
         {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
         {children}
       </div>
-      {onClose && <IconButton icon={X} title="Close" onClick={onClose} className="-mr-1.5 -mt-1" />}
+      {onClose && <IconButton icon={X} title={t('common.close')} onClick={onClose} className="-mr-1.5 -mt-1" />}
     </div>
   )
 }

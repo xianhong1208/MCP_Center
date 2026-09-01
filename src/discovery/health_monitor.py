@@ -1,7 +1,7 @@
-"""健康檢查 / 抓 tools 時的認證解析。
+"""Auth resolution for health checks / tool fetching.
 
-實際的定時健康檢查在 src/scheduler/cleanup_scheduler.py(_health_check_task);
-單次檢查在 src/api/routes.py(check_service_health)。這裡只放兩者共用的邏輯。
+The actual periodic health check lives in src/scheduler/cleanup_scheduler.py (_health_check_task);
+the one-off check lives in src/api/routes.py (check_service_health). Only the logic shared by both lives here.
 """
 
 import logging
@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_service_auth_token(db: Session, service: Service) -> Optional[str]:
-    """健康檢查 / 抓 tools 時要帶的 Bearer。
+    """The Bearer token to send for health checks / tool fetching.
 
-    ① 服務受 MCP Center 自己的 OAuth 保護(requires_auth 且沒有靜態 token)→ 當場自簽
-       aud=該服務的短命 token,免存、免過期。
-    ② 服務有自己的靜態 Bearer(auth_token_encrypted)→ 解密使用。
-    ③ 不需認證 → None。
+    1. Service is protected by MCP Center's own OAuth (requires_auth and no static token) -> self-sign a
+       short-lived token with aud=that service on the spot; nothing to store, nothing to expire.
+    2. Service has its own static Bearer (auth_token_encrypted) -> decrypt and use it.
+    3. No authentication required -> None.
     """
     if service.auth_token_encrypted:
         try:

@@ -1,7 +1,7 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "services": "MCP Services",
+    "services": "Services",
     "tokens": "Tokens",
     "issueToken": "Issue Token",
     "clients": "OAuth Clients",
@@ -42,6 +42,11 @@
       "minutesAgo": "{{n}} min ago",
       "hoursAgo": "{{n}} h ago",
       "daysAgo": "{{n}} d ago"
+    },
+    "close": "Close",
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page"
     }
   },
   "auth": {
@@ -134,7 +139,7 @@
     "live": "Live",
     "issueToken": "Issue Token",
     "stats": {
-      "services": "MCP Services",
+      "services": "Services",
       "onlineSuffix": "{{n}} online",
       "clients": "OAuth Clients",
       "pendingSuffix": "{{n}} pending approval",
@@ -207,6 +212,12 @@
         "issued": "Token issued",
         "introspect": "Token introspected",
         "revoked": "Token revoked"
+      },
+      "grantTypes": {
+        "authorization_code": "Authorization code",
+        "refresh_token": "Refresh",
+        "personal_access_token": "Personal token",
+        "client_credentials": "Client credentials"
       }
     },
     "quickActions": {
@@ -297,7 +308,9 @@
       "chartFailed": "Failed",
       "loadFail": "Failed to load token",
       "revokeSuccess": "Token revoked",
-      "revokeFail": "Failed to revoke: {{message}}"
+      "revokeFail": "Failed to revoke: {{message}}",
+      "identitySection": "Identity",
+      "lifecycleSection": "Lifecycle"
     },
     "create": {
       "title": "Issue Personal Access Token",
@@ -339,7 +352,8 @@
       "issueAnother": "Issue another",
       "viewToken": "Token details",
       "viewAll": "All tokens",
-      "footerHint": "Clients that support OAuth (Claude Code, FastMCP Client) do not need a personal token — they sign in through the consent page."
+      "footerHint": "Clients that support OAuth (Claude Code, FastMCP Client) do not need a personal token — they sign in through the consent page.",
+      "copyToken": "Copy token"
     }
   },
   "services": {
@@ -429,7 +443,7 @@
     },
     "create": {
       "title": "Register New Service",
-      "name": "Service Name *",
+      "name": "Service name",
       "namePlaceholder": "e.g., my-mcp-service",
       "submit": "Create Service",
       "submitting": "Creating...",
@@ -485,16 +499,16 @@
       "delete": "Delete",
       "copy": "Copy",
       "copied": "Copied!",
-      "authRequired": "Auth Required:",
+      "authRequired": "Auth Required",
       "yes": "Yes",
       "no": "No",
-      "responseTime": "Response Time:",
+      "responseTime": "Response Time",
       "hostLabel": "Host",
       "portLabel": "Port",
       "protocolLabel": "Protocol",
       "mcpPathLabel": "MCP Path",
       "descriptionTitle": "Description",
-      "createdAt": "Created: {{date}}",
+      "createdAt": "Created {{date}}",
       "tagsTitle": "Tags",
       "noTags": "No tags",
       "mcpToolsTitle": "MCP Tools ({{n}})",
@@ -528,19 +542,24 @@
       "scopesAll": "No restriction — any registered scope may be granted.",
       "integrationTitle": "Integration",
       "integrationSubtitle": "Copy-paste snippets for the server side (FastMCP) and for MCP clients.",
-      "snippetClaudeOauth": "Claude Code (OAuth)",
-      "snippetClaudePat": "Claude Code (personal token)",
-      "snippetMcpJsonOauth": "mcp.json (OAuth)",
-      "snippetMcpJsonPat": "mcp.json (personal token)",
-      "snippetFastmcpServer": "FastMCP server",
-      "snippetFastmcpClient": "FastMCP client",
       "snippetsUnavailable": "Integration snippets are unavailable.",
       "issuerLabel": "Issuer",
       "issuePat": "Issue personal token",
       "tokensTitle": "Active tokens ({{n}})",
       "tokensEmpty": "No active tokens for this server",
       "tokensHint": "Issue a personal token, or connect an OAuth client",
-      "viewAllTokens": "View all"
+      "viewAllTokens": "View all",
+      "snippetFamily": {
+        "claudeCode": "Claude Code",
+        "mcpJson": "mcp.json",
+        "fastmcp": "FastMCP"
+      },
+      "snippetVariant": {
+        "oauth": "OAuth",
+        "pat": "Personal token",
+        "server": "Server",
+        "client": "Client"
+      }
     },
     "form": {
       "oauthSection": "OAuth protection",
@@ -559,6 +578,11 @@
       "staticTokenPlaceholder": "Leave empty if this server is protected by MCP Center",
       "staticTokenKeep": "Leave empty to keep the stored token",
       "staticTokenClear": "Remove the stored token"
+    },
+    "health": {
+      "unreachable": "Server unreachable",
+      "timeout": "Health check timed out",
+      "failed": "Health check failed"
     }
   },
   "clients": {
@@ -1012,7 +1036,12 @@
       "provider": "Signed in via {{provider}}",
       "setPassword": "Set a password",
       "setPasswordTitle": "Set Password",
-      "noPasswordHint": "Set a password to also allow email / password sign-in."
+      "noPasswordHint": "Set a password to also allow email / password sign-in.",
+      "providers": {
+        "local": "email and password",
+        "github": "GitHub",
+        "google": "Google"
+      }
     },
     "search": {
       "placeholderTrigger": "Search...",
@@ -1026,12 +1055,22 @@
       "resultsSingular": "{{n}} result",
       "resultsPlural": "{{n}} results",
       "noDescription": "No description",
-      "clients": "Clients"
+      "clients": "Clients",
+      "clear": "Clear search"
     },
     "code": {
       "copy": "Copy",
       "copied": "Copied to clipboard",
       "copyFailed": "Copy failed — select the text and copy manually"
+    }
+  },
+  "scopes": {
+    "desc": {
+      "mcp_tools_read": "List / read tool metadata",
+      "mcp_tools_invoke": "Invoke tools",
+      "mcp_resources_read": "Read resources",
+      "mcp_prompts_read": "Read prompts",
+      "offline_access": "Request a refresh token"
     }
   }
 }

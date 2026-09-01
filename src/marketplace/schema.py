@@ -1,20 +1,20 @@
 """Marketplace catalog Pydantic schema
 
-每個 catalog/*.yaml 檔對應一個 CatalogEntry,描述一個可從 MCP Center
-UI 安裝的 MCP 服務模板。廠商看到的「Install」表單是從這個 schema
-動態生成的。
+Each catalog/*.yaml file maps to one CatalogEntry describing an MCP service template that
+can be installed from the MCP Center UI. The "Install" form the vendor sees is generated
+dynamically from this schema.
 
-設計原則:
-  - extra='forbid' — 不認得的欄位直接報錯,避免廠商打錯字段名靜默失敗
-  - secret + required 標記由 UI 決定欄位渲染方式(password / plain input)
-  - docker.tag 應由我們 pin 住驗證過的版本,不建議用 latest 出貨
+Design principles:
+  - extra='forbid' -- unknown fields raise immediately, so a vendor's typo in a field name never fails silently
+  - the secret + required flags tell the UI how to render the field (password / plain input)
+  - docker.tag should be pinned by us to a verified version; shipping with latest is not recommended
 """
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# docker argv 政策的單一來源。同一份規則也在 orchestrator 從 DB 讀出
-# image_args / image_command 之後再套一次 — 見 argv_policy 的 module docstring
-# 說明為什麼兩個邊界都要驗(Stored injection 的威脅模型 + SAST 的可見性)。
+# Single source of truth for the docker argv policy. The same rules are applied again by the
+# orchestrator after it reads image_args / image_command from the DB -- see the argv_policy module
+# docstring for why both boundaries validate (stored-injection threat model + SAST visibility).
 from src.marketplace.argv_policy import (
     validate_command_tokens,
     validate_docker_args,
@@ -24,56 +24,56 @@ from src.marketplace.argv_policy import (
 
 
 class EnvVarDef(BaseModel):
-    """一個環境變數的定義 - 廠商 Install 時填一欄"""
+    """Definition of one environment variable - the vendor fills in one field at install time"""
     model_config = ConfigDict(extra='forbid')
 
     name: str = Field(..., description="Env var key, e.g. PERPLEXITY_API_KEY")
-    label: str = Field(..., description="UI 顯示的 label")
-    help: Optional[str] = Field(None, description="Help text;可放 URL")
+    label: str = Field(..., description="Label shown in the UI")
+    help: Optional[str] = Field(None, description="Help text; may contain a URL")
     required: bool = True
     secret: bool = Field(
         False,
-        description="True → UI 用 password input,後端加密存",
+        description="True -> the UI uses a password input and the backend stores it encrypted",
     )
     default: Optional[str] = Field(
         None,
-        description="預設值;若 secret=True 建議勿設",
+        description="Default value; not recommended when secret=True",
     )
     pattern: Optional[str] = Field(
         None,
-        description="Regex 驗證;UI 與後端都會驗",
+        description="Regex validation; enforced by both the UI and the backend",
     )
     error_message: Optional[str] = Field(
         None,
-        description="Regex 驗證失敗時顯示的訊息",
+        description="Message shown when regex validation fails",
     )
 
 
 class DockerSpec(BaseModel):
-    """Container 啟動設定"""
+    """Container launch settings"""
     model_config = ConfigDict(extra='forbid')
 
     image: str = Field(..., description="e.g. mcp/perplexity-ask")
-    tag: str = Field("latest", description="建議 pin 特定版本")
+    tag: str = Field("latest", description="Pinning a specific version is recommended")
     args: List[str] = Field(
         default_factory=lambda: ["--rm"],
         description="docker run args",
     )
     transport: str = Field(
         "http",
-        description="stdio = 需要 supergateway bridge; http = image 自帶 HTTP server",
+        description="stdio = needs the supergateway bridge; http = the image ships its own HTTP server",
     )
     container_port: int = Field(
         8080,
-        description="HTTP 模式下 container 內部 listen 的 port (用於 -p mapping)",
+        description="Port the container listens on internally in HTTP mode (used for the -p mapping)",
     )
     command: List[str] = Field(
         default_factory=list,
-        description="entrypoint args 接在 image_ref 之後 (e.g. ['--config','/app/cfg.yaml'])",
+        description="entrypoint args appended after image_ref (e.g. ['--config','/app/cfg.yaml'])",
     )
 
-    # 以下 validator 全部委派給 src/marketplace/argv_policy — 政策只有一份,
-    # orchestrator 在執行邊界套用的是同樣的規則。
+    # All validators below delegate to src/marketplace/argv_policy -- there is only one policy,
+    # and the orchestrator applies the very same rules at the execution boundary.
 
     @field_validator("image")
     @classmethod
@@ -83,33 +83,33 @@ class DockerSpec(BaseModel):
     @field_validator("tag")
     @classmethod
     def _validate_tag(cls, v: str) -> str:
-        """tag 會被接成 `image:tag` 存進 DB,同樣要驗(先前完全沒驗)。"""
+        """The tag is joined into `image:tag` and stored in the DB, so it must be validated too (it never was)."""
         return validate_tag(v)
 
     @field_validator("args")
     @classmethod
     def _validate_args(cls, v: List[str]) -> List[str]:
-        """flag 層級白名單(預設拒絕)。字元白名單擋不住 -v /:/host。"""
+        """Flag-level allowlist (default-deny). A character allowlist cannot stop -v /:/host."""
         return validate_docker_args(v)
 
     @field_validator("command")
     @classmethod
     def _validate_command(cls, v: List[str]) -> List[str]:
-        """entrypoint args:不是 docker flag,字元白名單即足夠。"""
+        """entrypoint args: not docker flags, so a character allowlist is sufficient."""
         return validate_command_tokens(v)
 
 
 class CatalogEntry(BaseModel):
-    """單一 Marketplace 項目"""
+    """A single Marketplace item"""
     model_config = ConfigDict(extra='forbid')
 
-    id: str = Field(..., description="唯一 ID,也是 catalog 檔名 (無 .yaml)")
-    name: str = Field(..., description="UI 顯示名稱")
+    id: str = Field(..., description="Unique ID; also the catalog file name (without .yaml)")
+    name: str = Field(..., description="Display name in the UI")
     description: str
     category: str = "general"
     icon: Optional[str] = Field(
         None,
-        description="static/marketplace-icons/ 下的檔名 (optional)",
+        description="File name under static/marketplace-icons/ (optional)",
     )
 
     docker: DockerSpec
@@ -117,24 +117,25 @@ class CatalogEntry(BaseModel):
 
     docs_url: Optional[str] = None
 
-    # 離線安裝:image tar 檔名(位於 catalog 目錄的 images/ 下)。
-    # 未指定時採約定 `<id>.tar`。「安裝」= 後端以 docker SDK load 此 tar;
-    # 「部署」= 啟動 container(image 必須已安裝)。
+    # Offline install: image tar file name (located under images/ in the catalog directory).
+    # When unset, the convention `<id>.tar` is used. "Install" = the backend loads this tar via the
+    # docker SDK; "Deploy" = start the container (the image must already be installed).
     image_tar: Optional[str] = Field(
         None,
         description=(
-            "images/ 下的 tar 檔名;預設約定 <id>.tar。"
-            "可用佔位符 {tag} / {image} / {id},例如 mit2i_{tag}.tar.gz —— "
-            "升版時只需改 docker.tag,檔名自動跟著變。"
+            "Tar file name under images/; defaults to the <id>.tar convention. "
+            "The placeholders {tag} / {image} / {id} are supported, e.g. mit2i_{tag}.tar.gz -- "
+            "when upgrading, only docker.tag needs to change and the file name follows automatically."
         ),
     )
 
     def image_tar_name(self) -> str:
-        """解析 image tar 檔名。
+        """Resolve the image tar file name.
 
-        顯式指定優先,否則約定 <id>.tar。支援 {tag} / {image} / {id} 佔位符,
-        讓檔名由 docker.tag 推導 —— 只保留一個事實來源,升版不必改兩處。
-        image 可能含 registry 路徑(a/b/c),放進檔名時把 / 換成 _。
+        An explicit value takes precedence; otherwise the <id>.tar convention applies. The {tag} /
+        {image} / {id} placeholders are supported so the file name can be derived from docker.tag --
+        one source of truth, so an upgrade does not require editing two places.
+        image may contain a registry path (a/b/c); '/' is replaced with '_' when it goes into the file name.
         """
         template = self.image_tar or f"{self.id}.tar"
         try:
@@ -145,17 +146,18 @@ class CatalogEntry(BaseModel):
             )
         except (KeyError, IndexError) as e:
             raise ValueError(
-                f"image_tar 含未知佔位符 {e}(僅支援 {{tag}} {{image}} {{id}}): {template!r}"
+                f"image_tar contains unknown placeholder {e} "
+                f"(only {{tag}} {{image}} {{id}} are supported): {template!r}"
             ) from e
 
     @model_validator(mode="after")
     def _validate_image_tar_template(self):
-        """佔位符寫錯要在 yaml 載入時就報錯(loader 會略過壞 entry),
-        而不是等市集列表被打時才在 image_tar_name() 炸出 500。"""
+        """A misspelled placeholder must fail at YAML load time (the loader skips the broken entry)
+        instead of blowing up with a 500 in image_tar_name() only when the marketplace listing is requested."""
         self.image_tar_name()
         return self
 
     def public_dict(self) -> dict:
-        """給 API 回傳給前端用;目前等同 model_dump(),未來若要隱藏內部
-        欄位可在此調整"""
+        """Used by the API to return the entry to the frontend; currently identical to model_dump().
+        Adjust here if internal fields ever need to be hidden"""
         return self.model_dump()

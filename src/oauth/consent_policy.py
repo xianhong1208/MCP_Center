@@ -1,8 +1,8 @@
-"""同意頁政策:什麼情況可以不用再問使用者一次。
+"""Consent-page policy: when the user does not need to be asked again.
 
-OAuth 的同意頁是「人」對「client 可以代表我做什麼」的閘門。每次都問最安全,但
-Claude / Cursor 每次重連都跳一次同意頁很煩;完全不問又等於任何 DCR 註冊的 client
-都能靜默拿到 token。這裡集中定義取捨。
+The OAuth consent page is the gate where a human decides "what may this client do on my behalf". Asking every time
+is safest, but Claude / Cursor popping a consent page on every reconnect is annoying; never asking means any
+DCR-registered client could silently obtain a token. The trade-off is defined in one place here.
 """
 
 from __future__ import annotations
@@ -22,12 +22,13 @@ def should_skip_consent(
     audience: Optional[str],
     requested_scopes: Iterable[str],
 ) -> bool:
-    """回傳 True 代表可直接核發授權碼、不顯示同意頁。
+    """Returns True when the authorization code can be issued directly without showing the consent page.
 
-    預設規則:
-      1. 管理台手動建立(created_via=manual)的 client 視為使用者自己信任的 → 略過。
-      2. 其他 client:使用者之前對「同 client + 同 audience」按過「記住」,且這次要的
-         scope 沒有超出當時授予的範圍 → 略過;否則顯示同意頁。
+    Default rules:
+      1. Clients created manually in the admin console (created_via=manual) are considered trusted by the user
+         themselves -> skip.
+      2. Other clients: the user previously chose "remember" for the same client + same audience, and the scope
+         requested now does not exceed what was granted then -> skip; otherwise show the consent page.
     """
     requested = set(requested_scopes)
     if client.created_via == "manual":

@@ -1,7 +1,7 @@
 """Rate Limiter Middleware
 
-基於 IP 的請求頻率限制，防止 API 濫用。
-使用滑動窗口算法實現。
+IP-based request rate limiting to prevent API abuse.
+Implemented with a sliding-window algorithm.
 """
 
 import asyncio
@@ -16,33 +16,33 @@ from starlette.responses import JSONResponse
 
 
 def is_ip_in_whitelist(client_ip: str, whitelist: List[str]) -> bool:
-    """檢查 IP 是否在白名單中（支援 CIDR 格式）
+    """Check whether an IP is in the whitelist (CIDR notation supported).
 
     Args:
-        client_ip: 客戶端 IP 地址
-        whitelist: 白名單列表，可包含單一 IP 或 CIDR 格式
+        client_ip: Client IP address
+        whitelist: Whitelist entries; may contain single IPs or CIDR ranges
 
     Returns:
-        True 如果 IP 在白名單中
+        True if the IP is in the whitelist
     """
-    # 直接匹配
+    # Direct match
     if client_ip in whitelist:
         return True
 
     try:
         ip = ipaddress.ip_address(client_ip)
         for entry in whitelist:
-            # 跳過非 IP 格式（如 "localhost"）
+            # Skip entries that are not IP formatted (e.g. "localhost")
             if entry in ("localhost", "::1"):
                 continue
             try:
-                # 嘗試作為網段解析
+                # Try to parse as a network range
                 if "/" in entry:
                     network = ipaddress.ip_network(entry, strict=False)
                     if ip in network:
                         return True
                 else:
-                    # 作為單一 IP 解析
+                    # Parse as a single IP
                     if ip == ipaddress.ip_address(entry):
                         return True
             except ValueError:
@@ -55,48 +55,48 @@ def is_ip_in_whitelist(client_ip: str, whitelist: List[str]) -> bool:
 
 @dataclass
 class RateLimitConfig:
-    """Rate Limit 配置"""
-    requests_per_minute: int = 60  # 每分鐘最大請求數
-    requests_per_hour: int = 1000  # 每小時最大請求數
-    burst_size: int = 10  # 突發請求容許數
+    """Rate limit configuration"""
+    requests_per_minute: int = 60  # Maximum requests per minute
+    requests_per_hour: int = 1000  # Maximum requests per hour
+    burst_size: int = 10  # Allowed burst size
     enabled: bool = True
-    # 白名單 IP（不受限制）
+    # Whitelisted IPs (not rate limited)
     whitelist: list = field(default_factory=lambda: ["127.0.0.1", "localhost"])
-    # 特定路徑的自定義限制
+    # Custom limits for specific paths
     path_limits: Dict[str, int] = field(default_factory=dict)
-    # 信任的反向代理 IP（只有來自這些 IP 的請求才會解析 X-Forwarded-For）
+    # Trusted reverse-proxy IPs (X-Forwarded-For is only parsed for requests coming from these IPs)
     trusted_proxies: list = field(default_factory=lambda: ["127.0.0.1", "::1"])
 
 
 class SlidingWindowCounter:
-    """滑動窗口計數器"""
+    """Sliding-window counter"""
 
     def __init__(self, window_size: int = 60):
-        self.window_size = window_size  # 窗口大小（秒）
+        self.window_size = window_size  # Window size (seconds)
         self.requests: Dict[str, list] = defaultdict(list)
 
     def add_request(self, key: str) -> int:
-        """添加請求並返回窗口內的請求數"""
+        """Record a request and return the request count within the window."""
         now = time.time()
         window_start = now - self.window_size
 
-        # 清理過期的請求記錄
+        # Drop expired request records
         self.requests[key] = [t for t in self.requests[key] if t > window_start]
 
-        # 添加當前請求
+        # Record the current request
         self.requests[key].append(now)
 
         return len(self.requests[key])
 
     def get_count(self, key: str) -> int:
-        """獲取當前窗口內的請求數"""
+        """Get the request count within the current window."""
         now = time.time()
         window_start = now - self.window_size
         self.requests[key] = [t for t in self.requests[key] if t > window_start]
         return len(self.requests[key])
 
     def cleanup(self):
-        """清理所有過期記錄"""
+        """Purge all expired records."""
         now = time.time()
         for key in list(self.requests.keys()):
             window_start = now - self.window_size
@@ -106,7 +106,7 @@ class SlidingWindowCounter:
 
 
 class RateLimiter:
-    """Rate Limiter 實例"""
+    """Rate limiter instance"""
 
     _instance: Optional['RateLimiter'] = None
 
@@ -114,24 +114,24 @@ class RateLimiter:
         self.config = config or RateLimitConfig()
         self.minute_counter = SlidingWindowCounter(window_size=60)
         self.hour_counter = SlidingWindowCounter(window_size=3600)
-        self.blocked_until: Dict[str, float] = {}  # 被封鎖的 IP
-        self._lock = asyncio.Lock()  # 保護並發存取
+        self.blocked_until: Dict[str, float] = {}  # Blocked IPs
+        self._lock = asyncio.Lock()  # Guards concurrent access
 
     @classmethod
     def get_instance(cls, config: RateLimitConfig = None) -> 'RateLimiter':
-        """獲取單例實例"""
+        """Get the singleton instance."""
         if cls._instance is None:
             cls._instance = cls(config)
         return cls._instance
 
     @classmethod
     def reset_instance(cls):
-        """重置實例（用於測試）"""
+        """Reset the instance (for tests)."""
         cls._instance = None
 
     async def is_allowed(self, client_ip: str, path: str = None) -> tuple[bool, str, int]:
         """
-        檢查請求是否允許
+        Check whether a request is allowed.
 
         Returns:
             (allowed, reason, retry_after)
@@ -139,12 +139,12 @@ class RateLimiter:
         if not self.config.enabled:
             return True, "", 0
 
-        # 白名單檢查（支援 CIDR）— 不需要鎖
+        # Whitelist check (CIDR supported) -- no lock needed
         if is_ip_in_whitelist(client_ip, self.config.whitelist):
             return True, "", 0
 
         async with self._lock:
-            # 檢查是否被暫時封鎖
+            # Check whether temporarily blocked
             if client_ip in self.blocked_until:
                 if time.time() < self.blocked_until[client_ip]:
                     retry_after = int(self.blocked_until[client_ip] - time.time())
@@ -152,32 +152,32 @@ class RateLimiter:
                 else:
                     del self.blocked_until[client_ip]
 
-            # 獲取限制值
+            # Get the limit values
             minute_limit = self.config.requests_per_minute
             hour_limit = self.config.requests_per_hour
 
-            # 特定路徑可能有自定義限制
+            # Specific paths may have custom limits
             if path and path in self.config.path_limits:
                 minute_limit = self.config.path_limits[path]
 
-            # 檢查每分鐘限制
+            # Check the per-minute limit
             minute_count = self.minute_counter.add_request(f"{client_ip}:minute")
             if minute_count > minute_limit:
-                # 超過限制，暫時封鎖 60 秒
+                # Limit exceeded; block temporarily for 60 seconds
                 self.blocked_until[client_ip] = time.time() + 60
                 return False, "rate_limit_minute", 60
 
-            # 檢查每小時限制
+            # Check the per-hour limit
             hour_count = self.hour_counter.add_request(f"{client_ip}:hour")
             if hour_count > hour_limit:
-                # 超過小時限制，封鎖到下一個小時
-                self.blocked_until[client_ip] = time.time() + 300  # 5 分鐘
+                # Hourly limit exceeded; block until the next hour
+                self.blocked_until[client_ip] = time.time() + 300  # 5 minutes
                 return False, "rate_limit_hour", 300
 
             return True, "", 0
 
     def get_stats(self, client_ip: str) -> dict:
-        """獲取客戶端的請求統計"""
+        """Get request statistics for a client."""
         return {
             "minute_count": self.minute_counter.get_count(f"{client_ip}:minute"),
             "minute_limit": self.config.requests_per_minute,
@@ -188,24 +188,24 @@ class RateLimiter:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """FastAPI Rate Limit 中間件"""
+    """FastAPI rate limit middleware"""
 
     def __init__(self, app, config: RateLimitConfig = None):
         super().__init__(app)
         self.config = config or RateLimitConfig()
         self.limiter = RateLimiter.get_instance(config)
-        # 不限制的路徑
+        # Paths that are not rate limited
         self.excluded_paths = ["/docs", "/redoc", "/openapi.json", "/health"]
 
     async def dispatch(self, request: Request, call_next):
-        # 排除特定路徑
+        # Skip excluded paths
         if any(request.url.path.startswith(p) for p in self.excluded_paths):
             return await call_next(request)
 
-        # 獲取客戶端 IP
+        # Get the client IP
         client_ip = self._get_client_ip(request)
 
-        # 檢查是否允許
+        # Check whether allowed
         allowed, reason, retry_after = await self.limiter.is_allowed(
             client_ip,
             request.url.path
@@ -223,7 +223,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(retry_after)}
             )
 
-        # 添加 rate limit headers
+        # Add rate limit headers
         response = await call_next(request)
         stats = self.limiter.get_stats(client_ip)
         response.headers["X-RateLimit-Limit"] = str(stats["minute_limit"])
@@ -234,27 +234,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
     def _get_client_ip(self, request: Request) -> str:
-        """獲取客戶端真實 IP
+        """Get the client's real IP.
 
-        安全性考量：只有當直接連接的 IP 來自信任的代理時，
-        才會解析 X-Forwarded-For 或 X-Real-IP header。
-        這可以防止攻擊者透過偽造這些 header 來繞過 rate limiting。
+        Security consideration: X-Forwarded-For / X-Real-IP headers are only parsed when the directly
+        connected IP belongs to a trusted proxy.
+        This prevents attackers from bypassing rate limiting by forging those headers.
         """
-        # 獲取直接連接的 IP
+        # Get the directly connected IP
         direct_ip = request.client.host if request.client else "unknown"
 
-        # 只有來自信任代理的請求才解析 forwarded headers
+        # Only parse forwarded headers for requests from trusted proxies
         if is_ip_in_whitelist(direct_ip, self.config.trusted_proxies):
-            # 優先使用 X-Forwarded-For
+            # Prefer X-Forwarded-For
             forwarded = request.headers.get("X-Forwarded-For")
             if forwarded:
-                # 取第一個 IP（原始客戶端 IP）
+                # Take the first IP (the original client IP)
                 return forwarded.split(",")[0].strip()
 
-            # 其次使用 X-Real-IP
+            # Fall back to X-Real-IP
             real_ip = request.headers.get("X-Real-IP")
             if real_ip:
                 return real_ip
 
-        # 非信任代理或無 forwarded header，使用直接連接的 IP
+        # Untrusted proxy or no forwarded header: use the directly connected IP
         return direct_ip

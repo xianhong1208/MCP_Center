@@ -1,14 +1,16 @@
-"""長時間操作的進度登錄簿(process 內、thread-safe)
+"""Progress registry for long-running operations (in-process, thread-safe)
 
-部署 / 啟動 / 停止 / 載入 image 都是數十秒到數分鐘的操作,而 HTTP 回應要等
-整件事做完才回。若前端只看到一顆轉圈,使用者分不出「還在下載套件」和「已經卡死」。
+Deploy / start / stop / load image all take tens of seconds to minutes, and the HTTP response
+only returns once the whole thing is done. If the frontend only shows a spinner, the user cannot
+tell "still downloading packages" from "already stuck".
 
-設計:
-  - 操作方(orchestrator / routes)在每個階段呼叫 stage(key, name),做完 end(key)。
-  - 讀取方(GET /auth/managed/progress)拿 snapshot(),前端輪詢後把階段翻成文字。
-  - key 慣例:process:<process_id>(啟停部署)、catalog:<catalog_id>(載入 image)。
-  - 純記憶體:MCP Center 是單一 process(Nuitka onefile),不需要跨節點;
-    重啟後進度自然消失,與 container 實際狀態由 DB 對齊,無一致性問題。
+Design:
+  - Operators (orchestrator / routes) call stage(key, name) at each stage and end(key) when done.
+  - Readers (GET /auth/managed/progress) take snapshot(); the frontend polls and turns stages into text.
+  - Key convention: process:<process_id> (start/stop/deploy), catalog:<catalog_id> (load image).
+  - Pure in-memory: MCP Center is a single process (Nuitka onefile), no cross-node needs;
+    progress naturally disappears on restart, and the actual container state is aligned via
+    the DB, so there is no consistency problem.
 """
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from typing import Dict, Iterator, List, Optional
 
 
 class ProgressRegistry:
-    """thread-safe 的進度表。所有方法皆可在任意 thread 呼叫。"""
+    """Thread-safe progress table. Every method may be called from any thread."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -38,8 +40,8 @@ class ProgressRegistry:
             }
 
     def stage(self, key: str, stage: str, detail: Optional[str] = None) -> None:
-        """更新階段。key 尚未 begin 時視為 begin(kind 由 key 前綴推得),
-        讓 orchestrator 不必知道自己是被誰呼叫的。"""
+        """Update the stage. If the key has not been begun yet, treat it as begin (kind is
+        inferred from the key prefix) so the orchestrator need not know who called it."""
         now = time.time()
         with self._lock:
             item = self._items.get(key)
@@ -66,7 +68,8 @@ class ProgressRegistry:
 
     @contextmanager
     def track(self, key: str, kind: str, stage: str = "queued") -> Iterator[None]:
-        """with 區塊:進入即 begin,離開(含例外)必 end —— 失敗的操作不會留下殭屍進度。"""
+        """with block: begin on enter, always end on exit (including exceptions) -- a failed
+        operation never leaves zombie progress behind."""
         self.begin(key, kind, stage)
         try:
             yield

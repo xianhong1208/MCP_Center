@@ -1,8 +1,8 @@
-"""配置管理器
+"""Configuration manager.
 
-支援環境變數擴展:
-- ${VAR_NAME}           必須設定的環境變數
-- ${VAR_NAME:-default}  可選,有預設值
+Supports environment variable expansion:
+- ${VAR_NAME}           required environment variable
+- ${VAR_NAME:-default}  optional, with a default value
 """
 
 import os
@@ -29,7 +29,7 @@ ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(?::-([^}]*))?\}")
 
 
 def expand_env_vars(value: Any) -> Any:
-    """遞迴展開 ${VAR} / ${VAR:-default}。"""
+    """Recursively expand ${VAR} / ${VAR:-default}."""
     if isinstance(value, str):
         def replacer(match):
             var_name = match.group(1)
@@ -52,7 +52,8 @@ def expand_env_vars(value: Any) -> Any:
 
 
 class Config:
-    """配置管理器(單例)。未呼叫 set_config 時提供內建預設值,方便測試與零設定啟動。"""
+    """Configuration manager (singleton). Provides built-in defaults until set_config is called, for tests and
+    zero-config startup."""
 
     _config_path: Optional[str] = None
     _config_model: Optional[ConfigModel] = None
@@ -64,7 +65,7 @@ class Config:
 
     @classmethod
     def set_model(cls, model: ConfigModel):
-        """直接注入設定物件(測試用)。"""
+        """Inject a config object directly (for tests)."""
         cls._config_path = None
         cls._config_model = model
 
@@ -80,7 +81,7 @@ class Config:
             raise FileNotFoundError(f"Config file not found: {config_path}")
         with open(path, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
-        # `${PORT:-4568}` 展開後是字串;pydantic lax mode 會依欄位型別轉成 int / bool
+        # `${PORT:-4568}` expands to a string; pydantic lax mode coerces it to int / bool per the field type
         return ConfigModel(**expand_env_vars(raw))
 
     @classmethod

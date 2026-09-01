@@ -1,4 +1,4 @@
-"""MCP Center 自訂例外。"""
+"""MCP Center custom exceptions."""
 
 from src.exceptions.base import (
     MCPCenterError,

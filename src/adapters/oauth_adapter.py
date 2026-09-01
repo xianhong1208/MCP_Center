@@ -1,4 +1,4 @@
-"""OAuth 領域 Adapter(signing keys / clients / codes / tokens / consents / scopes)+ 事件統計 + 審計清理。"""
+"""OAuth domain adapter (signing keys / clients / codes / tokens / consents / scopes) + event stats + audit cleanup."""
 
 from db.crud import (
     AuditLogCRUD,
@@ -15,7 +15,7 @@ from src.adapters.exceptions import NotFoundError
 
 
 class OAuthKeyAdapter(OAuthSigningKeyCRUD):
-    """簽章金鑰。"""
+    """Signing keys."""
 
 
 class OAuthClientAdapter(OAuthClientCRUD):
@@ -29,15 +29,15 @@ class OAuthClientAdapter(OAuthClientCRUD):
 
 
 class OAuthAuthRequestAdapter(OAuthAuthRequestCRUD):
-    """/authorize 進來、等待同意的請求。"""
+    """Requests that came in via /authorize and are awaiting consent."""
 
 
 class OAuthCodeAdapter(OAuthCodeCRUD):
-    """授權碼。"""
+    """Authorization codes."""
 
 
 class OAuthScopeAdapter(OAuthScopeCRUD):
-    """scope 註冊表。"""
+    """Scope registry."""
 
 
 class OAuthTokenAdapter(OAuthTokenCRUD):
@@ -51,12 +51,12 @@ class OAuthTokenAdapter(OAuthTokenCRUD):
 
 
 class OAuthConsentAdapter(OAuthConsentCRUD):
-    """使用者已授予的同意。"""
+    """Consents the user has granted."""
 
 
 class TokenUsageAdapter(TokenUsageCRUD):
-    """token 事件 / 統計。"""
+    """Token events / statistics."""
 
 
 class AuditLogAdapter(AuditLogCRUD):
-    """審計日誌清理。"""
+    """Audit log cleanup."""
