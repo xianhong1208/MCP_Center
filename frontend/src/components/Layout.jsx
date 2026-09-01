@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import GlobalSearch from './GlobalSearch'
 import { useAuth } from '../contexts/AuthContext'
 import { systemApi } from '../services/api'
 import ThemeToggle from './ThemeToggle'
@@ -152,8 +153,16 @@ export default function Layout() {
           <Wordmark name={t('layout.appName')} />
         </div>
 
-        <div className="mx-auto w-full max-w-7xl px-6 py-8">
-          <Outlet />
+        <div className="flex">
+          {/* 搜尋欄:側欄與內容之間的獨立欄位,與頁面標題同一條線;內容區從它右邊開始 */}
+          <div className="hidden w-[336px] shrink-0 pl-6 pr-4 pt-8 lg:block">
+            <div className="sticky top-8">
+              <GlobalSearch />
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 px-6 py-8">
+            <Outlet />
+          </div>
         </div>
       </main>
 

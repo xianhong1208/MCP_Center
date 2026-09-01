@@ -7,9 +7,9 @@ import GlobalSearch from '../GlobalSearch'
  * 每頁頂部:標題(text-xl semibold)+ 一行說明 + 右側動作(最多一顆 primary)。
  * backTo / backLabel:顯示上一層連結(detail 頁)。
  * meta:標題右側的小元素(StatusPill / Badge)。
- * search:標題列最左邊(側欄 MCP Center 的右邊、標題的左邊)放全站搜尋框;預設開,detail 頁可傳 false。
+ * search:是否在標題左邊放全站搜尋框(預設關;全站搜尋在 Layout 的搜尋欄)。
  */
-export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = true }) {
+export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = false }) {
   return (
     <div className={clsx('flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between', className)}>
       <div className="flex min-w-0 items-start gap-6">
