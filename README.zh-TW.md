@@ -1,58 +1,65 @@
 # MCP Center
 
-**你的 MCP server 們共用的 OAuth 2.1 Authorization Server + 管理台。**
+**開源的 OAuth 2.1 Authorization Server 與 Model Context Protocol server 控制台。**
 
-MCP Center 讓每一台用 [FastMCP](https://github.com/PrefectHQ/fastmcp) 寫的 MCP server 都只需要三行設定就能受標準 OAuth 保護,
-而 Claude / Cursor / Claude Code 這些 MCP client 則能靠內建的 OAuth 流程(動態註冊 + PKCE)自動連上——不用再自己發 token、寫驗證 API。
+MCP Center 把標準化的身分驗證放在你每一台 MCP server 前面。任何 [FastMCP](https://github.com/PrefectHQ/fastmcp) server 只需三行設定就受到保護;Claude Code、Claude Desktop、Cursor 這類 MCP client 則直接用它們內建的 OAuth 流程連上——不用自訂 token、不用驗證回呼、不用在每台 server 各寫一套驗證。
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-green.svg)](pyproject.toml)
+[![OAuth 2.1](https://img.shields.io/badge/OAuth-2.1-6366f1.svg)](#-運作原理)
+[![Works with FastMCP](https://img.shields.io/badge/FastMCP-3.x-22c55e.svg)](https://gofastmcp.com)
+[![Tests](https://img.shields.io/badge/tests-pytest-informational.svg)](#-開發)
+
+[English](README.md) · [快速開始](#-快速開始) · [運作原理](#-運作原理) · [設定](#️-設定) · [控制台](#-控制台)
 
 ```
-┌──────────────────────┐   1. 401 + resource metadata    ┌──────────────────────┐
-│  MCP client          │ ─────────────────────────────▶ │  你的 FastMCP server  │
-│  (Claude / Cursor /  │ ◀───────────────────────────── │  (Resource Server)   │
-│   Claude Code / …)   │   5. Authorization: Bearer JWT  │                      │
-└──────────┬───────────┘                                 └──────────┬───────────┘
-           │ 2. discovery + DCR                                     │ 4. 抓 JWKS 公鑰,離線驗簽
-           │ 3. authorize(PKCE)→ 同意頁 → code → token              │    (iss / aud / exp / scope)
-           ▼                                                        ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  MCP Center = OAuth 2.1 Authorization Server + 管理台                          │
-│  /.well-known/oauth-authorization-server  /.well-known/jwks.json             │
-│  /oauth/register  /oauth/authorize  /oauth/token  /oauth/revoke  /oauth/introspect │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────┐   ① 401 + protected-resource metadata   ┌──────────────────────┐
+│      MCP client      │ ───────────────────────────────────────▶ │  你的 FastMCP server  │
+│ Claude Code / Cursor │ ◀─────────────────────────────────────── │   (resource server)   │
+│  Claude Desktop / …  │   ⑤ Authorization: Bearer <JWT>          │                      │
+└──────────┬───────────┘                                          └──────────┬───────────┘
+           │ ② discovery + 動態註冊(DCR)                                       │ ④ 抓 JWKS 公鑰,離線驗簽
+           │ ③ authorize(PKCE)→ 同意頁 → code → token                         │    iss / aud / exp / scope
+           ▼                                                                 ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│  MCP Center — OAuth 2.1 Authorization Server + 控制台                                      │
+│  /.well-known/oauth-authorization-server   /.well-known/jwks.json                        │
+│  /oauth/register  /oauth/authorize  /oauth/token  /oauth/revoke  /oauth/introspect       │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 功能
+## ✨ 主要特色
 
-- **標準 OAuth 2.1 AS**:RFC 8414 metadata、RFC 7591 動態註冊、authorization code + PKCE(S256)、refresh token 輪替與重放偵測、RFC 7009 撤銷、RFC 7662 內省、RFC 8707 resource → audience 綁定、RFC 9207 `iss` 回應。
-- **RS256 + JWKS**:私鑰只在 MCP Center(AES 加密入庫、可輪替),MCP server 只拿公鑰。
-- **同意頁**:動態註冊的 client 第一次連線要人按「允許」;可記住;管理台手動登記的 client 免同意。
-- **Personal Access Token**:管理台直接簽長效 token,貼到 `Authorization: Bearer` 就能用(給 CLI / 腳本 / 不支援 OAuth 的 client)。
-- **MCP server 目錄**:登錄、掃描發現、健康監控(每 30 秒)、tools 同步、一鍵產生接入設定片段。
-- **Marketplace + Docker orchestrator**:從 catalog 一鍵部署 MCP server;或貼一段 `{command, args, env}`(BYO)容器化成 HTTP MCP。
-- **管理台登入**:email + 密碼;GitHub / Google 登入接口(填 client_id 即啟用)。
-- **零設定啟動**:SQLite 單檔、密鑰自動產生,`git clone` 後兩個指令就能跑。
+- **標準化的授權伺服器** — RFC 8414 metadata、RFC 7591 動態註冊、authorization code + PKCE(S256)、refresh token 輪替與重放偵測、RFC 7009 撤銷、RFC 7662 內省、RFC 8707 resource indicator、RFC 9207 `iss` 回應。正是 [MCP 授權規範](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)要求的那一套。
+- **非對稱簽章、離線驗證** — RS256 金鑰,公開 JWKS、可輪替。MCP server 用公鑰在本地驗 token;MCP Center 不在請求路徑上。
+- **三行接上 FastMCP** — `RemoteAuthProvider` + `JWTVerifier(jwks_uri, issuer, audience)` 就完成保護。token 綁定每台 server 的 audience,給 A 的 token 永遠不能打 B。
+- **同意頁** — 動態註冊的 client 第一次連線要請擁有者按「允許」;可依 client + server 記住。你自己在控制台登記的 client 免同意。
+- **Personal Access Token** — 從控制台簽長效 bearer token 給腳本、CI 與不會走 OAuth 的 client,附上可直接貼的 `claude mcp add` 與 `mcpServers` 片段。
+- **服務登錄與健康監控** — 手動登記或自動掃描 MCP server、同步 tools 列表、每 30 秒健康檢查、狀態變更經 WebSocket 即時推播。
+- **Marketplace 與 orchestrator** — 從 catalog 一鍵部署 MCP server;或貼一段標準的 `{command, args, env}`,由 MCP Center 容器化並掛上 HTTP bridge。
+- **零設定啟動** — 預設 SQLite、首次啟動自動產生密鑰、瀏覽器內的擁有者帳號設定精靈。PostgreSQL 與 GitHub / Google 登入只差幾個環境變數。
 
-## 快速開始
+## 🚀 安裝
 
-需求:Python 3.11+、[uv](https://docs.astral.sh/uv/)、(前端開發才需要)Node.js 18+。
+需要 Python 3.11+ 與 [uv](https://docs.astral.sh/uv/)。只有要改控制台前端時才需要 Node.js 18+。
 
 ```bash
 git clone https://github.com/xianhong1208/MCP_Center.git
 cd MCP_Center
 uv sync
-cp .env.example .env          # 可以先不改
+cp .env.example .env      # 可省略:所有設定都有可用的預設值
 uv run python main.py
 ```
 
-打開 <http://localhost:4568/setup> 建立擁有者帳號,登入後就是管理台。
+打開 <http://localhost:4568/setup> 建立擁有者帳號,就進入控制台了。
 
-> 想要一開機就有帳號:在 `.env` 設 `ADMIN_EMAIL` / `ADMIN_PASSWORD`。
-> 要對外部署:一定要把 `OAUTH_ISSUER` 改成公開網址(它會寫進每個 token 的 `iss`,MCP server 靠它做 discovery)。
+> **不是部署在 `localhost`?** 把 `OAUTH_ISSUER` 設成公開網址(例如 `https://mcp.example.com`)。它會寫進每個 token 的 `iss` 與 discovery 文件,MCP server 和 client 都必須連得到它。
 
-## 讓一台 FastMCP server 受保護
+## 🏁 快速開始
 
-1. 管理台 → **Services** → 新增(host / port / path)。服務的 *audience* 預設就是它的 MCP URL,例如 `http://127.0.0.1:8000/mcp`。
-2. 服務詳情頁的 **Integration** 面板會產生下面這段(也可以直接照抄改):
+### 1. 保護一台 FastMCP server
+
+在控制台登記這台 server(**Services → Register Service**,host / port / path)。它的 *audience* 預設就是它的 MCP URL,例如 `http://127.0.0.1:8000/mcp`。服務頁的 **Integration** 面板會替你產生下面這段:
 
 ```python
 from fastmcp import FastMCP
@@ -64,11 +71,12 @@ auth = RemoteAuthProvider(
     token_verifier=JWTVerifier(
         jwks_uri="http://localhost:4568/.well-known/jwks.json",
         issuer="http://localhost:4568",
-        audience="http://127.0.0.1:8000/mcp",   # = 管理台上這個服務的 audience
+        audience="http://127.0.0.1:8000/mcp",   # 必須和控制台上的 audience 一致
     ),
     authorization_servers=[AnyHttpUrl("http://localhost:4568")],
     base_url="http://127.0.0.1:8000",
 )
+
 mcp = FastMCP(name="demo", auth=auth)
 
 @mcp.tool
@@ -78,19 +86,26 @@ def hello(name: str) -> str:
 mcp.run(transport="http", host="127.0.0.1", port=8000)
 ```
 
-完整範例:[`examples/fastmcp_server.py`](examples/fastmcp_server.py)。FastMCP 會自動提供 `/.well-known/oauth-protected-resource`,指向 MCP Center。
+FastMCP 會自動提供 `/.well-known/oauth-protected-resource`,把 client 指向 MCP Center。完整可執行的範例在 [`examples/fastmcp_server.py`](examples/fastmcp_server.py)。
 
-## 讓 client 連上
+### 2. 連上 client
 
-**支援 OAuth 的 client(Claude Code / Claude Desktop / Cursor / FastMCP Client)** — 什麼都不用先做:
+**支援 OAuth 的 client**(Claude Code、Claude Desktop、Cursor、FastMCP `Client`)什麼都不用先做:
 
 ```bash
 claude mcp add --transport http demo http://127.0.0.1:8000/mcp
 ```
 
-第一次連線時 client 會自動向 MCP Center 註冊、開瀏覽器到同意頁,你按「允許」就完成。
+第一次使用時 client 會自己向 MCP Center 註冊、在瀏覽器開啟同意頁,你按 **Allow** 之後就拿到 token,之後自動 refresh。
 
-**不支援 OAuth 的 client / 腳本** — 管理台 → **Issue Token** 簽一個 Personal Access Token:
+```python
+from fastmcp import Client
+
+async with Client("http://127.0.0.1:8000/mcp", auth="oauth") as client:
+    print(await client.list_tools())
+```
+
+**其他情況** — 腳本、CI、不支援 OAuth 的 client — 在控制台的 **Issue Token** 簽一個 Personal Access Token:
 
 ```bash
 claude mcp add --transport http demo http://127.0.0.1:8000/mcp \
@@ -101,93 +116,101 @@ claude mcp add --transport http demo http://127.0.0.1:8000/mcp \
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
 
-async with Client("http://127.0.0.1:8000/mcp", auth=BearerAuth("<PERSONAL_ACCESS_TOKEN>")) as c:
-    print(await c.list_tools())
+async with Client("http://127.0.0.1:8000/mcp", auth=BearerAuth("<PERSONAL_ACCESS_TOKEN>")) as client:
+    print(await client.list_tools())
 ```
 
-## 設定
+## 🔐 運作原理
 
-所有設定在 [`config/config.yaml`](config/config.yaml),敏感值由環境變數(`.env`)帶入。常用的:
+MCP Center 扮演 MCP 規範中的 **authorization server**;你的 MCP server 是 **resource server**,從不簽發、也不儲存 token。
 
-| 環境變數 | 預設 | 說明 |
+| 步驟 | 誰 | 發生什麼事 |
 |---|---|---|
-| `OAUTH_ISSUER` | `http://localhost:4568` | token 的 `iss` 與 discovery 網址,**程式也直接 bind 這裡的 port**。對外部署必改。 |
-| `DATABASE_URL` | `sqlite:///data/mcp_center.db` | 改成 `postgresql://…` 即用 PostgreSQL(`uv sync --extra postgres`)。 |
-| `SESSION_SECRET_KEY` / `ENCRYPTION_KEY` | 自動產生 | 留空會產生並存到 `data/secrets.json`;`ENCRYPTION_KEY` 設定後**不可再換**。 |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | 首次啟動自動建立擁有者;不設就走 `/setup`。 |
-| `OAUTH_DCR_AUTO_APPROVE` | `true` | 動態註冊的 client 免審核(同意頁仍是閘門);設 `false` 需在管理台核准。 |
-| `OAUTH_ACCESS_EXPIRE_MINUTES` / `OAUTH_REFRESH_EXPIRE_DAYS` | `60` / `30` | token 有效期。 |
-| `GITHUB_CLIENT_ID(_SECRET)` / `GOOGLE_CLIENT_ID(_SECRET)` | — | 管理台第三方登入;callback 為 `<issuer>/api/session/oauth/<provider>/callback`。 |
-| `SECURE_COOKIE` | `false` | HTTPS 部署時設 `true`。 |
-| `ENABLE_API_DOCS` | — | 設 `true` 開 `/docs`。 |
+| Discovery | client → server → MCP Center | server 回 `401` 並在 `WWW-Authenticate` 指向它的 protected-resource metadata,裡面寫著 MCP Center 是授權伺服器;client 再抓 `/.well-known/oauth-authorization-server`。 |
+| 註冊 | client → MCP Center | client 動態註冊(`POST /oauth/register`)拿到 `client_id`。public client 用 PKCE;confidential client 拿到 secret。 |
+| 授權 | 瀏覽器 → MCP Center | `/oauth/authorize` 驗證參數、用 `resource` 參數綁定目標 server,顯示同意頁(記住過或受信任的 client 直接略過)。 |
+| Token | client → MCP Center | `/oauth/token` 用授權碼(檢查 PKCE、redirect URI、resource)換出 RS256 access token — `iss`、`sub`、`aud`、`scope`、`client_id`、`jti` — 以及 refresh token。 |
+| 驗證 | server | server 抓一次 JWKS,之後在本地驗簽章、issuer、audience、有效期與 scope。 |
+| 撤銷 | 控制台 / client | 撤銷 refresh token 會讓整條鏈失效;`POST /oauth/introspect` 立刻回 `active: false`。離線驗簽的 access token 會撐到過期,所以預設只有 60 分鐘;需要即時撤銷的 server 改用 `IntrospectionTokenVerifier`。 |
 
-## 端點總覽
+同意頁的政策刻意做得很小、集中在一個地方 — [`src/oauth/consent_policy.py`](src/oauth/consent_policy.py) — 想改「什麼時候要問」就改這裡。
+
+## ⚙️ 設定
+
+所有設定在 [`config/config.yaml`](config/config.yaml),敏感值從環境變數(`.env`)讀取。你可能會碰到的:
+
+| 變數 | 預設 | 用途 |
+|---|---|---|
+| `OAUTH_ISSUER` | `http://localhost:4568` | MCP Center 的公開網址,同時決定程式 bind 的 port。**非本機部署一定要改。** |
+| `DATABASE_URL` | `sqlite:///data/mcp_center.db` | 指向 `postgresql://…` 即改用 PostgreSQL(`uv sync --extra postgres`)。 |
+| `SESSION_SECRET_KEY`、`ENCRYPTION_KEY` | 自動產生 | 未設定時存在 `data/secrets.json`。`ENCRYPTION_KEY` 保護私鑰與儲存的 secret,不要隨意更換。 |
+| `ADMIN_EMAIL`、`ADMIN_PASSWORD` | — | 首次啟動直接建立擁有者帳號,不用走 `/setup`。 |
+| `OAUTH_ACCESS_EXPIRE_MINUTES`、`OAUTH_REFRESH_EXPIRE_DAYS` | `60`、`30` | token 有效期。 |
+| `OAUTH_DCR_AUTO_APPROVE` | `true` | 動態註冊的 client 是否立即可用(同意頁仍是閘門),或必須在控制台核准。 |
+| `GITHUB_CLIENT_ID/_SECRET`、`GOOGLE_CLIENT_ID/_SECRET` | — | 啟用控制台的 GitHub / Google 登入。Callback:`<issuer>/api/session/oauth/<provider>/callback`。 |
+| `SECURE_COOKIE` | `false` | 走 HTTPS 時設 `true`。 |
+| `ENABLE_API_DOCS` | — | `true` 會在 `/docs` 開放 OpenAPI。 |
+
+進階:`SERVER_HOST` / `SERVER_PORT` 可覆寫 bind 位址,只在它必須和 issuer 不同時使用(例如反向代理後面只聽 `127.0.0.1`)。
+
+## 🖥 控制台
+
+| 頁面 | 在這裡做什麼 |
+|---|---|
+| **Dashboard** | 服務健康、token 活動、最近事件、系統狀態。 |
+| **Services** | 登記 / 掃描 MCP server、設定 audience 與允許的 scope、更新 tools、健康檢查、接入片段。 |
+| **Tokens · Issue Token** | MCP Center 簽發過的所有 token — OAuth 授權與 Personal Access Token — 含撤銷、到期與最後使用資訊。 |
+| **OAuth Clients** | 動態註冊與受信任的 client,核准 / 撤銷 / 刪除,scope 註冊表,簽章金鑰輪替。 |
+| **Marketplace** | 從 catalog 部署 MCP server,或自帶 `{command, args, env}`。 |
+| **Audit Logs** | 誰、何時、從哪裡、做了什麼。 |
+
+用 email + 密碼登入,設定好之後也可用 GitHub / Google。控制台刻意設計為單租戶:登入的人就是管理員。
+
+## 📚 API 總覽
 
 | 類別 | 端點 |
 |---|---|
-| OAuth(公開) | `GET /.well-known/oauth-authorization-server`、`GET /.well-known/jwks.json`、`POST /oauth/register`、`GET /oauth/authorize`、`POST /oauth/token`、`POST /oauth/revoke`、`POST /oauth/introspect` |
-| 管理台登入 | `/api/session/status|setup|login|logout|me`、`/api/session/oauth/{github,google}/start` |
-| 管理 API(需登入) | `/api/services*`、`/api/oauth/{clients,scopes,tokens,consents,keys,activity,overview,snippets}`、`/api/discovery/*`、`/api/marketplace*`、`/api/managed*`、`/api/byo-mcp*`、`/api/stats/*`、`/api/audit/*`、`/api/system/*` |
+| OAuth(公開) | `GET /.well-known/oauth-authorization-server` · `GET /.well-known/jwks.json` · `POST /oauth/register` · `GET /oauth/authorize` · `POST /oauth/token` · `POST /oauth/revoke` · `POST /oauth/introspect` |
+| 控制台 session | `/api/session/status · setup · login · logout · me` · `/api/session/oauth/{github,google}/start` |
+| 管理 API(需登入) | `/api/services*` · `/api/oauth/{clients,scopes,tokens,consents,keys,activity,overview,snippets}` · `/api/discovery/*` · `/api/marketplace*` · `/api/managed*` · `/api/byo-mcp*` · `/api/stats/*` · `/api/audit/*` · `/api/system/*` |
 
-設 `ENABLE_API_DOCS=true` 後 <http://localhost:4568/docs> 有完整 OpenAPI。
+設 `ENABLE_API_DOCS=true` 後 `/docs` 有完整 OpenAPI 參考。
 
-### 只需要設 `OAUTH_ISSUER`
-
-`OAUTH_ISSUER` 是**別人看到的公開網址**(寫進 token 的 `iss` 與 discovery 文件),程式會直接 bind 它的 port:
-
-| 情境 | `OAUTH_ISSUER` | 實際 bind |
-|---|---|---|
-| 本機開發 | `http://localhost:4568` | `0.0.0.0:4568` |
-| 區網其他機器要用 | `http://192.168.1.10:4568` | `0.0.0.0:4568` |
-| nginx / 網域 | `https://mcp.yourdomain.com` | `0.0.0.0:4568`(URL 沒 port 就用 4568,由 nginx 轉進來) |
-
-只有 bind 位址要和 issuer 不同時(例如反向代理後面只想聽 `127.0.0.1`)才需要進階變數 `SERVER_HOST` / `SERVER_PORT`。
-
-## 撤銷與有效期(值得知道)
-
-MCP server 用 JWKS **離線**驗簽,所以在管理台撤銷一個 access token,對「只驗簽」的 server 不會立即生效(要等它過期);
-撤銷會立刻讓 refresh 失效、也會讓 `/oauth/introspect` 回 `active=false`。要即時撤銷就把 access 有效期調短,或在 FastMCP 端改用
-`IntrospectionTokenVerifier(introspection_url="<issuer>/oauth/introspect", client_id=..., client_secret=...)`(client 在管理台登記為 confidential)。
-
-## 開發
+## 🛠 開發
 
 ```bash
 uv sync --all-groups
-uv run pytest                       # 後端測試(SQLite 暫存檔,含與真實 FastMCP 的互通測試)
+uv run pytest                       # 後端測試,含與真實 FastMCP 的互通測試
 uv run ruff check src db main.py
 
 cd frontend && npm install
-npm run dev                         # http://localhost:5173,API 代理到 4568
-npm run build                       # 輸出到 ../static/web,由後端一起 serve
+npm run dev                         # Vite 在 :5173,API 代理到 :4568
+npm run build                       # 輸出到 static/web,由後端一起 serve
 ```
 
-DB schema 變更:改 `db/models.py` → `uv run python main.py --migrate-only generate -m "..."` → 啟動時自動套用。
-
-### 專案結構
+Schema 變更:改 `db/models.py`,然後 `uv run python main.py --migrate-only generate -m "描述變更"`。啟動時自動套用 migration。
 
 ```
-main.py                 啟動 / FastAPI app 組裝 / SPA
-config/config.yaml      設定(環境變數展開)
-db/                     models、crud(資料層)、seed、migrate
-alembic/                migrations
-src/oauth/              OAuth 2.1 AS:signing_keys、service、consent_policy、jwt_utils
-src/identity/           管理台登入:passwords、session、providers/(github, google)、service
-src/api/                routes(services / stats / audit / system)、oauth_routes、oauth_admin_routes、
-                        session_routes、discovery_routes、managed_routes、schemas
-src/adapters/           三層架構中間層(只有這裡可以 import db.crud)
-src/discovery/          MCP 掃描 / 健康監控 / WebSocket
-src/marketplace/        catalog 載入 / argv 政策
-src/orchestrator/       Docker 部署 managed / BYO MCP
-frontend/               React 管理台
-examples/               FastMCP server 範例
-tests/                  pytest
+main.py              程式進入點與 app 組裝
+config/              config.yaml(支援環境變數展開)
+db/                  models · crud(資料層)· seed · migrate · alembic/
+src/oauth/           授權伺服器:簽章金鑰、grant、同意政策
+src/identity/        控制台登入:密碼、session、GitHub / Google provider
+src/api/             routers:oauth、session、services、discovery、marketplace、stats、audit
+src/adapters/        唯一可以 import db.crud 的層
+src/discovery/       掃描器、健康監控、WebSocket 廣播
+src/orchestrator/    以 Docker 管理的 managed / 自帶 MCP server
+frontend/            React 控制台(Vite + Tailwind)
+examples/            FastMCP server 範例
+tests/               pytest 測試
 ```
 
-### 三層不變量
+CI 守住的架構規則:`routes → adapters → db.crud`。只有 `src/adapters/*` 可以 import `db.crud`,route 不直接呼叫 `db.commit()`(`tests/test_architecture_layering.py`)。
 
-`routes → adapters → db.crud`。只有 `src/adapters/*` 可以 import `db.crud`;route 不直接 `db.commit()`。
-`tests/test_architecture_layering.py` 在 CI 守這條線。
+## 🤝 貢獻
 
-## 授權
+歡迎 issue 與 pull request。改動請保持聚焦,為你碰到的行為補上或更新測試,送 PR 前跑過 `uv run pytest` 與 `npm run build`。
+
+## 📄 授權
 
 [MIT](LICENSE)
