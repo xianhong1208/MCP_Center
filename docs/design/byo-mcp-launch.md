@@ -1,5 +1,7 @@
 # 設計文件:自帶啟動指令的 MCP(BYO MCP Launch)
 
+> **歷史設計文件**:寫於 RBAC 尚存在的版本。文中的 `super_admin` / `managed:byo` 權限在 1.0.0 已移除——現在所有登入的管理員都能建立 BYO 定義;Checkmarx 指企業時期的 SAST 掃描。其餘架構決策仍有效。
+
 > 狀態:**已實作 v2**(P1–P6 完成;決策 Q1=不支援掛載起步、Q2=打包成 image、Q3=全做)
 > 日期:2026-08-26
 > 相關:三層架構重構、Marketplace 離線兩階段、Checkmarx SAST 加固

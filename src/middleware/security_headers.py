@@ -1,7 +1,7 @@
 """Security Headers Middleware
 
 對所有 HTTP 回應附加安全相關標頭,防禦 Clickjacking、MIME sniffing 等。
-對應 Checkmarx scan #1034930 ISSUE-10(Potential Clickjacking on Legacy Browsers)。
+防 Clickjacking / MIME sniffing(對應 SAST 常見的 Legacy Browser Clickjacking 項目)。
 
 說明:
   - X-Frame-Options: DENY 與 CSP frame-ancestors 'none' 雙重防護,

@@ -29,14 +29,6 @@ from sqlalchemy.orm import Session
 from db import get_db
 from src.adapters import BYODefinitionAdapter, ManagedMcpProcessAdapter
 from src.adapters.exceptions import AdapterError
-
-
-def _adapter_http_exc(e: AdapterError) -> HTTPException:
-    """AdapterError → HTTPException(managed 路由的 detail 格式:params 永遠存在)。"""
-    return HTTPException(
-        status_code=e.status_code,
-        detail={"error": e.code, "params": e.params, "fallback": e.fallback},
-    )
 from db.models import AdminUser
 from src.api.schemas import (
     ByoCreateRequest,
@@ -74,6 +66,14 @@ from src.orchestrator.progress import catalog_key, get_progress_registry
 logger = get_logger("api.managed")
 
 router = APIRouter()
+
+
+def _adapter_http_exc(e: AdapterError) -> HTTPException:
+    """AdapterError → HTTPException(managed 路由的 detail 格式:params 永遠存在)。"""
+    return HTTPException(
+        status_code=e.status_code,
+        detail={"error": e.code, "params": e.params, "fallback": e.fallback},
+    )
 
 
 # ---------- Helpers ----------

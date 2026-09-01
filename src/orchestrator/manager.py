@@ -102,22 +102,26 @@ def _flags_to_kwargs(flags):
     i = 0
     while i < len(flags):
         tok = flags[i]
-        if tok == "--rm":
-            kwargs["auto_remove"] = True; i += 1; continue
-        if tok == "-i":
-            kwargs["stdin_open"] = True; i += 1; continue
-        if tok == "-t":
-            kwargs["tty"] = True; i += 1; continue
-        if tok == "-it":
-            kwargs["stdin_open"] = True; kwargs["tty"] = True; i += 1; continue
-        if tok == "--init":
-            kwargs["init"] = True; i += 1; continue
+        # 無值 flag → docker SDK 的布林參數
+        bool_flags = {
+            "--rm": {"auto_remove": True},
+            "-i": {"stdin_open": True},
+            "-t": {"tty": True},
+            "-it": {"stdin_open": True, "tty": True},
+            "--init": {"init": True},
+        }
+        if tok in bool_flags:
+            kwargs.update(bool_flags[tok])
+            i += 1
+            continue
         # 帶值 flag:支援 `--flag=value` 與 `--flag value` 兩式(argv_policy 已驗格式)
         flag, sep, inline = tok.partition("=")
         if sep:
-            value = inline; i += 1
+            value = inline
+            i += 1
         else:
-            value = flags[i + 1]; i += 2
+            value = flags[i + 1]
+            i += 2
         if flag == "--network":
             kwargs["network"] = value
         elif flag == "--memory":
@@ -147,7 +151,7 @@ class Orchestrator:
 
         改用 docker SDK(走 Docker socket)取代 shell out `docker` CLI:受汙染
         資料以型別化參數送進 API,不再組成 OS 命令字串 —— 從根本消除 command
-        injection sink(Checkmarx: Stored Command Injection)。
+        injection sink(SAST:Stored Command Injection)。
         """
         if self._docker is None:
             try:

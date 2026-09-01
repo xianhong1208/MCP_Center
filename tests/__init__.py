@@ -1,1 +1,1 @@
-# Token Server Tests
+# MCP Center tests

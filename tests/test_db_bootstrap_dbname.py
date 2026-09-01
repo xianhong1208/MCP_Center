@@ -1,6 +1,6 @@
 """db_bootstrap 的 dbname 驗證測試
 
-背景:Checkmarx 對 db_bootstrap.py 的 CREATE DATABASE 報 Second-Order SQL
+背景:SAST 對 db_bootstrap.py 的 CREATE DATABASE 報 Second-Order SQL
 Injection。該 SQL 本身是安全的(psycopg2 `sql.Identifier`,dbname 全程是
 Identifier 物件,無字串串接),但我們仍在來源端加白名單:
 

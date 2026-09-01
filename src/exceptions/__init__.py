@@ -1,4 +1,4 @@
-"""Custom Exception Classes for Token Server"""
+"""MCP Center 自訂例外。"""
 
 from src.exceptions.base import (
     TokenServerError,

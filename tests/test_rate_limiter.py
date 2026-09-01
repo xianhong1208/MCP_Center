@@ -7,8 +7,6 @@
 """
 
 import pytest
-import time
-from unittest.mock import MagicMock, patch
 
 
 class TestSlidingWindowCounter:

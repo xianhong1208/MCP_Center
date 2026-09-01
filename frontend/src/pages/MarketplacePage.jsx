@@ -458,7 +458,7 @@ export default function MarketplacePage() {
     }
     try {
       // allSettled: 一個 API 失敗不影響另一個(例如 managed 權限不足但 catalog 能讀)
-      // byo 只有 super_admin 讀得到,失敗時靜默略過(其他使用者本就看不到自訂項目)
+      // BYO 定義載入失敗時靜默略過(市集本體仍可用)
       const [catalogResult, managedResult, byoResult] = await Promise.allSettled([
         marketplaceApi.list(),
         managedApi.list(),

@@ -1,6 +1,6 @@
 """Marketplace catalog schema / loader 驗證測試
 
-重點是 Checkmarx「Stored Command Argument Injection」的回歸防護:
+重點是 SAST「Stored Command Argument Injection」的回歸防護:
 catalog 的 docker.args 會被快照進 DB 再展開成 `docker run` 的 argv,所以
 schema 邊界必須讓 container 逃逸 flag 無法表達。
 

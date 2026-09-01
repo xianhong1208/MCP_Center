@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 
 class TokenServerError(Exception):
-    """Base exception for all Token Server errors
+    """Base exception for all MCP Center errors
 
     Attributes:
         code: Error code for programmatic handling

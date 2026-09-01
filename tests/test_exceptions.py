@@ -7,7 +7,6 @@
 4. 基礎例外
 """
 
-import pytest
 
 
 class TestAuthExceptions:

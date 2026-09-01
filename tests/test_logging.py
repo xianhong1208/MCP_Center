@@ -5,8 +5,6 @@
 2. 請求日誌
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestLoggingMiddleware:

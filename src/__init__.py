@@ -1,1 +1,1 @@
-"""Token Server 源碼模組"""
+"""MCP Center 源碼模組。"""

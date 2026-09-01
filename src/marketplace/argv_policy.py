@@ -13,7 +13,7 @@
   * 這是 **Stored** command/argument injection。威脅模型包含「攻擊者已經有
     辦法寫 DB」(SQL injection、洩漏的 DB 憑證、內部誤用 CRUD)。那條路徑
     完全繞過 catalog,所以只在寫入時驗等於沒防。
-  * 靜態掃描(Checkmarx 等)無法把「寫進 DB 前驗過」和「從 DB 讀出來用」
+  * 靜態掃描(SAST 工具)無法把「寫進 DB 前驗過」和「從 DB 讀出來用」
     連起來 — 這是 stored flow 的本質限制。sanitizer 必須出現在 DB 讀取與
     subprocess 之間,才是真的在那條路徑上。
 
