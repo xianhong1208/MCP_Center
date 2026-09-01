@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { formatDateTime } from '../utils/format'
 import { useTranslation } from 'react-i18next'
 import {
   Bot, Plus, RefreshCw, Check, Ban, Trash2, KeyRound, Lock, Unlock, Pencil,
@@ -339,7 +340,7 @@ function KeysSection() {
             <div key={k.kid} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
                 <p className="truncate font-mono text-xs font-medium text-foreground">{k.kid}</p>
-                <p className="text-xs text-muted-foreground tabular-nums">{k.alg} · {t('clients.keys.created', { date: k.created_at || '—' })}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{k.alg} · {t('clients.keys.created', { date: k.created_at ? formatDateTime(k.created_at) : '—' })}</p>
               </div>
               <StatusPill tone={k.is_active ? 'success' : 'neutral'}>
                 {k.is_active ? t('clients.keys.active') : t('clients.keys.inactive')}

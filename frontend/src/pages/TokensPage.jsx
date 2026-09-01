@@ -174,7 +174,7 @@ export default function TokensPage() {
           <option value="">{t('tokens.list.allServices')}</option>
           {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Select>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+        <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
           <Checkbox checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           {t('tokens.list.includeInactive')}
         </label>

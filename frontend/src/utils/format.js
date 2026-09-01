@@ -47,12 +47,21 @@ export function relativeTimeParts(value, now = Date.now()) {
 }
 
 /**
- * 後端時間字串 → 本地可讀日期時間(如 "2026/9/30 17:22")。無法解析時回原字串。
+ * 後端時間字串 → 固定格式「YYYY/MM/DD HH:mm」(本地時區,不隨語系變動,年/月/日順序)。
+ * withSeconds=true 追加 :ss。無法解析時回原字串。
  */
-export function formatDateTime(value) {
+export function formatDateTime(value, { withSeconds = false } = {}) {
   const d = parseServerDate(value)
   if (!d) return value || ''
-  return d.toLocaleString(undefined, {
-    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+  const pad = (n) => String(n).padStart(2, '0')
+  const base = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return withSeconds ? `${base}:${pad(d.getSeconds())}` : base
+}
+
+/** 只有日期:YYYY/MM/DD */
+export function formatDate(value) {
+  const d = parseServerDate(value)
+  if (!d) return value || ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { formatDateTime } from '../utils/format'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Check, Sparkles } from 'lucide-react'
@@ -139,7 +140,7 @@ export default function CreateTokenPage() {
             className="rounded-md border border-border px-4"
             items={[
               { label: t('tokens.create.labelLabel'), value: result.label || '—' },
-              { label: t('tokens.create.expiresAt'), value: result.expires_at, mono: true },
+              { label: t('tokens.create.expiresAt'), value: formatDateTime(result.expires_at), mono: true },
               { label: t('tokens.create.scopesGranted'), value: (result.scopes || []).join(' ') || '—', mono: true },
             ]}
           />

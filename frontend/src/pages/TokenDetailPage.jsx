@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { formatDateTime } from '../utils/format'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Ban, Clock } from 'lucide-react'
@@ -139,14 +140,14 @@ export default function TokenDetailPage() {
   ]
 
   const lifecycleItems = [
-    { label: t('tokens.detail.issuedAt'), value: token.issued_at || '—', mono: true },
-    { label: t('tokens.detail.expiresAt'), value: token.expires_at || t('tokens.common.never'), mono: true },
+    { label: t('tokens.detail.issuedAt'), value: token.issued_at ? formatDateTime(token.issued_at) : '—', mono: true },
+    { label: t('tokens.detail.expiresAt'), value: token.expires_at ? formatDateTime(token.expires_at) : t('tokens.common.never'), mono: true },
     {
       label: t('tokens.detail.lastUsed'),
       value: token.last_used_at ? (
         <>
           <LastChecked value={token.last_used_at} className="justify-end text-foreground" />
-          <span className="block font-mono text-xs text-muted-foreground">{token.last_used_at}{token.last_used_ip ? ` · ${token.last_used_ip}` : ''}</span>
+          <span className="block font-mono text-xs text-muted-foreground">{formatDateTime(token.last_used_at, { withSeconds: true })}{token.last_used_ip ? ` · ${token.last_used_ip}` : ''}</span>
         </>
       ) : <span className="text-muted-foreground">{t('tokens.common.neverUsed')}</span>,
     },
@@ -170,7 +171,7 @@ export default function TokenDetailPage() {
 
       {token.status === 'revoked' && (
         <Alert tone="neutral" icon={Ban}>
-          {t('tokens.detail.revokedNotice', { at: token.revoked_at || '', reason: token.revoke_reason || '—' })}
+          {t('tokens.detail.revokedNotice', { at: token.revoked_at ? formatDateTime(token.revoked_at) : '', reason: token.revoke_reason || '—' })}
         </Alert>
       )}
 

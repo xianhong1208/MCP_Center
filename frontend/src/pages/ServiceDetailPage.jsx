@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { formatDateTime, formatDate } from '../utils/format'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -357,7 +358,7 @@ export default function ServiceDetailPage() {
                 </span>
               )}
               {service.created_at && (
-                <span className="tabular-nums">{t('services.detail.createdAt', { date: service.created_at })}</span>
+                <span className="tabular-nums">{t('services.detail.createdAt', { date: formatDate(service.created_at) })}</span>
               )}
               {service.health?.error_message && (
                 <span className="max-w-full truncate text-danger" title={service.health.error_message}>{service.health.error_message}</span>
@@ -490,7 +491,7 @@ export default function ServiceDetailPage() {
                       <KindBadge kind={tk.kind} />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-foreground transition-colors duration-200 group-hover:text-link">{tk.label || tk.client_name || tk.jti}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{tk.client_name || tk.client_id}{tk.expires_at ? ` · ${t('services.detail.tokenExpires')} ${tk.expires_at}` : ''}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{tk.client_name || tk.client_id}{tk.expires_at ? ` · ${t('services.detail.tokenExpires')} ${formatDateTime(tk.expires_at)}` : ''}</span>
                       </span>
                     </Link>
                     <div className="hidden 2xl:block"><ScopeChips scopes={tk.scopes} max={2} /></div>

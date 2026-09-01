@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { formatDateTime } from '../utils/format'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -194,7 +195,7 @@ export default function AuditLogPage() {
     { label: t('audit.detail.actor'), value: selectedLog.actor_name || '-' },
     { label: t('audit.detail.actorType'), value: <span className="capitalize">{selectedLog.actor_type || '-'}</span> },
     { label: t('audit.detail.ipAddress'), value: selectedLog.ip_address || '-', mono: true },
-    { label: t('audit.detail.time'), value: new Date(selectedLog.created_at).toLocaleString() },
+    { label: t('audit.detail.time'), value: formatDateTime(selectedLog.created_at, { withSeconds: true }) },
     { label: t('audit.detail.request'), value: `${selectedLog.request_method} ${selectedLog.request_path}`, mono: true, wide: true },
   ] : []
 
@@ -362,26 +363,26 @@ export default function AuditLogPage() {
                   className="cursor-pointer"
                 >
                   <TD className="whitespace-nowrap font-mono text-xs tabular-nums" muted>
-                    {new Date(log.created_at).toLocaleString()}
+                    {formatDateTime(log.created_at, { withSeconds: true })}
                   </TD>
-                  <TD focal>
+                  <TD focal className="whitespace-nowrap">
                     {getActionLabel(log.action)}
                   </TD>
-                  <TD muted>
+                  <TD muted className="whitespace-nowrap">
                     <span className="inline-flex items-center gap-2">
                       <ResourceIcon className="h-4 w-4 text-subtle-foreground" aria-hidden="true" />
                       <span className="capitalize">{getResourceTypeLabel(log.resource_type)}</span>
                     </span>
                   </TD>
-                  <TD>
-                    {log.actor_name || '-'}
+                  <TD className="max-w-[16rem]">
+                    <span className="block truncate" title={log.actor_name || ''}>{log.actor_name || '-'}</span>
                   </TD>
-                  <TD>
+                  <TD className="whitespace-nowrap">
                     <StatusPill tone={statusCfg.tone} className="capitalize">
                       {getStatusLabel(log.status)}
                     </StatusPill>
                   </TD>
-                  <TD mono muted>
+                  <TD mono muted className="whitespace-nowrap">
                     {log.ip_address || '-'}
                   </TD>
                 </TR>
