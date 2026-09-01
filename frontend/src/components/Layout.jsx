@@ -3,7 +3,6 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { systemApi } from '../services/api'
-import GlobalSearch from './GlobalSearch'
 import ThemeToggle from './ThemeToggle'
 import LanguageSwitcher from './LanguageSwitcher'
 import SettingsModal from './SettingsModal'
@@ -79,7 +78,7 @@ export default function Layout() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        {/* Wordmark + search */}
+        {/* Wordmark */}
         <div className="flex h-14 items-center justify-between px-4">
           <Wordmark name={t('layout.appName')} />
           <IconButton
@@ -88,9 +87,6 @@ export default function Layout() {
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden"
           />
-        </div>
-        <div className="px-3 pb-3 pt-1">
-          <GlobalSearch />
         </div>
 
         {/* Navigation */}

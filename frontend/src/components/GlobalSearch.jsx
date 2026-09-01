@@ -5,20 +5,19 @@ import { Search, Key, Server, Bot, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import { oauthApi, servicesApi } from '../services/api'
-import { Kbd, Spinner } from './ui'
+import { Kbd } from './ui/Misc'
+import Spinner from './ui/Spinner'
 
 const EMPTY = { tokens: [], services: [], clients: [] }
-const PANEL_WIDTH = 520
+const PANEL_WIDTH = 440
 const PANEL_GAP = 6
 
 /**
- * 側欄搜尋:直接在側欄的輸入框打字,結果以下拉清單貼在輸入框正下方、向右延伸
- * (不是置中彈窗、沒有全螢幕遮罩)。Ctrl/⌘+K 聚焦輸入框,Esc 關閉,換頁自動關閉。
- *
- * 下拉清單用 portal 掛到 body 並依輸入框的 bounding rect 定位:側欄有 transform
- * (抽屜動畫),裡面的 fixed/absolute 元素會被關在側欄寬度內,所以不能直接放在側欄裡。
+ * 全站搜尋框(放在每頁標題列右側、主要按鈕左邊):直接打字,結果以下拉清單貼在輸入框正下方
+ * (不是置中彈窗、沒有全螢幕遮罩)。Ctrl/⌘+K 聚焦,Esc 清空,換頁自動清空。
+ * 下拉清單用 portal 掛到 body 並依輸入框的 bounding rect 定位。
  */
-export default function GlobalSearch() {
+export default function GlobalSearch({ className }) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -46,13 +45,18 @@ export default function GlobalSearch() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // 換頁時關閉
+  const collapse = () => {
+    setQuery('')
+    setIsFocused(false)
+  }
+
+  // 換頁時清空
   useEffect(() => {
     setQuery('')
     setIsFocused(false)
   }, [location.pathname])
 
-  // 點到輸入框與清單以外的地方 → 關閉
+  // 點到輸入框與清單以外的地方 → 收合
   useEffect(() => {
     if (!isOpen) return
     const onPointerDown = (e) => {
@@ -131,8 +135,7 @@ export default function GlobalSearch() {
   const totalResults = allResults.length
 
   const handleSelect = (item) => {
-    setQuery('')
-    setIsFocused(false)
+    collapse()
     inputRef.current?.blur()
     switch (item.type) {
       case 'token': navigate(`/tokens/${encodeURIComponent(item.key)}`); break
@@ -145,8 +148,7 @@ export default function GlobalSearch() {
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
-      setQuery('')
-      setIsFocused(false)
+      collapse()
       inputRef.current?.blur()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -246,8 +248,9 @@ export default function GlobalSearch() {
     <>
       <div
         className={clsx(
-          'flex h-9 w-full items-center gap-2 rounded-md border bg-card pl-3 pr-2 text-sm transition-colors duration-200',
+          'flex h-9 items-center gap-2 rounded-md border bg-card pl-3 pr-1.5 text-sm transition-colors duration-200',
           isFocused ? 'border-accent ring-2 ring-accent/30' : 'border-border hover:border-border-strong',
+          className,
         )}
       >
         <Search className="h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />
@@ -263,7 +266,7 @@ export default function GlobalSearch() {
           aria-autocomplete="list"
           aria-label={t('components.search.placeholderInput')}
           className="h-full min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle-foreground"
-          placeholder={t('components.search.placeholderTrigger')}
+          placeholder={t('components.search.placeholderInput')}
         />
         {query ? (
           <button

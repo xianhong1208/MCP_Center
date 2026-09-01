@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import clsx from 'clsx'
+import GlobalSearch from '../GlobalSearch'
 
 /**
  * 每頁頂部:標題(text-xl semibold)+ 一行說明 + 右側動作(最多一顆 primary)。
  * backTo / backLabel:顯示上一層連結(detail 頁)。
  * meta:標題右側的小元素(StatusPill / Badge)。
+ * search:標題列右側(動作左邊)放全站搜尋框;預設開,detail 頁可關。
  */
-export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className }) {
+export default function PageHeader({ title, description, actions, backTo, backLabel, meta, className, search = true }) {
   return (
     <div className={clsx('flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between', className)}>
       <div className="min-w-0">
@@ -26,7 +28,10 @@ export default function PageHeader({ title, description, actions, backTo, backLa
         </div>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {search && <GlobalSearch className="hidden w-64 lg:flex" />}
+        {actions}
+      </div>
     </div>
   )
 }
