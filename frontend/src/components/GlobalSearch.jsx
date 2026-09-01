@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Search, Key, Server, Bot, X } from 'lucide-react'
 import { oauthApi, servicesApi } from '../services/api'
 import clsx from 'clsx'
+import { createPortal } from 'react-dom'
 import { Kbd, Spinner, EmptyState } from './ui'
 
 const EMPTY = { tokens: [], services: [], clients: [] }
@@ -146,16 +147,15 @@ export default function GlobalSearch() {
       render: (c) => [c.client_name, `${c.client_id} · ${c.created_via}`] },
   ]
 
-  return (
-    <>
-      {trigger}
+  // 面板用 portal 掛到 body:側欄有 transform(抽屜動畫),fixed 元素會被關在側欄寬度裡
+  const palette = (
       <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
         <div
           className="absolute inset-0 bg-black/60 animate-fade-in"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
-        <div className="relative mx-auto mt-[12vh] max-w-xl px-4">
+        <div className="relative mx-auto mt-[12vh] max-w-2xl px-4">
           <div className="overflow-hidden rounded-lg border border-border bg-popover shadow-overlay animate-dialog-in">
             <div className="flex h-12 items-center gap-3 border-b border-border px-4">
               <Search className="h-4 w-4 shrink-0 text-subtle-foreground" aria-hidden="true" />
@@ -209,9 +209,9 @@ export default function GlobalSearch() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
                               <g.icon className="h-3.5 w-3.5" aria-hidden="true" />
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-foreground">{line1}</span>
-                              <span className="block truncate text-xs text-muted-foreground">{line2}</span>
+                            <span className="flex min-w-0 flex-1 items-baseline gap-3">
+                              <span className="max-w-[55%] shrink-0 truncate text-sm font-medium text-foreground">{line1}</span>
+                              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={line2}>{line2}</span>
                             </span>
                           </button>
                         )
@@ -247,6 +247,12 @@ export default function GlobalSearch() {
           </div>
         </div>
       </div>
+  )
+
+  return (
+    <>
+      {trigger}
+      {createPortal(palette, document.body)}
     </>
   )
 }

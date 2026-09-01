@@ -74,7 +74,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-muted',
+          'fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-border bg-muted',
           'transition-transform duration-200 ease-out lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -145,7 +145,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="min-w-0 lg:pl-60">
+      <main className="min-w-0 lg:pl-[272px]">
         {/* Mobile-only bar */}
         <div className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-background px-4 lg:hidden">
           <IconButton
